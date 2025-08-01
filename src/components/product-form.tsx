@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -10,13 +11,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import type { Product } from '@/lib/types';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import Image from 'next/image';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
   category: z.string().min(2, { message: 'Category must be at least 2 characters.' }),
-  image: z.string().url({ message: 'Please enter a valid URL.' }),
+  image: z.string().min(1, { message: 'Please upload an image.' }),
 });
 
 type ProductFormValues = z.infer<typeof formSchema>;
@@ -28,6 +31,8 @@ interface ProductFormProps {
 
 export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
   const router = useRouter();
+  const [imagePreview, setImagePreview] = useState<string | null>(initialData?.image || null);
+
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: initialData || {
@@ -35,9 +40,23 @@ export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
       description: '',
       price: 0,
       category: '',
-      image: 'https://placehold.co/600x400.png',
+      image: '',
     },
   });
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        setImagePreview(dataUrl);
+        form.setValue('image', dataUrl);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
 
   return (
     <Form {...form}>
@@ -98,15 +117,33 @@ export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
           control={form.control}
           name="image"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Image URL</FormLabel>
+             <FormItem>
+              <FormLabel>Product Image</FormLabel>
               <FormControl>
-                <Input placeholder="https://your-image-url.com/image.png" {...field} />
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="file:text-primary file:font-medium"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+
+        {imagePreview && (
+          <div className="flex justify-center">
+            <Image
+              src={imagePreview}
+              alt="Product preview"
+              width={200}
+              height={200}
+              className="rounded-lg object-cover"
+            />
+          </div>
+        )}
+
         <div className="flex gap-4">
           <Button type="submit" className="flex-grow">
             {initialData ? 'Save Changes' : 'Create Product'}
