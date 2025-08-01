@@ -71,8 +71,8 @@ export default function Home() {
             <div>
               <Label>Price Range</Label>
               <div className="flex justify-between items-center text-sm text-muted-foreground">
-                <span>$0</span>
-                <span>${priceRange[0]}</span>
+                <span>₹0</span>
+                <span>₹{priceRange[0]}</span>
               </div>
               <Slider
                 min={0}

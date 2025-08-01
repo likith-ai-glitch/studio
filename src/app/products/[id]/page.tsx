@@ -41,7 +41,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
           </div>
           
           <div className="flex items-center gap-4">
-              <p className="text-4xl font-bold text-primary">${product.price.toFixed(2)}</p>
+              <p className="text-4xl font-bold text-primary">₹{product.price.toFixed(2)}</p>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Color:</span>
                 <span className="font-semibold">{product.color}</span>

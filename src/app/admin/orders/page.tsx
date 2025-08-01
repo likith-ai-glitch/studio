@@ -35,7 +35,7 @@ export default function OrdersPage() {
                     <p className="text-sm text-muted-foreground">{order.customer.email}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-primary">${order.total.toFixed(2)}</p>
+                    <p className="font-bold text-primary">₹{order.total.toFixed(2)}</p>
                     <p className="text-sm text-muted-foreground">{format(order.orderDate, "PPP p")}</p>
                   </div>
                 </div>
@@ -61,7 +61,7 @@ export default function OrdersPage() {
                                         <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
                                     </div>
                                 </div>
-                                <p className="text-muted-foreground">${(item.price * item.quantity).toFixed(2)}</p>
+                                <p className="text-muted-foreground">₹{(item.price * item.quantity).toFixed(2)}</p>
                             </li>
                         ))}
                         </ul>

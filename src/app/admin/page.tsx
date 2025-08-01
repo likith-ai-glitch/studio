@@ -81,7 +81,7 @@ export default function AdminPage() {
                   <TableCell>{product.category}</TableCell>
                   <TableCell>{product.brand}</TableCell>
                   <TableCell>{product.color}</TableCell>
-                  <TableCell className="hidden md:table-cell">${product.price.toFixed(2)}</TableCell>
+                  <TableCell className="hidden md:table-cell">₹{product.price.toFixed(2)}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

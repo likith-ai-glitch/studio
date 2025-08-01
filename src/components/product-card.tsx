@@ -63,7 +63,7 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
         </CardHeader>
         <CardContent className="flex-grow p-4 pt-0">
-          <p className="text-2xl font-semibold text-primary">${product.price.toFixed(2)}</p>
+          <p className="text-2xl font-semibold text-primary">₹{product.price.toFixed(2)}</p>
         </CardContent>
         <CardFooter className="p-4 pt-0">
           <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/80" onClick={handleAddToCartClick}>

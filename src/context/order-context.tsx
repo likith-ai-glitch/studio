@@ -27,7 +27,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     setOrders((prevOrders) => [...prevOrders, newOrder]);
     toast({
       title: 'New Order Received!',
-      description: `An order from ${customer.name} for $${total.toFixed(2)} was placed.`,
+      description: `An order from ${customer.name} for ₹${total.toFixed(2)} was placed.`,
     });
   };
 

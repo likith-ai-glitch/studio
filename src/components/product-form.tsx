@@ -90,7 +90,7 @@ export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
               <FormLabel>Price</FormLabel>
               <FormControl>
                 <div className="relative">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">₹</span>
                   <Input type="number" placeholder="e.g. 249.99" className="pl-7" {...field} />
                 </div>
               </FormControl>
