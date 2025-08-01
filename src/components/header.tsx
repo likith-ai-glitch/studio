@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ShoppingCart, Heart, Store } from 'lucide-react';
+import { ShoppingCart, Heart, Store, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/context/cart-context';
 import { useWishlist } from '@/context/wishlist-context';
@@ -21,6 +21,12 @@ export function Header() {
             </Link>
           </div>
           <nav className="flex items-center gap-4">
+            <Button variant="ghost" asChild>
+              <Link href="/admin" className="flex items-center gap-1">
+                <Wrench className="h-5 w-5" />
+                <span className="hidden md:inline">Admin</span>
+              </Link>
+            </Button>
             <Button variant="ghost" asChild>
               <Link href="/wishlist" className="relative flex items-center gap-1">
                 <Heart className="h-5 w-5" />
