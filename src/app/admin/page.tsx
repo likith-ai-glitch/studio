@@ -138,6 +138,7 @@ export default function AdminPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>ID</TableHead>
                 <TableHead className="hidden w-[100px] sm:table-cell">
                   Image
                 </TableHead>
@@ -154,6 +155,7 @@ export default function AdminPage() {
             <TableBody>
               {products.map((product) => (
                 <TableRow key={product.id}>
+                  <TableCell>{product.id}</TableCell>
                   <TableCell className="hidden sm:table-cell">
                     <Image
                       alt={product.name}
