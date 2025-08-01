@@ -61,7 +61,6 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
     try {
-      auth.tenantId = auth.app.options.authDomain;
       await setPersistence(auth, browserLocalPersistence);
       await signInWithPopup(auth, googleProvider);
        toast({
