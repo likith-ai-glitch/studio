@@ -74,7 +74,7 @@ export default function AdminPage() {
                       height="64"
                       src={product.image}
                       width="64"
-                      data-ai-hint={`${product.category} product`}
+                      data-ai-hint={`${product.category.toLowerCase()} ${product.name.split(' ')[0].toLowerCase()}`}
                     />
                   </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>

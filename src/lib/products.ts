@@ -1,3 +1,4 @@
+
 import type { Product } from './types';
 
 export const products: Product[] = [
@@ -87,7 +88,7 @@ export const products: Product[] = [
     description: 'A professional high-carbon stainless steel chef\'s knife. Perfectly balanced for precision cutting and dicing. An essential tool for any kitchen.',
     price: 89.99,
     image: 'https://placehold.co/600x400.png',
-    category: 'Appliances',
+    category: 'Kitchen',
     color: 'Silver',
     brand: 'Wüsthof',
   },

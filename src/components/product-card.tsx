@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from 'next/image';
@@ -44,7 +45,7 @@ export function ProductCard({ product }: ProductCardProps) {
               width={600}
               height={400}
               className="object-cover w-full h-48"
-              data-ai-hint={`${product.category} product`}
+              data-ai-hint={`${product.category.toLowerCase()} ${product.name.split(' ')[0].toLowerCase()}`}
             />
             <Button
               size="icon"

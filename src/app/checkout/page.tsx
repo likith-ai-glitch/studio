@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useCart } from '@/context/cart-context';
@@ -149,7 +150,7 @@ export default function CheckoutPage() {
             {cartItems.map((item) => (
               <div key={item.id} className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <Image src={item.image} alt={item.name} width={64} height={64} className="rounded-md object-cover" data-ai-hint={`${item.category} product`} />
+                  <Image src={item.image} alt={item.name} width={64} height={64} className="rounded-md object-cover" data-ai-hint={`${item.category.toLowerCase()} ${item.name.split(' ')[0].toLowerCase()}`} />
                   <div>
                     <p className="font-semibold">{item.name}</p>
                     <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>

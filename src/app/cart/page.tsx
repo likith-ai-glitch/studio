@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useCart } from '@/context/cart-context';
@@ -24,7 +25,7 @@ export default function CartPage() {
           <div className="md:col-span-2 space-y-4">
             {cartItems.map((item) => (
               <Card key={item.id} className="flex items-center p-4 shadow-sm">
-                <Image src={item.image} alt={item.name} width={100} height={100} className="rounded-md object-cover" data-ai-hint={`${item.category} product`} />
+                <Image src={item.image} alt={item.name} width={100} height={100} className="rounded-md object-cover" data-ai-hint={`${item.category.toLowerCase()} ${item.name.split(' ')[0].toLowerCase()}`} />
                 <div className="ml-4 flex-grow">
                   <h2 className="font-semibold">{item.name}</h2>
                   <p className="text-sm text-muted-foreground">${item.price.toFixed(2)}</p>

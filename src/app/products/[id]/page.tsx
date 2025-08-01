@@ -31,7 +31,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
             width={800}
             height={800}
             className="w-full h-full object-cover"
-            data-ai-hint={`${product.category} product`}
+            data-ai-hint={`${product.category.toLowerCase()} ${product.name.split(' ')[0].toLowerCase()}`}
           />
         </div>
         <div className="flex flex-col justify-center space-y-6">
