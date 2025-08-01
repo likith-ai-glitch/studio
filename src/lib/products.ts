@@ -9,6 +9,7 @@ export const products: Product[] = [
     image: 'https://placehold.co/600x400.png',
     category: 'Instruments',
     color: 'Natural',
+    brand: 'Fender',
   },
   {
     id: 2,
@@ -18,6 +19,7 @@ export const products: Product[] = [
     image: 'https://placehold.co/600x400.png',
     category: 'Electronics',
     color: 'Black',
+    brand: 'Sony',
   },
   {
     id: 3,
@@ -27,6 +29,7 @@ export const products: Product[] = [
     image: 'https://placehold.co/600x400.png',
     category: 'Furniture',
     color: 'Bamboo',
+    brand: 'IKEA',
   },
   {
     id: 4,
@@ -36,6 +39,7 @@ export const products: Product[] = [
     image: 'https://placehold.co/600x400.png',
     category: 'Appliances',
     color: 'Silver',
+    brand: 'Breville',
   },
   {
     id: 5,
@@ -45,6 +49,7 @@ export const products: Product[] = [
     image: 'https://placehold.co/600x400.png',
     category: 'Accessories',
     color: 'Brown',
+    brand: 'Herschel',
   },
   {
     id: 6,
@@ -54,6 +59,7 @@ export const products: Product[] = [
     image: 'https://placehold.co/600x400.png',
     category: 'Sports',
     color: 'Teal',
+    brand: 'Lululemon',
   },
   {
     id: 7,
@@ -63,6 +69,7 @@ export const products: Product[] = [
     image: 'https://placehold.co/600x400.png',
     category: 'Electronics',
     color: 'Rose Gold',
+    brand: 'Apple',
   },
   {
     id: 8,
@@ -72,6 +79,7 @@ export const products: Product[] = [
     image: 'https://placehold.co/600x400.png',
     category: 'Instruments',
     color: 'Black',
+    brand: 'Yamaha',
   },
    {
     id: 9,
@@ -81,5 +89,6 @@ export const products: Product[] = [
     image: 'https://placehold.co/600x400.png',
     category: 'Appliances',
     color: 'Silver',
+    brand: 'Wüsthof',
   },
 ];

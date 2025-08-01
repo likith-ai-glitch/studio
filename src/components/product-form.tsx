@@ -17,6 +17,7 @@ const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
   category: z.string().min(2, { message: 'Category must be at least 2 characters.' }),
+  brand: z.string().min(2, { message: 'Brand must be at least 2 characters.' }),
   color: z.string().min(2, { message: 'Color must be at least 2 characters.' }),
   image: z.string().min(1, { message: 'Please upload an image.' }),
 });
@@ -38,6 +39,7 @@ export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
       name: '',
       price: 0,
       category: '',
+      brand: '',
       color: '',
       image: '',
     },
@@ -104,6 +106,19 @@ export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
               <FormLabel>Category</FormLabel>
               <FormControl>
                 <Input placeholder="e.g. Instruments" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="brand"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Brand</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g. Fender" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
