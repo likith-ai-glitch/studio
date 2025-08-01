@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ShoppingCart, Heart, Store, Wrench, LogIn, LogOut, User as UserIcon, ShieldCheck } from 'lucide-react';
+import { ShoppingCart, Heart, Store, Wrench, LogIn, LogOut, User as UserIcon, ShieldCheck, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/context/cart-context';
 import { useWishlist } from '@/context/wishlist-context';
@@ -30,6 +30,12 @@ export function Header() {
                   <Link href="/admin" className="flex items-center gap-1">
                     <Wrench className="h-5 w-5" />
                     <span className="hidden md:inline">Admin</span>
+                  </Link>
+                </Button>
+                 <Button variant="ghost" asChild>
+                  <Link href="/admin/orders" className="flex items-center gap-1">
+                    <Package className="h-5 w-5" />
+                    <span className="hidden md:inline">Orders</span>
                   </Link>
                 </Button>
                 <Button variant="ghost" asChild>

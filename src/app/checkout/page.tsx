@@ -2,6 +2,7 @@
 'use client';
 
 import { useCart } from '@/context/cart-context';
+import { useOrders } from '@/context/order-context';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -25,6 +26,7 @@ const formSchema = z.object({
 
 export default function CheckoutPage() {
   const { cartItems, totalPrice, clearCart } = useCart();
+  const { addOrder } = useOrders();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -46,7 +48,7 @@ export default function CheckoutPage() {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values); // In a real app, this would be sent to a server
+    addOrder(values, cartItems, totalPrice);
     toast({
       title: 'Order Placed!',
       description: 'Thank you for your purchase. A confirmation has been sent to your email.',

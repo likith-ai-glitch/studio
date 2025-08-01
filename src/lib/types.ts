@@ -21,3 +21,17 @@ export interface AppEvent {
   userEmail: string;
   details?: Record<string, any>;
 }
+
+export interface Order {
+  id: number;
+  customer: {
+    name: string;
+    email: string;
+    address: string;
+    city: string;
+    zip: string;
+  };
+  items: CartItem[];
+  total: number;
+  orderDate: Date;
+}
