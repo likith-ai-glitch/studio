@@ -1,14 +1,17 @@
+
 'use client';
 
 import Link from 'next/link';
-import { ShoppingCart, Heart, Store, Wrench } from 'lucide-react';
+import { ShoppingCart, Heart, Store, Wrench, LogIn, LogOut, User as UserIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/context/cart-context';
 import { useWishlist } from '@/context/wishlist-context';
+import { useAuth } from '@/context/auth-context';
 
 export function Header() {
   const { cartCount } = useCart();
   const { wishlistCount } = useWishlist();
+  const { user, logout, loading } = useAuth();
 
   return (
     <header className="bg-card shadow-md sticky top-0 z-40">
@@ -20,13 +23,15 @@ export function Header() {
               <span>Shopstream</span>
             </Link>
           </div>
-          <nav className="flex items-center gap-4">
-            <Button variant="ghost" asChild>
-              <Link href="/admin" className="flex items-center gap-1">
-                <Wrench className="h-5 w-5" />
-                <span className="hidden md:inline">Admin</span>
-              </Link>
-            </Button>
+          <nav className="flex items-center gap-1 sm:gap-4">
+            {user && (
+              <Button variant="ghost" asChild>
+                <Link href="/admin" className="flex items-center gap-1">
+                  <Wrench className="h-5 w-5" />
+                  <span className="hidden md:inline">Admin</span>
+                </Link>
+              </Button>
+            )}
             <Button variant="ghost" asChild>
               <Link href="/wishlist" className="relative flex items-center gap-1">
                 <Heart className="h-5 w-5" />
@@ -49,6 +54,21 @@ export function Header() {
                 )}
               </Link>
             </Button>
+             {!loading && (
+              user ? (
+                <Button variant="ghost" onClick={logout} className="flex items-center gap-1">
+                  <LogOut className="h-5 w-5" />
+                   <span className="hidden md:inline">Logout</span>
+                </Button>
+              ) : (
+                <Button variant="ghost" asChild>
+                  <Link href="/login" className="flex items-center gap-1">
+                    <LogIn className="h-5 w-5" />
+                    <span className="hidden md:inline">Login</span>
+                  </Link>
+                </Button>
+              )
+            )}
           </nav>
         </div>
       </div>
