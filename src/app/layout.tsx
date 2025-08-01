@@ -7,6 +7,7 @@ import { Header } from '@/components/header';
 export const metadata: Metadata = {
   title: 'Shopstream',
   description: 'Your one-stop shop for everything you need.',
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
