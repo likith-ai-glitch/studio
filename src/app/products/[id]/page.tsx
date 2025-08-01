@@ -1,21 +1,19 @@
-import { products } from '@/lib/products';
+
+'use client';
+
+import { useProducts } from '@/context/product-context';
 import type { Product } from '@/lib/types';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
-import { Heart, ShoppingCart } from 'lucide-react';
 import { AddToCartButton } from '@/components/add-to-cart-button';
 import { AddToWishlistButton } from '@/components/add-to-wishlist-button';
 import { AiDescriptionEditor } from '@/components/ai-description-editor';
 import { ProductCard } from '@/components/product-card';
 
-async function getProduct(id: string): Promise<Product | undefined> {
-  const productId = parseInt(id, 10);
-  return products.find((p) => p.id === productId);
-}
-
-export default async function ProductDetailPage({ params }: { params: { id: string } }) {
-  const product = await getProduct(params.id);
+export default function ProductDetailPage({ params }: { params: { id: string } }) {
+  const { products } = useProducts();
+  const productId = parseInt(params.id, 10);
+  const product = products.find((p) => p.id === productId);
 
   if (!product) {
     notFound();
@@ -64,8 +62,9 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
   );
 }
 
-export async function generateStaticParams() {
-  return products.map((product) => ({
-    id: product.id.toString(),
-  }));
-}
+// This function is commented out because dynamic pages cannot be statically generated.
+// export async function generateStaticParams() {
+//   return products.map((product) => ({
+//     id: product.id.toString(),
+//   }));
+// }

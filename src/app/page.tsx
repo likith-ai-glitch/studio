@@ -1,21 +1,29 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
 import type { Product } from '@/lib/types';
-import { products as allProducts } from '@/lib/products';
+import { useProducts } from '@/context/product-context';
 import { ProductCard } from '@/components/product-card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 
-const categories = ['All', ...Array.from(new Set(allProducts.map((p) => p.category)))];
-const maxPrice = Math.ceil(Math.max(...allProducts.map((p) => p.price)));
-
 export default function Home() {
+  const { products: allProducts } = useProducts();
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState('All');
+  
+  const categories = ['All', ...Array.from(new Set(allProducts.map((p) => p.category)))];
+  const maxPrice = Math.ceil(Math.max(...allProducts.map((p) => p.price), 0));
+
   const [priceRange, setPriceRange] = useState([maxPrice]);
+
+  useMemo(() => {
+    setPriceRange([maxPrice]);
+  }, [maxPrice]);
+
 
   const filteredProducts = useMemo(() => {
     return allProducts.filter((product) => {
@@ -24,7 +32,7 @@ export default function Home() {
       const matchesPrice = product.price <= priceRange[0];
       return matchesSearch && matchesCategory && matchesPrice;
     });
-  }, [searchTerm, category, priceRange]);
+  }, [allProducts, searchTerm, category, priceRange]);
 
   return (
     <div className="flex flex-col gap-8">
