@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { auth, googleProvider } from '@/lib/firebase';
-import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -40,6 +40,7 @@ export default function LoginPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
+      await setPersistence(auth, browserLocalPersistence);
       await signInWithEmailAndPassword(auth, values.email, values.password);
       toast({
         title: 'Login Successful',
@@ -60,6 +61,8 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
     try {
+      auth.tenantId = auth.app.options.authDomain;
+      await setPersistence(auth, browserLocalPersistence);
       await signInWithPopup(auth, googleProvider);
        toast({
         title: 'Login Successful',
