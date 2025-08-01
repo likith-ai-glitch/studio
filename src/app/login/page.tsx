@@ -1,12 +1,12 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { auth, googleProvider } from '@/lib/firebase';
-import { signInWithEmailAndPassword, signInWithPopup, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithRedirect, getRedirectResult, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -37,6 +37,33 @@ export default function LoginPage() {
     },
   });
 
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+        setIsGoogleLoading(true);
+        try {
+            const result = await getRedirectResult(auth);
+            if (result && result.user) {
+                 toast({
+                    title: 'Login Successful',
+                    description: 'Welcome back!',
+                });
+                router.push('/admin');
+            }
+        } catch (error: any) {
+             toast({
+                title: 'Login Failed',
+                description: error.message,
+                variant: 'destructive',
+            });
+        } finally {
+            setIsGoogleLoading(false);
+        }
+    };
+
+    handleRedirectResult();
+  }, [router, toast]);
+
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
@@ -62,20 +89,14 @@ export default function LoginPage() {
     setIsGoogleLoading(true);
     try {
       await setPersistence(auth, browserLocalPersistence);
-      await signInWithPopup(auth, googleProvider);
-       toast({
-        title: 'Login Successful',
-        description: 'Welcome back!',
-      });
-      router.push('/admin');
+      await signInWithRedirect(auth, googleProvider);
     } catch (error: any) {
        toast({
         title: 'Login Failed',
         description: error.message,
         variant: 'destructive',
       });
-    } finally {
-      setIsGoogleLoading(false);
+       setIsGoogleLoading(false);
     }
   }
 
