@@ -1,12 +1,14 @@
 
 'use client';
 
+import { useState, useMemo } from 'react';
 import { useProducts } from '@/context/product-context';
 import { useOrders } from '@/context/order-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -29,11 +31,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { subDays, format } from 'date-fns';
+import type { Product } from '@/lib/types';
 
 
 export default function AdminPage() {
   const { products, deleteProduct } = useProducts();
   const { orders } = useOrders();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Product | null; direction: 'ascending' | 'descending' }>({ key: 'price', direction: 'ascending' });
 
   const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
   const totalSales = orders.length;
@@ -49,6 +54,37 @@ export default function AdminPage() {
     };
   }).reverse();
 
+  const sortedAndFilteredProducts = useMemo(() => {
+    let sortableProducts = [...products];
+
+    if (searchTerm) {
+      sortableProducts = sortableProducts.filter(product =>
+        product.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (sortConfig.key) {
+      sortableProducts.sort((a, b) => {
+        if (a[sortConfig.key!] < b[sortConfig.key!]) {
+          return sortConfig.direction === 'ascending' ? -1 : 1;
+        }
+        if (a[sortConfig.key!] > b[sortConfig.key!]) {
+          return sortConfig.direction === 'ascending' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    return sortableProducts;
+  }, [products, searchTerm, sortConfig]);
+
+  const requestSort = (key: keyof Product) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
   
   return (
     <div className="space-y-8">
@@ -125,14 +161,22 @@ export default function AdminPage() {
       </Card>
       
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <CardTitle>Product List</CardTitle>
+          <div className="flex items-center gap-4 w-full md:w-auto">
+             <Input
+                placeholder="Filter by name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full md:w-64"
+              />
             <Button asChild size="sm">
               <Link href="/admin/products/new">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add Product
               </Link>
             </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -146,14 +190,16 @@ export default function AdminPage() {
                 <TableHead>Category</TableHead>
                 <TableHead>Brand</TableHead>
                 <TableHead>Color</TableHead>
-                <TableHead className="hidden md:table-cell">Price</TableHead>
+                <TableHead className="hidden md:table-cell cursor-pointer" onClick={() => requestSort('price')}>
+                  Price <ArrowUpDown className="inline-block ml-1 h-4 w-4" />
+                </TableHead>
                 <TableHead>
                   <span className="sr-only">Actions</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products.map((product) => (
+              {sortedAndFilteredProducts.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell>{product.id}</TableCell>
                   <TableCell className="hidden sm:table-cell">
