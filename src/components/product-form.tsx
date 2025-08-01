@@ -7,7 +7,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import type { Product } from '@/lib/types';
 import { useRouter } from 'next/navigation';
@@ -16,28 +15,26 @@ import Image from 'next/image';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
-  description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
   category: z.string().min(2, { message: 'Category must be at least 2 characters.' }),
   image: z.string().min(1, { message: 'Please upload an image.' }),
 });
 
-type ProductFormValues = z.infer<typeof formSchema>;
+type ProductFormValues = Omit<Product, 'id' | 'description'>;
 
 interface ProductFormProps {
   initialData?: Product;
-  onSubmit: (data: ProductFormValues) => void;
+  onSubmit: (data: ProductFormValues & { description: string }) => void;
 }
 
 export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
   const router = useRouter();
   const [imagePreview, setImagePreview] = useState<string | null>(initialData?.image || null);
 
-  const form = useForm<ProductFormValues>({
+  const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: initialData || {
       name: '',
-      description: '',
       price: 0,
       category: '',
       image: '',
@@ -57,10 +54,17 @@ export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
     }
   };
 
+  const onFormSubmit = (values: z.infer<typeof formSchema>) => {
+    onSubmit({
+      ...values,
+      description: initialData?.description || '' 
+    });
+  }
+
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-6">
         <FormField
           control={form.control}
           name="name"
@@ -69,19 +73,6 @@ export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
               <FormLabel>Product Name</FormLabel>
               <FormControl>
                 <Input placeholder="e.g. Acoustic Guitar" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea placeholder="Describe the product" {...field} className="h-24" />
               </FormControl>
               <FormMessage />
             </FormItem>

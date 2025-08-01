@@ -6,6 +6,7 @@ import { useProducts } from '@/context/product-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRouter, useParams } from 'next/navigation';
 import { notFound } from 'next/navigation';
+import type { Product } from '@/lib/types';
 
 export default function EditProductPage() {
   const router = useRouter();
@@ -19,7 +20,7 @@ export default function EditProductPage() {
     notFound();
   }
 
-  const handleSubmit = (data: any) => {
+  const handleSubmit = (data: Omit<Product, 'id'>) => {
     updateProduct({ ...data, id });
     router.push('/admin');
   };
