@@ -61,6 +61,7 @@ export default function AdminPage() {
         const lowercasedFilter = searchTerm.toLowerCase();
         sortableProducts = sortableProducts.filter(product => {
             return (
+              product.id.toString().includes(lowercasedFilter) ||
               product.name.toLowerCase().includes(lowercasedFilter) ||
               product.category.toLowerCase().includes(lowercasedFilter) ||
               product.brand.toLowerCase().includes(lowercasedFilter) ||
