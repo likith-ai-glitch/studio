@@ -39,7 +39,14 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
             <p className="text-sm font-medium text-muted-foreground">{product.category}</p>
             <h1 className="text-4xl font-bold font-headline mt-1">{product.name}</h1>
           </div>
-          <p className="text-4xl font-bold text-primary">${product.price.toFixed(2)}</p>
+          
+          <div className="flex items-center gap-4">
+              <p className="text-4xl font-bold text-primary">${product.price.toFixed(2)}</p>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Color:</span>
+                <span className="font-semibold">{product.color}</span>
+              </div>
+          </div>
           
           <AiDescriptionEditor product={product} />
 

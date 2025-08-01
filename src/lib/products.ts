@@ -8,6 +8,7 @@ export const products: Product[] = [
     price: 249.99,
     image: 'https://placehold.co/600x400.png',
     category: 'Instruments',
+    color: 'Natural',
   },
   {
     id: 2,
@@ -16,6 +17,7 @@ export const products: Product[] = [
     price: 199.99,
     image: 'https://placehold.co/600x400.png',
     category: 'Electronics',
+    color: 'Black',
   },
   {
     id: 3,
@@ -24,6 +26,7 @@ export const products: Product[] = [
     price: 150.0,
     image: 'https://placehold.co/600x400.png',
     category: 'Furniture',
+    color: 'Bamboo',
   },
   {
     id: 4,
@@ -32,6 +35,7 @@ export const products: Product[] = [
     price: 499.5,
     image: 'https://placehold.co/600x400.png',
     category: 'Appliances',
+    color: 'Silver',
   },
   {
     id: 5,
@@ -40,6 +44,7 @@ export const products: Product[] = [
     price: 120.0,
     image: 'https://placehold.co/600x400.png',
     category: 'Accessories',
+    color: 'Brown',
   },
   {
     id: 6,
@@ -48,6 +53,7 @@ export const products: Product[] = [
     price: 45.0,
     image: 'https://placehold.co/600x400.png',
     category: 'Sports',
+    color: 'Teal',
   },
   {
     id: 7,
@@ -56,6 +62,7 @@ export const products: Product[] = [
     price: 299.0,
     image: 'https://placehold.co/600x400.png',
     category: 'Electronics',
+    color: 'Rose Gold',
   },
   {
     id: 8,
@@ -64,6 +71,7 @@ export const products: Product[] = [
     price: 180.75,
     image: 'https://placehold.co/600x400.png',
     category: 'Instruments',
+    color: 'Black',
   },
    {
     id: 9,
@@ -72,5 +80,6 @@ export const products: Product[] = [
     price: 89.99,
     image: 'https://placehold.co/600x400.png',
     category: 'Appliances',
+    color: 'Silver',
   },
 ];

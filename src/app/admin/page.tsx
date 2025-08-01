@@ -56,6 +56,7 @@ export default function AdminPage() {
                 </TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
+                <TableHead>Color</TableHead>
                 <TableHead className="hidden md:table-cell">Price</TableHead>
                 <TableHead>
                   <span className="sr-only">Actions</span>
@@ -77,6 +78,7 @@ export default function AdminPage() {
                   </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>{product.category}</TableCell>
+                  <TableCell>{product.color}</TableCell>
                   <TableCell className="hidden md:table-cell">${product.price.toFixed(2)}</TableCell>
                   <TableCell>
                     <DropdownMenu>
