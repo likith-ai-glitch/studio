@@ -62,6 +62,8 @@ export default function LoginPage() {
     setIsGoogleLoading(true);
     try {
       await setPersistence(auth, browserLocalPersistence);
+      // Explicitly set the tenant ID to the auth domain to ensure correct redirect.
+      auth.tenantId = auth.config.authDomain;
       await signInWithPopup(auth, googleProvider);
        toast({
         title: 'Login Successful',
