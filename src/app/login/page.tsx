@@ -61,9 +61,6 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
     try {
-      googleProvider.setCustomParameters({
-        'auth_domain': auth.config.authDomain
-      });
       await setPersistence(auth, browserLocalPersistence);
       await signInWithPopup(auth, googleProvider);
        toast({
