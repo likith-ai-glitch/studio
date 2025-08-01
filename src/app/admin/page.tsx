@@ -58,9 +58,15 @@ export default function AdminPage() {
     let sortableProducts = [...products];
 
     if (searchTerm) {
-      sortableProducts = sortableProducts.filter(product =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+        const lowercasedFilter = searchTerm.toLowerCase();
+        sortableProducts = sortableProducts.filter(product => {
+            return (
+              product.name.toLowerCase().includes(lowercasedFilter) ||
+              product.category.toLowerCase().includes(lowercasedFilter) ||
+              product.brand.toLowerCase().includes(lowercasedFilter) ||
+              product.color.toLowerCase().includes(lowercasedFilter)
+            );
+        });
     }
 
     if (sortConfig.key) {
@@ -165,7 +171,7 @@ export default function AdminPage() {
           <CardTitle>Product List</CardTitle>
           <div className="flex items-center gap-4 w-full md:w-auto">
              <Input
-                placeholder="Filter by name..."
+                placeholder="Filter products..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full md:w-64"
