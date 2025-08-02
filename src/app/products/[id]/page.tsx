@@ -9,11 +9,36 @@ import { AddToCartButton } from '@/components/add-to-cart-button';
 import { AddToWishlistButton } from '@/components/add-to-wishlist-button';
 import { AiDescriptionEditor } from '@/components/ai-description-editor';
 import { ProductCard } from '@/components/product-card';
+import { useEffect, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 
 export default function ProductDetailPage({ params }: { params: { id: string } }) {
-  const { products } = useProducts();
-  const productId = parseInt(params.id, 10);
-  const product = products.find((p) => p.id === productId);
+  const { products, getProduct, loading } = useProducts();
+  const [product, setProduct] = useState<Product | undefined | null>(null);
+
+  useEffect(() => {
+    const fetchProduct = async () => {
+        const p = await getProduct(params.id);
+        setProduct(p);
+    }
+    // First, try to find the product in the already loaded list
+    const foundProduct = products.find((p) => p.id.toString() === params.id);
+    if(foundProduct){
+        setProduct(foundProduct);
+    } else {
+        // If not found (e.g. direct navigation), fetch it individually
+        fetchProduct();
+    }
+  }, [params.id, products, getProduct]);
+
+
+  if (loading || product === null) {
+    return (
+       <div className="flex items-center justify-center min-h-[calc(100vh-20rem)]">
+        <Loader2 className="h-16 w-16 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   if (!product) {
     notFound();
@@ -68,10 +93,3 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
     </div>
   );
 }
-
-// This function is commented out because dynamic pages cannot be statically generated.
-// export async function generateStaticParams() {
-//   return products.map((product) => ({
-//     id: product.id.toString(),
-//   }));
-// }

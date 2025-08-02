@@ -1,28 +1,30 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
-import type { Product } from '@/lib/types';
+import { useState, useMemo, useEffect } from 'react';
 import { useProducts } from '@/context/product-context';
 import { ProductCard } from '@/components/product-card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
+import { Loader2 } from 'lucide-react';
 
 export default function Home() {
-  const { products: allProducts } = useProducts();
+  const { products: allProducts, loading: productsLoading } = useProducts();
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState('All');
   
   const categories = ['All', ...Array.from(new Set(allProducts.map((p) => p.category)))];
-  const maxPrice = Math.ceil(Math.max(...allProducts.map((p) => p.price), 0));
+  const maxPrice = Math.ceil(Math.max(...allProducts.map((p) => p.price), 100));
 
   const [priceRange, setPriceRange] = useState([maxPrice]);
 
-  useMemo(() => {
-    setPriceRange([maxPrice]);
-  }, [maxPrice]);
+  useEffect(() => {
+    if(!productsLoading) {
+        setPriceRange([maxPrice]);
+    }
+  }, [maxPrice, productsLoading]);
 
 
   const filteredProducts = useMemo(() => {
@@ -42,7 +44,7 @@ export default function Home() {
       </header>
       
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-        <aside className="md:col-span-1 bg-card p-6 rounded-lg shadow-sm self-start sticky top-8">
+        <aside className="md:col-span-1 bg-card p-6 rounded-lg shadow-sm self-start sticky top-24">
           <div className="space-y-6">
             <h2 className="text-xl font-headline font-semibold">Filters</h2>
             <div>
@@ -55,7 +57,7 @@ export default function Home() {
             </div>
             <div>
               <Label htmlFor="category-select">Category</Label>
-              <Select value={category} onValueChange={setCategory}>
+              <Select value={category} onValueChange={setCategory} disabled={productsLoading}>
                 <SelectTrigger id="category-select" className="w-full">
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
@@ -81,13 +83,18 @@ export default function Home() {
                 value={priceRange}
                 onValueChange={setPriceRange}
                 className="mt-2"
+                disabled={productsLoading}
               />
             </div>
           </div>
         </aside>
 
         <section className="md:col-span-3">
-          {filteredProducts.length > 0 ? (
+          {productsLoading ? (
+             <div className="flex items-center justify-center h-96">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+             </div>
+          ) : filteredProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />

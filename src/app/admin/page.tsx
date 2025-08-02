@@ -1,14 +1,14 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useProducts } from '@/context/product-context';
 import { useOrders } from '@/context/order-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -27,18 +27,24 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { subDays, format } from 'date-fns';
 import type { Product } from '@/lib/types';
+import { DropdownMenuItemProps } from '@radix-ui/react-dropdown-menu';
+
+// A wrapper for DropdownMenuItem to allow AlertDialogTrigger as a child
+const AlertDialogTriggerMenuItem = React.forwardRef<HTMLDivElement, DropdownMenuItemProps>(
+  (props, ref) => <DropdownMenuItem {...props} ref={ref} onSelect={(e) => e.preventDefault()} />
+);
+AlertDialogTriggerMenuItem.displayName = 'AlertDialogTriggerMenuItem';
 
 
 export default function AdminPage() {
-  const { products, deleteProduct } = useProducts();
+  const { products, deleteProduct, loading: productsLoading } = useProducts();
   const { orders } = useOrders();
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Product | null; direction: 'ascending' | 'descending' }>({ key: 'price', direction: 'ascending' });
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Product | 'id' | null; direction: 'ascending' | 'descending' }>({ key: 'price', direction: 'ascending' });
 
   const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
   const totalSales = orders.length;
@@ -72,10 +78,11 @@ export default function AdminPage() {
 
     if (sortConfig.key) {
       sortableProducts.sort((a, b) => {
-        if (a[sortConfig.key!] < b[sortConfig.key!]) {
+        const key = sortConfig.key as keyof Product; // Cast because 'id' is handled, but TS doesn't know
+        if (a[key] < b[key]) {
           return sortConfig.direction === 'ascending' ? -1 : 1;
         }
-        if (a[sortConfig.key!] > b[sortConfig.key!]) {
+        if (a[key] > b[key]) {
           return sortConfig.direction === 'ascending' ? 1 : -1;
         }
         return 0;
@@ -85,7 +92,7 @@ export default function AdminPage() {
     return sortableProducts;
   }, [products, searchTerm, sortConfig]);
 
-  const requestSort = (key: keyof Product) => {
+  const requestSort = (key: keyof Product | 'id') => {
     let direction: 'ascending' | 'descending' = 'ascending';
     if (sortConfig.key === key && sortConfig.direction === 'ascending') {
       direction = 'descending';
@@ -186,6 +193,11 @@ export default function AdminPage() {
           </div>
         </CardHeader>
         <CardContent>
+            {productsLoading ? (
+                 <div className="flex justify-center items-center h-48">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                 </div>
+            ) : (
           <Table>
             <TableHeader>
               <TableRow>
@@ -208,7 +220,7 @@ export default function AdminPage() {
             <TableBody>
               {sortedAndFilteredProducts.map((product) => (
                 <TableRow key={product.id}>
-                  <TableCell>{product.id}</TableCell>
+                  <TableCell className="font-mono text-xs">{product.id.toString()}</TableCell>
                   <TableCell className="hidden sm:table-cell">
                     <Image
                       alt={product.name}
@@ -239,9 +251,9 @@ export default function AdminPage() {
                         </DropdownMenuItem>
                          <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+                            <AlertDialogTriggerMenuItem className="text-destructive">
                               Delete
-                            </DropdownMenuItem>
+                            </AlertDialogTriggerMenuItem>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
@@ -252,7 +264,7 @@ export default function AdminPage() {
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => deleteProduct(product.id)}>
+                              <AlertDialogAction onClick={() => deleteProduct(product.id.toString())}>
                                 Delete
                               </AlertDialogAction>
                             </AlertDialogFooter>
@@ -265,6 +277,7 @@ export default function AdminPage() {
               ))}
             </TableBody>
           </Table>
+          )}
         </CardContent>
       </Card>
     </div>

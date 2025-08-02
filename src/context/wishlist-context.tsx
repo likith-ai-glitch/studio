@@ -8,8 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 interface WishlistContextType {
   wishlistItems: Product[];
   addToWishlist: (product: Product) => void;
-  removeFromWishlist: (productId: number) => void;
-  isInWishlist: (productId: number) => boolean;
+  removeFromWishlist: (productId: number | string) => void;
+  isInWishlist: (productId: number | string) => boolean;
   wishlistCount: number;
 }
 
@@ -32,7 +32,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const removeFromWishlist = (productId: number) => {
+  const removeFromWishlist = (productId: number | string) => {
     setWishlistItems((prevItems) => {
         const itemToRemove = prevItems.find(item => item.id === productId);
         if (itemToRemove) {
@@ -45,7 +45,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const isInWishlist = (productId: number) => {
+  const isInWishlist = (productId: number | string) => {
     return wishlistItems.some((item) => item.id === productId);
   };
   
