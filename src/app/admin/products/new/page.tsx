@@ -11,7 +11,7 @@ export default function NewProductPage() {
   const { addProduct } = useProducts();
   const router = useRouter();
 
-  const handleSubmit = async (data: Omit<Product, 'id'>) => {
+  const handleSubmit = async (data: Product) => {
     await addProduct(data);
     router.push('/admin');
   };

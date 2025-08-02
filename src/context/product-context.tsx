@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
@@ -11,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 interface ProductContextType {
   products: Product[];
   loading: boolean;
-  addProduct: (product: Omit<Product, 'id'>) => Promise<void>;
+  addProduct: (product: Omit<Product, 'description'> & {description: string}) => Promise<void>;
   updateProduct: (product: Product) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
   getProduct: (productId: string) => Promise<Product | undefined>;
@@ -64,12 +65,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     fetchProducts();
   }, [fetchProducts]);
 
-  const addProduct = async (productData: Omit<Product, 'id'>) => {
+  const addProduct = async (productData: Product) => {
     try {
-      const newId = `P100${Date.now()}`;
-      const newProduct = { ...productData, id: newId };
-      await setDoc(doc(db, "products", newId), newProduct);
-      setProducts((prev) => [...prev, newProduct]);
+      await setDoc(doc(db, "products", productData.id), productData);
+      setProducts((prev) => [...prev, productData]);
       toast({
         title: "Product Added",
         description: `${productData.name} has been successfully added.`,

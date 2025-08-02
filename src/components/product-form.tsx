@@ -14,6 +14,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 
 const formSchema = z.object({
+  id: z.string().min(3, { message: 'Product ID must be at least 3 characters.' }),
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
   category: z.string().min(2, { message: 'Category must be at least 2 characters.' }),
@@ -22,7 +23,7 @@ const formSchema = z.object({
   image: z.string().min(1, { message: 'Please upload an image.' }),
 });
 
-type ProductFormValues = Omit<Product, 'id' | 'description'>;
+type ProductFormValues = Omit<Product, 'description'>;
 
 interface ProductFormProps {
   initialData?: Product;
@@ -36,6 +37,7 @@ export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: initialData || {
+      id: '',
       name: '',
       price: 0,
       category: '',
@@ -69,6 +71,19 @@ export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Product ID</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g. P1001010" {...field} disabled={!!initialData} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <FormField
           control={form.control}
           name="name"
