@@ -10,6 +10,7 @@ import type { Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 
+// We can't import this from product-form due to client/server boundary issues
 const formSchema = z.object({
   id: z.string().min(3),
   name: z.string().min(2),
@@ -17,7 +18,7 @@ const formSchema = z.object({
   category: z.string().min(2),
   brand: z.string().min(2),
   color: z.string().min(2),
-  image: z.union([z.instanceof(File), z.string()]),
+  images: z.array(z.union([z.instanceof(File), z.string()])),
 });
 type ProductFormValues = z.infer<typeof formSchema>;
 
@@ -79,18 +80,22 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const uploadImage = async (productId: string, file: File): Promise<string> => {
-    const storageRef = ref(storage, `products/${productId}/${file.name}`);
-    await uploadBytes(storageRef, file);
-    const downloadUrl = await getDownloadURL(storageRef);
-    return downloadUrl;
+  const uploadImages = async (productId: string, files: File[]): Promise<string[]> => {
+    const uploadPromises = files.map(file => {
+        const storageRef = ref(storage, `products/${productId}/${file.name}`);
+        return uploadBytes(storageRef, file).then(snapshot => getDownloadURL(snapshot.ref));
+    });
+    return Promise.all(uploadPromises);
   };
-
+  
   const addProduct = async (productData: ProductFormValues) => {
     try {
-      let imageUrl = 'https://placehold.co/600x400.png';
-      if (productData.image instanceof File) {
-        imageUrl = await uploadImage(productData.id, productData.image);
+      const imageFiles = productData.images.filter(img => img instanceof File) as File[];
+      let imageUrls: string[] = [];
+      if (imageFiles.length > 0) {
+        imageUrls = await uploadImages(productData.id, imageFiles);
+      } else {
+        imageUrls = ['https://placehold.co/600x400.png'];
       }
 
       const newProduct: Product = {
@@ -101,7 +106,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         brand: productData.brand,
         color: productData.color,
         description: '', // Default empty description
-        image: imageUrl,
+        images: imageUrls,
       };
 
       await setDoc(doc(db, "products", newProduct.id), newProduct);
@@ -130,12 +135,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const oldProduct = products.find(p => p.id === originalId);
         if (!oldProduct) throw new Error("Original product not found for update.");
 
-        let imageUrl = oldProduct.image;
-        if (productData.image instanceof File) {
-          imageUrl = await uploadImage(newId, productData.image);
-        } else if (typeof productData.image === 'string') {
-          imageUrl = productData.image;
+        const existingImageUrls = productData.images.filter(img => typeof img === 'string') as string[];
+        const newImageFiles = productData.images.filter(img => img instanceof File) as File[];
+
+        let newImageUrls: string[] = [];
+        if (newImageFiles.length > 0) {
+            newImageUrls = await uploadImages(newId, newImageFiles);
         }
+        
+        const allImageUrls = [...existingImageUrls, ...newImageUrls];
 
         const updatedProductData: Omit<Product, 'id'> = {
           name: productData.name,
@@ -144,7 +152,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
           brand: productData.brand,
           color: productData.color,
           description: oldProduct.description, // Preserve existing description
-          image: imageUrl,
+          images: allImageUrls.length > 0 ? allImageUrls : ['https://placehold.co/600x400.png'],
         };
 
         if (newId !== originalId) {
@@ -180,16 +188,22 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       const product = products.find(p => p.id === productId);
       if (!product) throw new Error("Product not found");
 
-      if (product.image && !product.image.includes('placehold.co')) {
-          try {
-            const imageRef = ref(storage, product.image);
-            await deleteObject(imageRef);
-          } catch (storageError: any) {
+      if (product.images && product.images.length > 0) {
+        const deletePromises = product.images.map(imageUrl => {
+          if (!imageUrl.includes('placehold.co')) {
+            try {
+              const imageRef = ref(storage, imageUrl);
+              return deleteObject(imageRef);
+            } catch (storageError: any) {
               if (storageError.code !== 'storage/object-not-found') {
-                  console.error("Could not delete image from storage:", storageError);
+                console.error("Could not delete image from storage:", storageError);
               }
+            }
           }
-        }
+          return Promise.resolve();
+        });
+        await Promise.all(deletePromises);
+      }
       
       await deleteDoc(productDoc);
       setProducts((prev) => prev.filter((p) => p.id !== productId));
