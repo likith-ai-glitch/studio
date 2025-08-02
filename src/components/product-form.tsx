@@ -26,7 +26,7 @@ const formSchema = z.object({
 type ProductFormValues = Omit<Product, 'description' | 'images'> & { images: string };
 
 interface ProductFormProps {
-  initialData?: Product;
+  initialData?: Product | null;
   onSubmit: (data: Product, originalId?: string) => void;
 }
 
@@ -37,7 +37,7 @@ export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: initialData ? {
       ...initialData,
-      images: initialData.images.join(', '),
+      images: initialData.images?.join(', ') || '',
     } : {
       id: '',
       name: '',

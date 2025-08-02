@@ -23,7 +23,7 @@ export default function NewProductPage() {
           <CardTitle>Add New Product</CardTitle>
         </CardHeader>
         <CardContent>
-          <ProductForm onSubmit={handleSubmit} />
+          <ProductForm onSubmit={handleSubmit} initialData={null} />
         </CardContent>
       </Card>
     </div>
