@@ -10,6 +10,20 @@ import { useRouter, useParams } from 'next/navigation';
 import { notFound } from 'next/navigation';
 import type { Product } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
+import type { z } from 'zod';
+
+// We can't import this from product-form due to client/server boundary issues
+const formSchema = z.object({
+  id: z.string().min(3),
+  name: z.string().min(2),
+  price: z.coerce.number().min(0),
+  category: z.string().min(2),
+  brand: z.string().min(2),
+  color: z.string().min(2),
+  images: z.array(z.union([z.instanceof(File), z.string()])),
+});
+type ProductFormValues = z.infer<typeof formSchema>;
+
 
 export default function EditProductPage() {
   const router = useRouter();
@@ -19,6 +33,7 @@ export default function EditProductPage() {
   const id = params.id as string;
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -48,9 +63,16 @@ export default function EditProductPage() {
     return notFound();
   }
 
-  const handleSubmit = async (data: Product, originalId?: string) => {
-    await updateProduct(data, originalId);
-    router.push('/admin');
+  const handleSubmit = async (data: ProductFormValues, originalId?: string) => {
+    if (!originalId) return;
+    setIsSubmitting(true);
+    try {
+      await updateProduct(data, originalId);
+      router.push('/admin');
+    } catch(error) {
+       // Error toast is handled in context
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -60,7 +82,7 @@ export default function EditProductPage() {
           <CardTitle>Edit Product</CardTitle>
         </CardHeader>
         <CardContent>
-          <ProductForm initialData={product} onSubmit={handleSubmit} />
+          <ProductForm initialData={product} onSubmit={handleSubmit} isSubmitting={isSubmitting} />
         </CardContent>
       </Card>
     </div>

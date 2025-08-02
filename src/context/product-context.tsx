@@ -3,17 +3,32 @@
 'use client';
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, getDoc, writeBatch, query, where } from 'firebase/firestore';
+import { db, storage } from '@/lib/firebase';
+import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, getDoc, writeBatch } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { products as initialProducts } from '@/lib/products';
 import type { Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import type { z } from 'zod';
+
+// We can't import this from product-form due to client/server boundary issues
+const formSchema = z.object({
+  id: z.string().min(3),
+  name: z.string().min(2),
+  price: z.coerce.number().min(0),
+  category: z.string().min(2),
+  brand: z.string().min(2),
+  color: z.string().min(2),
+  images: z.array(z.union([z.instanceof(File), z.string()])),
+});
+type ProductFormValues = z.infer<typeof formSchema>;
+
 
 interface ProductContextType {
   products: Product[];
   loading: boolean;
-  addProduct: (product: Product) => Promise<void>;
-  updateProduct: (product: Product, originalId?: string) => Promise<void>;
+  addProduct: (productData: ProductFormValues) => Promise<void>;
+  updateProduct: (productData: ProductFormValues, originalId: string) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
   getProduct: (productId: string) => Promise<Product | undefined>;
 }
@@ -65,12 +80,32 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     fetchProducts();
   }, [fetchProducts]);
 
-  const addProduct = async (productData: Product) => {
-    try {
-      const newProduct = { ...productData };
-      if (!newProduct.id) {
-          newProduct.id = `P100${Date.now()}`;
+  const uploadImages = async (images: (File | string)[], productId: string): Promise<string[]> => {
+      const imageUrls: string[] = [];
+      for (const image of images) {
+          if (typeof image === 'string') {
+              imageUrls.push(image);
+          } else {
+              const storageRef = ref(storage, `products/${productId}/${image.name}`);
+              await uploadBytes(storageRef, image);
+              const downloadURL = await getDownloadURL(storageRef);
+              imageUrls.push(downloadURL);
+          }
       }
+      return imageUrls;
+  };
+
+
+  const addProduct = async (productData: ProductFormValues) => {
+    try {
+      const imageUrls = await uploadImages(productData.images, productData.id);
+
+      const newProduct: Product = {
+        ...productData,
+        images: imageUrls,
+        description: '' // Default empty description
+      };
+      
       await setDoc(doc(db, "products", newProduct.id), newProduct);
       setProducts((prev) => [...prev, newProduct]);
       toast({
@@ -84,60 +119,79 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         description: "Failed to add product.",
         variant: "destructive",
       });
+      throw error; // re-throw to be caught in the form
     }
   };
 
-  const updateProduct = async (updatedProduct: Product, originalId?: string) => {
-    const currentId = originalId || updatedProduct.id;
-    
+  const updateProduct = async (productData: ProductFormValues, originalId: string) => {
     try {
-      // If the ID has not changed, just update the document.
-      if (updatedProduct.id === currentId) {
-        const productDoc = doc(db, 'products', updatedProduct.id);
-        await updateDoc(productDoc, updatedProduct);
-      } else {
-        // If the ID has changed, we must delete the old and create a new one.
-        const batch = writeBatch(db);
-        
-        // Reference to the old document to delete it
-        const oldDocRef = doc(db, 'products', currentId);
-        batch.delete(oldDocRef);
+        const imageUrls = await uploadImages(productData.images, productData.id);
+        const existingProduct = await getProduct(originalId);
 
-        // Reference to the new document to create it
-        const newDocRef = doc(db, 'products', updatedProduct.id);
-        batch.set(newDocRef, updatedProduct);
+        const updatedProduct: Product = {
+            ...productData,
+            images: imageUrls,
+            description: existingProduct?.description || '',
+        };
 
-        await batch.commit();
-      }
+        // If the ID has changed, delete old and create new.
+        if (updatedProduct.id !== originalId) {
+            const batch = writeBatch(db);
+            const oldDocRef = doc(db, 'products', originalId);
+            batch.delete(oldDocRef);
+            const newDocRef = doc(db, 'products', updatedProduct.id);
+            batch.set(newDocRef, updatedProduct);
+            await batch.commit();
+        } else {
+            const productDoc = doc(db, 'products', updatedProduct.id);
+            await updateDoc(productDoc, updatedProduct);
+        }
 
-      // Update the local state
-      setProducts((prev) =>
-        prev.map((p) => (p.id === currentId ? updatedProduct : p))
-      );
+        setProducts((prev) =>
+            prev.map((p) => (p.id === originalId ? updatedProduct : p))
+        );
 
-      toast({
-        title: "Product Updated",
-        description: `${updatedProduct.name} has been successfully updated.`,
-      });
+        toast({
+            title: "Product Updated",
+            description: `${updatedProduct.name} has been successfully updated.`,
+        });
     } catch (error) {
-      console.error("Error updating product: ", error);
-      toast({
-        title: "Error",
-        description: "Failed to update product.",
-        variant: "destructive",
-      });
+        console.error("Error updating product: ", error);
+        toast({
+            title: "Error",
+            description: "Failed to update product.",
+            variant: "destructive",
+        });
+        throw error;
     }
   };
 
   const deleteProduct = async (productId: string) => {
     const productDoc = doc(db, 'products', productId);
     try {
-      const productName = products.find(p => p.id === productId)?.name;
+      const product = products.find(p => p.id === productId);
+      if (!product) throw new Error("Product not found");
+
+      // Delete images from Firebase Storage
+      for (const imageUrl of product.images) {
+        try {
+          const imageRef = ref(storage, imageUrl);
+          await deleteObject(imageRef);
+        } catch (storageError: any) {
+            // It's okay if file doesn't exist (e.g. placehold.co images)
+            if (storageError.code !== 'storage/object-not-found') {
+                console.error("Could not delete image from storage:", storageError);
+            }
+        }
+      }
+      
+      // Delete document from Firestore
       await deleteDoc(productDoc);
       setProducts((prev) => prev.filter((p) => p.id !== productId));
+      
       toast({
         title: "Product Deleted",
-        description: `${productName} has been successfully deleted.`,
+        description: `${product.name} has been successfully deleted.`,
         variant: 'destructive',
       });
     } catch (error) {
@@ -150,7 +204,11 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const getProduct = async (productId: string) => {
+  const getProduct = async (productId: string): Promise<Product | undefined> => {
+    // Try local state first for speed
+    const localProduct = products.find(p => p.id === productId);
+    if(localProduct) return localProduct;
+
     try {
       const productDoc = doc(db, 'products', productId);
       const docSnap = await getDoc(productDoc);
@@ -165,12 +223,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       return undefined;
     }
   };
-  
-  // The getProduct in context needs to match the interface, but components might need a sync version
-  const getProductSync = (productId: string) => {
-      return products.find(p => p.id === productId);
-  }
-
 
   return (
     <ProductContext.Provider value={{ products, loading, addProduct, updateProduct, deleteProduct, getProduct }}>

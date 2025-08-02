@@ -1,19 +1,40 @@
 
 'use client';
 
+import { useState } from 'react';
 import { ProductForm } from '@/components/product-form';
 import { useProducts } from '@/context/product-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
-import type { Product } from '@/lib/types';
+import type { z } from 'zod';
+
+// We can't import this from product-form due to client/server boundary issues
+const formSchema = z.object({
+  id: z.string().min(3),
+  name: z.string().min(2),
+  price: z.coerce.number().min(0),
+  category: z.string().min(2),
+  brand: z.string().min(2),
+  color: z.string().min(2),
+  images: z.array(z.union([z.instanceof(File), z.string()])),
+});
+type ProductFormValues = z.infer<typeof formSchema>;
+
 
 export default function NewProductPage() {
   const { addProduct } = useProducts();
   const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (data: Product) => {
-    await addProduct(data);
-    router.push('/admin');
+  const handleSubmit = async (data: ProductFormValues) => {
+    setIsSubmitting(true);
+    try {
+      await addProduct(data);
+      router.push('/admin');
+    } catch (error) {
+      // Error toast is handled in context
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -23,7 +44,7 @@ export default function NewProductPage() {
           <CardTitle>Add New Product</CardTitle>
         </CardHeader>
         <CardContent>
-          <ProductForm onSubmit={handleSubmit} initialData={null} />
+          <ProductForm onSubmit={handleSubmit} initialData={null} isSubmitting={isSubmitting} />
         </CardContent>
       </Card>
     </div>

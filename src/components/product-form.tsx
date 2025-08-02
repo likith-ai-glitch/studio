@@ -2,16 +2,17 @@
 
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import type { Product } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { X, Upload } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 const formSchema = z.object({
   id: z.string().min(3, { message: 'Product ID must be at least 3 characters.' }),
@@ -20,52 +21,61 @@ const formSchema = z.object({
   category: z.string().min(2, { message: 'Category must be at least 2 characters.' }),
   brand: z.string().min(2, { message: 'Brand must be at least 2 characters.' }),
   color: z.string().min(2, { message: 'Color must be at least 2 characters.' }),
-  images: z.string().min(1, { message: 'Please provide at least one image URL.' }),
+  images: z.array(z.union([z.instanceof(File), z.string()])).min(1, { message: 'Please provide at least one image.' }),
 });
-
-type ProductFormValues = Omit<Product, 'description' | 'images'> & { images: string };
 
 interface ProductFormProps {
   initialData?: Product | null;
-  onSubmit: (data: Product, originalId?: string) => void;
+  onSubmit: (data: z.infer<typeof formSchema>, originalId?: string) => void;
+  isSubmitting?: boolean;
 }
 
-export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
+export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductFormProps) {
   const router = useRouter();
+  const [imagePreviews, setImagePreviews] = useState<string[]>(initialData?.images || []);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: initialData ? {
-      ...initialData,
-      images: (initialData.images || []).join(', '),
-    } : {
-      id: '',
-      name: '',
-      price: 0,
-      category: '',
-      brand: '',
-      color: '',
-      images: '',
+    defaultValues: {
+      id: initialData?.id || '',
+      name: initialData?.name || '',
+      price: initialData?.price || 0,
+      category: initialData?.category || '',
+      brand: initialData?.brand || '',
+      color: initialData?.color || '',
+      images: initialData?.images || [],
     },
   });
 
+  const { control, handleSubmit, watch, setValue } = form;
+  const currentImages = watch('images');
+  
+  useEffect(() => {
+    const previews = currentImages?.map(img => (typeof img === 'string' ? img : URL.createObjectURL(img))) || [];
+    setImagePreviews(previews);
+
+    return () => {
+      previews.forEach(p => {
+        if(p.startsWith('blob:')) URL.revokeObjectURL(p);
+      });
+    };
+  }, [currentImages]);
+
   const onFormSubmit = (values: z.infer<typeof formSchema>) => {
-    const imagesAsArray = values.images.split(',').map(url => url.trim()).filter(url => url);
-    
-    onSubmit({
-      ...values,
-      images: imagesAsArray,
-      description: initialData?.description || '' 
-    }, initialData?.id);
+    onSubmit(values, initialData?.id);
   }
 
-  const imagePreview = form.watch('images')?.split(',')[0]?.trim();
-
+  const handleRemoveImage = (index: number) => {
+    const updatedImages = [...currentImages];
+    updatedImages.splice(index, 1);
+    setValue('images', updatedImages, { shouldValidate: true });
+  };
+  
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
         <FormField
-          control={form.control}
+          control={control}
           name="id"
           render={({ field }) => (
             <FormItem>
@@ -78,7 +88,7 @@ export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
           )}
         />
         <FormField
-          control={form.control}
+          control={control}
           name="name"
           render={({ field }) => (
             <FormItem>
@@ -91,7 +101,7 @@ export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
           )}
         />
          <FormField
-          control={form.control}
+          control={control}
           name="price"
           render={({ field }) => (
             <FormItem>
@@ -107,7 +117,7 @@ export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
           )}
         />
          <FormField
-          control={form.control}
+          control={control}
           name="category"
           render={({ field }) => (
             <FormItem>
@@ -120,7 +130,7 @@ export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
           )}
         />
         <FormField
-          control={form.control}
+          control={control}
           name="brand"
           render={({ field }) => (
             <FormItem>
@@ -133,7 +143,7 @@ export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
           )}
         />
         <FormField
-          control={form.control}
+          control={control}
           name="color"
           render={({ field }) => (
             <FormItem>
@@ -145,40 +155,68 @@ export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
+        
+        <Controller
+          control={control}
           name="images"
-          render={({ field }) => (
-             <FormItem>
+          render={({ field: { onChange, value }, fieldState }) => (
+            <FormItem>
               <FormLabel>Product Images</FormLabel>
               <FormControl>
-                 <Textarea 
-                  placeholder="Enter image URLs, separated by commas"
-                  {...field}
-                />
+                 <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                    <p className="mb-2 text-sm text-muted-foreground">
+                      <span className="font-semibold">Click to upload</span> or drag and drop
+                    </p>
+                    <p className="text-xs text-muted-foreground">SVG, PNG, JPG or GIF</p>
+                  </div>
+                  <input 
+                    type="file" 
+                    multiple 
+                    className="hidden" 
+                    accept="image/*"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      onChange([...(value || []), ...files]);
+                    }}
+                  />
+                </label>
               </FormControl>
-              <FormMessage />
+              <FormMessage>{fieldState.error?.message}</FormMessage>
             </FormItem>
           )}
         />
 
-        {imagePreview && (
-          <div className="flex justify-center">
-            <Image
-              src={imagePreview}
-              alt="Product preview"
-              width={200}
-              height={200}
-              className="rounded-lg object-cover"
-            />
+        {imagePreviews.length > 0 && (
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
+            {imagePreviews.map((preview, index) => (
+              <div key={index} className="relative aspect-square">
+                <Image
+                  src={preview}
+                  alt={`Product preview ${index + 1}`}
+                  fill
+                  className="rounded-lg object-cover"
+                />
+                 <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                  onClick={() => handleRemoveImage(index)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
           </div>
         )}
 
         <div className="flex gap-4">
-          <Button type="submit" className="flex-grow">
-            {initialData ? 'Save Changes' : 'Create Product'}
+          <Button type="submit" className="flex-grow" disabled={isSubmitting}>
+            {isSubmitting ? 'Saving...' : (initialData ? 'Save Changes' : 'Create Product')}
           </Button>
-          <Button type="button" variant="outline" onClick={() => router.back()}>
+          <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>
             Cancel
           </Button>
         </div>
