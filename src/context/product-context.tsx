@@ -155,74 +155,62 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     try {
         const existingImageUrls = productData.images.filter(img => typeof img === 'string') as string[];
         const newImageFiles = productData.images.filter(img => img instanceof File) as File[];
-        const existingProduct = await getProduct(originalId);
-
+        
+        // This is the data we can save immediately
         const updatedProductData: Omit<Product, 'description'> & { description?: string } = {
             ...productData,
             images: existingImageUrls,
         };
-        // Preserve existing description if it's there
-        if(existingProduct?.description) {
-            updatedProductData.description = existingProduct.description;
+
+        const existingProduct = products.find(p => p.id === originalId);
+        if(existingProduct?.description){
+          updatedProductData.description = existingProduct.description;
         }
 
+        const newId = updatedProductData.id;
 
-        const updateAndUpload = async () => {
-            const docRef = doc(db, 'products', updatedProductData.id);
-             // Use updateDoc instead of setDoc to avoid overwriting description if it's not in updatedProductData
-            await updateDoc(docRef, { ...updatedProductData });
-
-            // Optimistically update local state with the data we know
-            setProducts((prev) =>
-                prev.map((p) => (p.id === originalId ? { ...p, ...updatedProductData, id: updatedProductData.id } as Product : p))
-            );
-
-            toast({
-                title: "Product Updated",
-                description: `${updatedProductData.name} has been updated. New images are uploading.`,
-            });
-            
-            // Upload new images in the background and update URLs
-            if (newImageFiles.length > 0) {
-              uploadImagesAndUpdateUrls(updatedProductData.id, newImageFiles, existingImageUrls);
-            }
-        }
-
-        // If the ID has changed, we need to do a delete-and-create operation
-        if (updatedProductData.id !== originalId) {
-            const oldProductData = await getProduct(originalId);
-            if (!oldProductData) throw new Error("Original product not found for ID change.");
-
-            // Create new doc with full data
-            const newDocData: Product = {
-              ...oldProductData,
-              ...updatedProductData,
-              id: updatedProductData.id, // ensure new ID is used
-            };
-            const newDocRef = doc(db, "products", newDocData.id);
-            await setDoc(newDocRef, newDocData);
-            
-            // Delete the old document
+        // If ID changes, we need to create a new doc and delete the old one
+        if (newId !== originalId) {
             const oldDocRef = doc(db, 'products', originalId);
+            const newDocRef = doc(db, 'products', newId);
+            
+            // Get the full old product data to carry over
+            const oldProduct = products.find(p => p.id === originalId) || await getProduct(originalId);
+            if (!oldProduct) throw new Error("Original product not found for ID change.");
+
+            const finalNewProductData: Product = {
+                ...oldProduct,
+                ...updatedProductData
+            };
+            
+            await setDoc(newDocRef, finalNewProductData);
             await deleteDoc(oldDocRef);
 
             // Optimistically update local state
-            setProducts((prev) => [
-              ...prev.filter(p => p.id !== originalId),
-              newDocData
-            ]);
-            
-            toast({
-                title: "Product ID Changed",
-                description: `Product updated with new ID: ${newDocData.id}.`,
-            });
+             setProducts((prev) => [
+                ...prev.filter((p) => p.id !== originalId),
+                finalNewProductData,
+             ]);
 
-             // Upload new images in the background and update URLs for the NEW document ID
-            if (newImageFiles.length > 0) {
-              uploadImagesAndUpdateUrls(newDocData.id, newImageFiles, existingImageUrls);
-            }
         } else {
-            await updateAndUpload();
+             // Just update the existing document
+             const docRef = doc(db, 'products', newId);
+             await updateDoc(docRef, updatedProductData);
+
+             // Optimistically update local state
+             setProducts((prev) =>
+                prev.map((p) => (p.id === newId ? { ...p, ...updatedProductData } : p))
+             );
+        }
+
+        toast({
+            title: "Product Updated",
+            description: `${updatedProductData.name} has been updated. New images are uploading.`,
+        });
+        
+        // Handle file uploads in the background for either new or existing ID
+        if (newImageFiles.length > 0) {
+            uploadImagesAndUpdateUrls(newId, newImageFiles, existingImageUrls);
         }
 
     } catch (error) {
