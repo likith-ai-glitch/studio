@@ -27,7 +27,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { subDays, format } from 'date-fns';
@@ -45,6 +44,7 @@ export default function AdminPage() {
   const { orders } = useOrders();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Product | 'id' | null; direction: 'ascending' | 'descending' }>({ key: 'price', direction: 'ascending' });
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
   const totalSales = orders.length;
@@ -100,6 +100,13 @@ export default function AdminPage() {
     setSortConfig({ key, direction });
   };
   
+  const handleDelete = () => {
+    if (deleteTarget) {
+        deleteProduct(deleteTarget);
+        setDeleteTarget(null);
+    }
+  }
+
   return (
     <div className="space-y-8">
       <header className="flex justify-between items-center">
@@ -183,27 +190,9 @@ export default function AdminPage() {
                         <DropdownMenuItem asChild>
                            <Link href={`/admin/products/${product.id}/edit`}>Edit</Link>
                         </DropdownMenuItem>
-                         <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <AlertDialogTriggerMenuItem className="text-destructive">
-                              Delete
-                            </AlertDialogTriggerMenuItem>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete the product.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => deleteProduct(product.id.toString())}>
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <AlertDialogTriggerMenuItem className="text-destructive" onClick={() => setDeleteTarget(product.id.toString())}>
+                          Delete
+                        </AlertDialogTriggerMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -215,6 +204,23 @@ export default function AdminPage() {
         </CardContent>
       </Card>
       
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the product.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
