@@ -31,7 +31,6 @@ interface ProductFormProps {
 
 export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductFormProps) {
   const router = useRouter();
-  const [imagePreview, setImagePreview] = useState<string | null>(initialData?.image || null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -46,31 +45,11 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
     },
   });
 
-  const { control, handleSubmit, watch, setValue } = form;
-  const currentImage = watch('image');
-  
-  useEffect(() => {
-    if (currentImage) {
-        if (typeof currentImage === 'string') {
-          setImagePreview(currentImage);
-        } else if (currentImage instanceof File) {
-          const previewUrl = URL.createObjectURL(currentImage);
-          setImagePreview(previewUrl);
-          return () => URL.revokeObjectURL(previewUrl);
-        }
-    } else {
-        setImagePreview(null);
-    }
-  }, [currentImage]);
-
+  const { control, handleSubmit } = form;
 
   const onFormSubmit = (values: z.infer<typeof formSchema>) => {
     onSubmit(values, initialData?.id);
   }
-
-  const handleRemoveImage = () => {
-    setValue('image', undefined, { shouldValidate: true });
-  };
   
   return (
     <Form {...form}>
@@ -156,61 +135,6 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
             </FormItem>
           )}
         />
-        
-        <Controller
-          control={control}
-          name="image"
-          render={({ field: { onChange, value }, fieldState }) => (
-            <FormItem>
-              <FormLabel>Product Image</FormLabel>
-              <FormControl>
-                 <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80">
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
-                    <p className="mb-2 text-sm text-muted-foreground">
-                      <span className="font-semibold">Click to upload</span> or drag and drop
-                    </p>
-                    <p className="text-xs text-muted-foreground">Any image format</p>
-                  </div>
-                  <input 
-                    type="file" 
-                    className="hidden" 
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        onChange(file);
-                      }
-                    }}
-                  />
-                </label>
-              </FormControl>
-              <FormMessage>{fieldState.error?.message}</FormMessage>
-            </FormItem>
-          )}
-        />
-
-        {imagePreview && (
-          <div className="flex flex-wrap gap-4">
-            <div className="w-32 h-32 relative">
-                <Image
-                src={imagePreview}
-                alt={`Product preview`}
-                fill
-                className="rounded-lg object-cover"
-                />
-                <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
-                    onClick={handleRemoveImage}
-                >
-                <X className="h-4 w-4" />
-                </Button>
-            </div>
-          </div>
-        )}
 
         <div className="flex gap-4">
           <Button type="submit" className="flex-grow" disabled={isSubmitting}>
