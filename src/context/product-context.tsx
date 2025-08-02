@@ -88,45 +88,57 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const addProduct = async (productData: ProductFormValues) => {
     const newId = productData.id;
     const docRef = doc(db, 'products', newId);
-    
-    try {
-      const docSnap = await getDoc(docRef);
 
-      if (docSnap.exists()) {
-        toast({
-          title: "Error",
-          description: "A product with this ID already exists.",
-          variant: "destructive",
-        });
-        throw new Error("Product ID already exists");
-      }
-      
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      toast({
+        title: "Error",
+        description: "A product with this ID already exists.",
+        variant: "destructive",
+      });
+      throw new Error("Product ID already exists");
+    }
+
+    const tempProductData: Product = {
+      id: newId,
+      name: productData.name,
+      price: productData.price,
+      category: productData.category,
+      brand: productData.brand,
+      color: productData.color,
+      description: '', 
+      image: productData.image instanceof File 
+        ? URL.createObjectURL(productData.image) 
+        : (productData.image || 'https://placehold.co/600x400.png'),
+    };
+    
+    // Immediately update UI
+    setProducts((prev) => [...prev, tempProductData]);
+
+    try {
       let imageUrl = 'https://placehold.co/600x400.png';
       if (productData.image instanceof File) {
         imageUrl = await uploadImage(newId, productData.image);
+      } else if (productData.image) {
+        imageUrl = productData.image;
       }
       
-      const newProductData: Product = {
-        id: newId,
-        name: productData.name,
-        price: productData.price,
-        category: productData.category,
-        brand: productData.brand,
-        color: productData.color,
-        description: '', 
-        image: imageUrl,
-      };
+      const finalProductData: Product = { ...tempProductData, image: imageUrl };
 
-      await setDoc(docRef, newProductData);
+      await setDoc(docRef, finalProductData);
       
-      setProducts((prev) => [...prev, newProductData]);
+      // Update UI with final data
+      setProducts((prev) => prev.map(p => p.id === newId ? finalProductData : p));
+      
       toast({
         title: "Product Added",
-        description: `${newProductData.name} has been successfully added.`,
+        description: `${finalProductData.name} has been successfully added.`,
       });
 
     } catch (error) {
        console.error("Error adding product: ", error);
+       // Revert optimistic update on error
+       setProducts((prev) => prev.filter(p => p.id !== newId));
        if (error.message !== "Product ID already exists") {
          toast({
           title: "Error",
@@ -139,44 +151,70 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
 
   const updateProduct = async (productData: ProductFormValues, originalId: string) => {
+    const newId = productData.id;
+    const oldProduct = products.find(p => p.id === originalId);
+    if (!oldProduct) {
+        toast({ title: "Error", description: "Product not found.", variant: "destructive" });
+        throw new Error("Original product not found for update.");
+    }
+    
+    const tempUpdatedData: Product = {
+        ...oldProduct,
+        id: newId,
+        name: productData.name,
+        price: productData.price,
+        category: productData.category,
+        brand: productData.brand,
+        color: productData.color,
+        image: productData.image instanceof File 
+            ? URL.createObjectURL(productData.image) 
+            : (productData.image || oldProduct.image),
+    };
+
+    // Optimistically update UI
+    if (newId !== originalId) {
+        setProducts((prev) => [...prev.filter(p => p.id !== originalId), tempUpdatedData]);
+    } else {
+        setProducts((prev) => prev.map((p) => (p.id === originalId ? tempUpdatedData : p)));
+    }
+
     try {
-        const newId = productData.id;
-        const oldProduct = products.find(p => p.id === originalId);
-        if (!oldProduct) throw new Error("Original product not found for update.");
+        let imageUrl = oldProduct.image;
+        if (productData.image instanceof File) {
+            imageUrl = await uploadImage(newId, productData.image);
+            if (oldProduct.image && !oldProduct.image.includes('placehold.co')) {
+                try {
+                    const imageRefPath = ref(storage, oldProduct.image).fullPath;
+                    if (imageRefPath) await deleteObject(ref(storage, imageRefPath));
+                } catch (e: any) {
+                    if (e.code !== 'storage/object-not-found') console.error("Could not delete old image:", e);
+                }
+            }
+        } else if (productData.image) {
+            imageUrl = productData.image;
+        }
+
+        const finalProductData: Product = { ...tempUpdatedData, image: imageUrl };
         
-        const updatedProductData: Partial<Product> = {
-            id: newId,
-            name: productData.name,
-            price: productData.price,
-            category: productData.category,
-            brand: productData.brand,
-            color: productData.color,
+        const dbUpdate = async () => {
+          if (newId !== originalId) {
+              const oldDocRef = doc(db, 'products', originalId);
+              const newDocRef = doc(db, 'products', newId);
+              await setDoc(newDocRef, finalProductData);
+              await deleteDoc(oldDocRef);
+          } else {
+              const docRef = doc(db, 'products', originalId);
+              await updateDoc(docRef, { ...finalProductData });
+          }
         };
 
-        if (productData.image instanceof File) {
-          updatedProductData.image = await uploadImage(newId, productData.image);
-           if (oldProduct.image && !oldProduct.image.includes('placehold.co')) {
-             try {
-                const imageRefPath = ref(storage, oldProduct.image).fullPath;
-                if (imageRefPath) await deleteObject(ref(storage, imageRefPath));
-              } catch (e: any) {
-                if (e.code !== 'storage/object-not-found') console.error("Could not delete old image:", e);
-              }
-          }
-        }
-        
-        const fullProductData = { ...oldProduct, ...updatedProductData, id: newId };
-        
+        await dbUpdate();
+
+        // Final UI update with correct URL
         if (newId !== originalId) {
-            const oldDocRef = doc(db, 'products', originalId);
-            const newDocRef = doc(db, 'products', newId);
-            await setDoc(newDocRef, fullProductData);
-            await deleteDoc(oldDocRef);
-            setProducts((prev) => [...prev.filter(p => p.id !== originalId), fullProductData]);
+            setProducts((prev) => [...prev.filter(p => p.id !== newId), finalProductData]);
         } else {
-            const docRef = doc(db, 'products', originalId);
-            await updateDoc(docRef, updatedProductData);
-            setProducts((prev) => prev.map((p) => (p.id === originalId ? { ...p, ...updatedProductData } as Product : p)));
+            setProducts((prev) => prev.map((p) => (p.id === newId ? finalProductData : p)));
         }
 
         toast({
@@ -186,6 +224,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         
     } catch (error) {
         console.error("Error updating product: ", error);
+        // Revert optimistic update on error
+        setProducts(prev => prev.map(p => p.id === (newId !== originalId ? newId : originalId) ? oldProduct : p).filter(p => !!p));
+        if(newId !== originalId){
+            setProducts(prev => prev.filter(p => p.id !== newId));
+        }
+
         toast({
             title: "Error",
             description: "Failed to update product.",
@@ -196,14 +240,17 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteProduct = async (productId: string) => {
+    const productToDelete = products.find(p => p.id === productId);
+    if (!productToDelete) return;
+
+    const originalProducts = [...products];
+    setProducts((prev) => prev.filter((p) => p.id !== productId));
+
     const productDocRef = doc(db, 'products', productId);
     try {
-      const product = products.find(p => p.id === productId);
-      if (!product) throw new Error("Product not found");
-
-      if (product.image && !product.image.includes('placehold.co')) {
+      if (productToDelete.image && !productToDelete.image.includes('placehold.co')) {
         try {
-          const imageRef = ref(storage, product.image);
+          const imageRef = ref(storage, productToDelete.image);
           await deleteObject(imageRef);
         } catch (storageError: any) {
           if (storageError.code === 'storage/object-not-found') {
@@ -215,15 +262,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       }
       
       await deleteDoc(productDocRef);
-      setProducts((prev) => prev.filter((p) => p.id !== productId));
       
       toast({
         title: "Product Deleted",
-        description: `${product.name} has been successfully deleted.`,
+        description: `${productToDelete.name} has been successfully deleted.`,
         variant: 'destructive',
       });
     } catch (error) {
       console.error("Error deleting product: ", error);
+      setProducts(originalProducts);
       toast({
         title: "Error",
         description: "Failed to delete product.",
