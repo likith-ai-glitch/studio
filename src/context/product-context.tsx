@@ -106,33 +106,37 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       category: productData.category,
       brand: productData.brand,
       color: productData.color,
-      description: '', 
+      description: 'A great product.', // default description
       image: productData.image instanceof File 
         ? URL.createObjectURL(productData.image) 
-        : (productData.image || 'https://placehold.co/600x400.png'),
+        : 'https://placehold.co/600x400.png',
     };
     
     // Immediately update UI
     setProducts((prev) => [...prev, tempProductData]);
 
     try {
-      let imageUrl = 'https://placehold.co/600x400.png';
       if (productData.image instanceof File) {
-        imageUrl = await uploadImage(newId, productData.image);
-      } else if (productData.image) {
-        imageUrl = productData.image;
+        // Upload in background, don't await
+        uploadImage(newId, productData.image).then(imageUrl => {
+          const finalProductData = { ...tempProductData, image: imageUrl };
+          setDoc(docRef, finalProductData);
+          setProducts(prev => prev.map(p => p.id === newId ? finalProductData : p));
+        }).catch(error => {
+            console.error("Error uploading image:", error);
+            // Revert optimistic update on image upload error
+            setProducts((prev) => prev.filter(p => p.id !== newId));
+            toast({ title: "Error", description: "Failed to upload image.", variant: "destructive" });
+        });
+      } else {
+        // Save without image or with placeholder
+        const finalProductData = { ...tempProductData, image: productData.image || 'https://placehold.co/600x400.png' };
+        await setDoc(docRef, finalProductData);
       }
-      
-      const finalProductData: Product = { ...tempProductData, image: imageUrl };
-
-      await setDoc(docRef, finalProductData);
-      
-      // Update UI with final data
-      setProducts((prev) => prev.map(p => p.id === newId ? finalProductData : p));
       
       toast({
         title: "Product Added",
-        description: `${finalProductData.name} has been successfully added.`,
+        description: `${productData.name} has been successfully added.`,
       });
 
     } catch (error) {
@@ -172,70 +176,67 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     };
 
     // Optimistically update UI
-    setProducts((prev) => {
-        const otherProducts = prev.filter(p => p.id !== originalId);
-        return [...otherProducts, tempUpdatedData];
-    });
+    setProducts((prev) => prev.map(p => (p.id === originalId ? tempUpdatedData : p)));
 
 
     try {
-        let imageUrl = oldProduct.image;
-        if (productData.image instanceof File) {
-            imageUrl = await uploadImage(newId, productData.image);
-            if (oldProduct.image && !oldProduct.image.includes('placehold.co')) {
+      const finalProductData = { ...tempUpdatedData };
+
+      if (productData.image instanceof File) {
+        // Upload in background, don't await
+        uploadImage(newId, productData.image).then(imageUrl => {
+            finalProductData.image = imageUrl;
+             if (oldProduct.image && !oldProduct.image.includes('placehold.co') && oldProduct.image !== imageUrl) {
                 try {
                     const imageRefPath = ref(storage, oldProduct.image).fullPath;
-                    if (imageRefPath) await deleteObject(ref(storage, imageRefPath));
+                    if (imageRefPath) deleteObject(ref(storage, imageRefPath));
                 } catch (e: any) {
                     if (e.code !== 'storage/object-not-found') console.error("Could not delete old image:", e);
                 }
             }
-        } else if (typeof productData.image === 'string') {
-            imageUrl = productData.image;
-        } else if (!productData.image) {
-            imageUrl = 'https://placehold.co/600x400.png';
-        }
+             const dbUpdate = async () => {
+              if (newId !== originalId) {
+                  const oldDocRef = doc(db, 'products', originalId);
+                  const newDocRef = doc(db, 'products', newId);
+                  await setDoc(newDocRef, finalProductData);
+                  await deleteDoc(oldDocRef);
+              } else {
+                  const docRef = doc(db, 'products', originalId);
+                  await updateDoc(docRef, { ...finalProductData });
+              }
+            };
+            dbUpdate();
+            setProducts((prev) => prev.map((p) => (p.id === newId ? finalProductData : p)));
+        }).catch(error => {
+           console.error("Error uploading image:", error);
+           setProducts(prev => prev.map(p => p.id === newId ? oldProduct : p));
+           toast({ title: "Error", description: "Failed to upload image.", variant: "destructive" });
+        })
+      } else {
+         finalProductData.image = productData.image || oldProduct.image;
+          const dbUpdate = async () => {
+            if (newId !== originalId) {
+                const oldDocRef = doc(db, 'products', originalId);
+                const newDocRef = doc(db, 'products', newId);
+                await setDoc(newDocRef, finalProductData);
+                await deleteDoc(oldDocRef);
+            } else {
+                const docRef = doc(db, 'products', originalId);
+                await updateDoc(docRef, { ...finalProductData });
+            }
+          };
+          await dbUpdate();
+      }
 
-
-        const finalProductData: Product = { ...tempUpdatedData, image: imageUrl };
-        
-        const dbUpdate = async () => {
-          if (newId !== originalId) {
-              const oldDocRef = doc(db, 'products', originalId);
-              const newDocRef = doc(db, 'products', newId);
-              await setDoc(newDocRef, finalProductData);
-              await deleteDoc(oldDocRef);
-          } else {
-              const docRef = doc(db, 'products', originalId);
-              await updateDoc(docRef, { ...finalProductData });
-          }
-        };
-
-        await dbUpdate();
-
-        // Final UI update with correct URL
-        setProducts((prev) => prev.map((p) => (p.id === newId ? finalProductData : p)));
-
-
-        toast({
-            title: "Product Updated",
-            description: `${productData.name} has been saved.`,
-        });
+      toast({
+          title: "Product Updated",
+          description: `${productData.name} has been saved.`,
+      });
         
     } catch (error) {
         console.error("Error updating product: ", error);
         // Revert optimistic update on error
-         setProducts((prev) => {
-            const revertedProducts = prev.map(p => (p.id === newId ? oldProduct : p));
-            if(newId !== originalId) {
-                const withoutNew = revertedProducts.filter(p => p.id !== newId);
-                if(!withoutNew.some(p => p.id === originalId)){
-                    return [...withoutNew, oldProduct];
-                }
-                return withoutNew;
-            }
-            return revertedProducts;
-        });
+         setProducts((prev) => prev.map(p => p.id === newId ? oldProduct : p));
 
         toast({
             title: "Error",
