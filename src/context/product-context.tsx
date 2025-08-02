@@ -41,7 +41,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const productsCollectionRef = collection(db, 'products');
 
-  const fetchProducts = useCallback(async () => {
+  const fetchProducts = useCallback(async (force = false) => {
+    if (!force && products.length > 0 && !loading) return;
+
     setLoading(true);
     try {
       const querySnapshot = await getDocs(productsCollectionRef);
@@ -74,33 +76,43 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, products.length, loading]);
 
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+    fetchProducts(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const uploadImagesAndUpdateUrls = async (productId: string, files: File[]) => {
+ const uploadImagesAndUpdateUrls = async (productId: string, files: File[], existingImageUrls: string[] = []) => {
     const uploadPromises = files.map(async (file) => {
-      const storageRef = ref(storage, `products/${productId}/${file.name}`);
-      await uploadBytes(storageRef, file);
-      const downloadUrl = await getDownloadURL(storageRef);
-
-      // We need to get the latest product data to append the new URL
-      const productDocRef = doc(db, 'products', productId);
-      const productDoc = await getDoc(productDocRef);
-      const productData = productDoc.data() as Product;
-      
-      const updatedImages = [...productData.images, downloadUrl];
-      await updateDoc(productDocRef, { images: updatedImages });
-      
-      return downloadUrl;
+        const storageRef = ref(storage, `products/${productId}/${file.name}`);
+        await uploadBytes(storageRef, file);
+        return getDownloadURL(storageRef);
     });
 
-    await Promise.all(uploadPromises);
-    // Optionally re-fetch products to ensure UI consistency after all uploads
-    fetchProducts();
-  };
+    try {
+        const newImageUrls = await Promise.all(uploadPromises);
+        const allImageUrls = [...existingImageUrls, ...newImageUrls];
+
+        const productDocRef = doc(db, 'products', productId);
+        await updateDoc(productDocRef, { images: allImageUrls });
+
+        // Update local state after URLs are finalized
+        setProducts(prevProducts =>
+            prevProducts.map(p =>
+                p.id === productId ? { ...p, images: allImageUrls } : p
+            )
+        );
+    } catch (error) {
+        console.error("Error during image upload and URL update:", error);
+        toast({
+            title: "Image Upload Failed",
+            description: "Some images could not be uploaded. Please try editing the product again.",
+            variant: "destructive",
+        });
+    }
+};
+
 
   const addProduct = async (productData: ProductFormValues) => {
     try {
@@ -124,7 +136,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       });
       
       // Start uploads in the background, don't await them here
-      uploadImagesAndUpdateUrls(newProduct.id, newImageFiles);
+      if (newImageFiles.length > 0) {
+        uploadImagesAndUpdateUrls(newProduct.id, newImageFiles);
+      }
 
     } catch (error) {
        console.error("Error adding product: ", error);
@@ -143,34 +157,70 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const newImageFiles = productData.images.filter(img => img instanceof File) as File[];
         const existingProduct = await getProduct(originalId);
 
-        const updatedProduct: Product = {
+        const updatedProductData: Omit<Product, 'description'> & { description?: string } = {
             ...productData,
             images: existingImageUrls,
-            description: existingProduct?.description || '',
         };
+        // Preserve existing description if it's there
+        if(existingProduct?.description) {
+            updatedProductData.description = existingProduct.description;
+        }
+
 
         const updateAndUpload = async () => {
-            const docRef = doc(db, 'products', updatedProduct.id);
-            await setDoc(docRef, updatedProduct, { merge: true });
+            const docRef = doc(db, 'products', updatedProductData.id);
+             // Use updateDoc instead of setDoc to avoid overwriting description if it's not in updatedProductData
+            await updateDoc(docRef, { ...updatedProductData });
 
+            // Optimistically update local state with the data we know
             setProducts((prev) =>
-                prev.map((p) => (p.id === originalId ? updatedProduct : p))
+                prev.map((p) => (p.id === originalId ? { ...p, ...updatedProductData, id: updatedProductData.id } as Product : p))
             );
 
             toast({
                 title: "Product Updated",
-                description: `${updatedProduct.name} has been updated. New images are uploading.`,
+                description: `${updatedProductData.name} has been updated. New images are uploading.`,
             });
-
-            // Upload new images in the background
-            uploadImagesAndUpdateUrls(updatedProduct.id, newImageFiles);
+            
+            // Upload new images in the background and update URLs
+            if (newImageFiles.length > 0) {
+              uploadImagesAndUpdateUrls(updatedProductData.id, newImageFiles, existingImageUrls);
+            }
         }
 
         // If the ID has changed, we need to do a delete-and-create operation
-        if (updatedProduct.id !== originalId) {
+        if (updatedProductData.id !== originalId) {
+            const oldProductData = await getProduct(originalId);
+            if (!oldProductData) throw new Error("Original product not found for ID change.");
+
+            // Create new doc with full data
+            const newDocData: Product = {
+              ...oldProductData,
+              ...updatedProductData,
+              id: updatedProductData.id, // ensure new ID is used
+            };
+            const newDocRef = doc(db, "products", newDocData.id);
+            await setDoc(newDocRef, newDocData);
+            
+            // Delete the old document
             const oldDocRef = doc(db, 'products', originalId);
-            await deleteDoc(oldDocRef); // Consider what to do with old images
-            await updateAndUpload();
+            await deleteDoc(oldDocRef);
+
+            // Optimistically update local state
+            setProducts((prev) => [
+              ...prev.filter(p => p.id !== originalId),
+              newDocData
+            ]);
+            
+            toast({
+                title: "Product ID Changed",
+                description: `Product updated with new ID: ${newDocData.id}.`,
+            });
+
+             // Upload new images in the background and update URLs for the NEW document ID
+            if (newImageFiles.length > 0) {
+              uploadImagesAndUpdateUrls(newDocData.id, newImageFiles, existingImageUrls);
+            }
         } else {
             await updateAndUpload();
         }
@@ -193,15 +243,17 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       if (!product) throw new Error("Product not found");
 
       // Delete images from Firebase Storage
-      for (const imageUrl of product.images) {
-        try {
-          const imageRef = ref(storage, imageUrl);
-          await deleteObject(imageRef);
-        } catch (storageError: any) {
-            // It's okay if file doesn't exist (e.g. placehold.co images or if deletion fails)
-            if (storageError.code !== 'storage/object-not-found') {
-                console.error("Could not delete image from storage:", storageError);
-            }
+      if (product.images && product.images.length > 0) {
+        for (const imageUrl of product.images) {
+          try {
+            const imageRef = ref(storage, imageUrl);
+            await deleteObject(imageRef);
+          } catch (storageError: any) {
+              // It's okay if file doesn't exist (e.g. placehold.co images or if deletion fails)
+              if (storageError.code !== 'storage/object-not-found') {
+                  console.error("Could not delete image from storage:", storageError);
+              }
+          }
         }
       }
       
