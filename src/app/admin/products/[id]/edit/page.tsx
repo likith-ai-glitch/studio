@@ -18,7 +18,7 @@ const formSchema = z.object({
   category: z.string().min(2),
   brand: z.string().min(2),
   color: z.string().min(2),
-  image: z.union([z.instanceof(File), z.string()]),
+  image: z.union([z.instanceof(File), z.string()]).optional(),
 });
 type ProductFormValues = z.infer<typeof formSchema>;
 

@@ -10,7 +10,6 @@ import type { Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 
-// We can't import this from product-form due to client/server boundary issues
 const formSchema = z.object({
   id: z.string().min(3),
   name: z.string().min(2),
@@ -18,7 +17,7 @@ const formSchema = z.object({
   category: z.string().min(2),
   brand: z.string().min(2),
   color: z.string().min(2),
-  images: z.array(z.union([z.instanceof(File), z.string()])),
+  image: z.union([z.instanceof(File), z.string()]).optional(),
 });
 type ProductFormValues = z.infer<typeof formSchema>;
 
@@ -80,39 +79,38 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const uploadImages = async (productId: string, files: File[]): Promise<string[]> => {
-    const uploadPromises = files.map(file => {
-        const storageRef = ref(storage, `products/${productId}/${file.name}`);
-        return uploadBytes(storageRef, file).then(snapshot => getDownloadURL(snapshot.ref));
-    });
-    return Promise.all(uploadPromises);
+  const uploadImage = async (productId: string, file: File): Promise<string> => {
+    const storageRef = ref(storage, `products/${productId}/${file.name}`);
+    const snapshot = await uploadBytes(storageRef, file);
+    return getDownloadURL(snapshot.ref);
   };
   
   const addProduct = async (productData: ProductFormValues) => {
     try {
-      const imageFiles = productData.images.filter(img => img instanceof File) as File[];
-      let imageUrls: string[] = [];
-      if (imageFiles.length > 0) {
-        imageUrls = await uploadImages(productData.id, imageFiles);
-      } else {
-        imageUrls = ['https://placehold.co/600x400.png'];
-      }
-
-      const newProduct: Product = {
-        id: productData.id,
+      const newProductData: Omit<Product, 'id'> = {
         name: productData.name,
         price: productData.price,
         category: productData.category,
         brand: productData.brand,
         color: productData.color,
         description: '', // Default empty description
-        images: imageUrls,
+        image: 'https://placehold.co/600x400.png',
       };
+      
+      const newProduct: Product = {
+          ...newProductData,
+          id: productData.id,
+      }
 
-      await setDoc(doc(db, "products", newProduct.id), newProduct);
-
+      await setDoc(doc(db, "products", newProduct.id), newProductData);
       setProducts((prev) => [...prev, newProduct]);
       
+      if (productData.image && productData.image instanceof File) {
+          const imageUrl = await uploadImage(newProduct.id, productData.image);
+          await updateDoc(doc(db, "products", newProduct.id), { image: imageUrl });
+          setProducts((prev) => prev.map(p => p.id === newProduct.id ? { ...p, image: imageUrl } : p));
+      }
+
       toast({
         title: "Product Added",
         description: `${newProduct.name} has been successfully added.`,
@@ -134,25 +132,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const newId = productData.id;
         const oldProduct = products.find(p => p.id === originalId);
         if (!oldProduct) throw new Error("Original product not found for update.");
-
-        const existingImageUrls = productData.images.filter(img => typeof img === 'string') as string[];
-        const newImageFiles = productData.images.filter(img => img instanceof File) as File[];
-
-        let newImageUrls: string[] = [];
-        if (newImageFiles.length > 0) {
-            newImageUrls = await uploadImages(newId, newImageFiles);
-        }
         
-        const allImageUrls = [...existingImageUrls, ...newImageUrls];
-
         const updatedProductData: Omit<Product, 'id'> = {
           name: productData.name,
           price: productData.price,
           category: productData.category,
           brand: productData.brand,
           color: productData.color,
-          description: oldProduct.description, // Preserve existing description
-          images: allImageUrls.length > 0 ? allImageUrls : ['https://placehold.co/600x400.png'],
+          description: oldProduct.description,
+          image: (typeof productData.image === 'string' ? productData.image : oldProduct.image) || 'https://placehold.co/600x400.png',
         };
 
         if (newId !== originalId) {
@@ -164,6 +152,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             await updateDoc(doc(db, 'products', newId), updatedProductData);
             const finalProduct = { ...updatedProductData, id: newId };
             setProducts((prev) => prev.map((p) => (p.id === newId ? finalProduct : p)));
+        }
+
+        if (productData.image && productData.image instanceof File) {
+            const imageUrl = await uploadImage(newId, productData.image);
+            await updateDoc(doc(db, "products", newId), { image: imageUrl });
+            setProducts((prev) => prev.map(p => p.id === newId ? { ...p, image: imageUrl } : p));
         }
 
         toast({
@@ -188,21 +182,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       const product = products.find(p => p.id === productId);
       if (!product) throw new Error("Product not found");
 
-      if (product.images && product.images.length > 0) {
-        const deletePromises = product.images.map(imageUrl => {
-          if (!imageUrl.includes('placehold.co')) {
-            try {
-              const imageRef = ref(storage, imageUrl);
-              return deleteObject(imageRef);
-            } catch (storageError: any) {
-              if (storageError.code !== 'storage/object-not-found') {
-                console.error("Could not delete image from storage:", storageError);
-              }
-            }
+      if (product.image && !product.image.includes('placehold.co')) {
+        try {
+          const imageRef = ref(storage, product.image);
+          await deleteObject(imageRef);
+        } catch (storageError: any) {
+          if (storageError.code !== 'storage/object-not-found') {
+            console.error("Could not delete image from storage:", storageError);
           }
-          return Promise.resolve();
-        });
-        await Promise.all(deletePromises);
+        }
       }
       
       await deleteDoc(productDoc);
