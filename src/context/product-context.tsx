@@ -178,7 +178,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         if (newId !== originalId) {
             const oldDocRef = doc(db, 'products', originalId);
             const newDocRef = doc(db, 'products', newId);
-            const fullProductData = { ...oldProduct, ...updatedProductData, id: newId };
+            const fullProductData = { ...oldProduct, ...updatedProductData, id: newId, image: oldProduct.image };
             // If ID changes, we must move the document. Image handling gets complex.
             // Simplest for now: Re-create and delete.
             await setDoc(newDocRef, fullProductData);
@@ -305,5 +305,3 @@ export function useProducts() {
   }
   return context;
 }
-
-    

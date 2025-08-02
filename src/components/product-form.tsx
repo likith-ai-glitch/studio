@@ -31,6 +31,7 @@ interface ProductFormProps {
 
 export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductFormProps) {
   const router = useRouter();
+  const [preview, setPreview] = useState<string | null>(initialData?.image || null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -45,7 +46,22 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
     },
   });
 
-  const { control, handleSubmit } = form;
+  const { control, handleSubmit, watch } = form;
+  const imageValue = watch('image');
+
+  useEffect(() => {
+    if (imageValue instanceof File) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreview(reader.result as string);
+      };
+      reader.readAsDataURL(imageValue);
+    } else if (typeof imageValue === 'string') {
+      setPreview(imageValue);
+    } else {
+        setPreview(initialData?.image || null);
+    }
+  }, [imageValue, initialData?.image]);
 
   const onFormSubmit = (values: z.infer<typeof formSchema>) => {
     onSubmit(values, initialData?.id);
@@ -135,6 +151,58 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
             </FormItem>
           )}
         />
+        <FormField
+          control={control}
+          name="image"
+          render={({ field: { onChange, value, ...rest } }) => (
+            <FormItem>
+              <FormLabel>Product Image</FormLabel>
+              <FormControl>
+                <div className="flex items-center gap-4">
+                  <div className="w-32 h-32 rounded-md border border-dashed flex items-center justify-center relative overflow-hidden">
+                    {preview ? (
+                      <>
+                        <Image src={preview} alt="Product preview" fill style={{ objectFit: 'cover' }} />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-1 right-1 h-6 w-6"
+                          onClick={() => {
+                            onChange(undefined);
+                            setPreview(null);
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : (
+                       <label htmlFor="image-upload" className="cursor-pointer flex flex-col items-center justify-center text-muted-foreground text-sm text-center">
+                          <Upload className="h-6 w-6 mb-1"/>
+                           Upload Image
+                       </label>
+                    )}
+                  </div>
+                  <Input
+                    id="image-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        onChange(file);
+                      }
+                    }}
+                    {...rest}
+                  />
+                </div>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
 
         <div className="flex gap-4">
           <Button type="submit" className="flex-grow" disabled={isSubmitting}>
