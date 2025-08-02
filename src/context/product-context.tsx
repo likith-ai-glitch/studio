@@ -79,24 +79,19 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
- const uploadImageAndUpdateUrl = async (productId: string, file: File): Promise<void> => {
+  const uploadImage = async (productId: string, file: File): Promise<string> => {
     const storageRef = ref(storage, `products/${productId}/${file.name}`);
     await uploadBytes(storageRef, file);
     const downloadUrl = await getDownloadURL(storageRef);
-    
-    const docRef = doc(db, 'products', productId);
-    await updateDoc(docRef, { image: downloadUrl });
-
-    // Update local state
-    setProducts(prev => 
-      prev.map(p => p.id === productId ? { ...p, image: downloadUrl } : p)
-    );
-};
-
+    return downloadUrl;
+  };
 
   const addProduct = async (productData: ProductFormValues) => {
     try {
-      const tempImageUrl = 'https://placehold.co/600x400.png';
+      let imageUrl = 'https://placehold.co/600x400.png';
+      if (productData.image instanceof File) {
+        imageUrl = await uploadImage(productData.id, productData.image);
+      }
 
       const newProduct: Product = {
         id: productData.id,
@@ -105,35 +100,21 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         category: productData.category,
         brand: productData.brand,
         color: productData.color,
-        description: '',
-        image: tempImageUrl,
+        description: '', // Default empty description
+        image: imageUrl,
       };
-      
-      // Optimistically add product to state and Firestore
-      setProducts((prev) => [...prev, newProduct]);
+
       await setDoc(doc(db, "products", newProduct.id), newProduct);
+
+      setProducts((prev) => [...prev, newProduct]);
       
       toast({
         title: "Product Added",
-        description: `${newProduct.name} has been added. Image is uploading in the background.`,
+        description: `${newProduct.name} has been successfully added.`,
       });
-
-      // Start image upload in the background
-      if (productData.image instanceof File) {
-        uploadImageAndUpdateUrl(newProduct.id, productData.image).catch(error => {
-          console.error("Background image upload failed: ", error);
-          toast({
-            title: "Image Upload Failed",
-            description: `Could not upload image for ${newProduct.name}.`,
-            variant: "destructive",
-          });
-        });
-      }
 
     } catch (error) {
        console.error("Error adding product: ", error);
-       // Revert optimistic update on error
-       setProducts(prev => prev.filter(p => p.id !== productData.id));
        toast({
         title: "Error",
         description: "Failed to add product.",
@@ -149,50 +130,41 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const oldProduct = products.find(p => p.id === originalId);
         if (!oldProduct) throw new Error("Original product not found for update.");
 
-        const updatedProductData: Product = {
-          ...oldProduct,
-          id: newId,
+        let imageUrl = oldProduct.image;
+        if (productData.image instanceof File) {
+          imageUrl = await uploadImage(newId, productData.image);
+        } else if (typeof productData.image === 'string') {
+          imageUrl = productData.image;
+        }
+
+        const updatedProductData: Omit<Product, 'id'> = {
           name: productData.name,
           price: productData.price,
           category: productData.category,
           brand: productData.brand,
           color: productData.color,
-          image: productData.image instanceof File ? oldProduct.image : productData.image, // Keep old image for now if new one is being uploaded
+          description: oldProduct.description, // Preserve existing description
+          image: imageUrl,
         };
 
-        // --- Optimistic UI Update ---
         if (newId !== originalId) {
-            // ID change requires delete and set
-            setProducts((prev) => [...prev.filter((p) => p.id !== originalId), updatedProductData]);
             await setDoc(doc(db, 'products', newId), updatedProductData);
             await deleteDoc(doc(db, 'products', originalId));
+            const finalProduct = { ...updatedProductData, id: newId };
+            setProducts((prev) => [...prev.filter((p) => p.id !== originalId), finalProduct]);
         } else {
-            // No ID change, just update
-            setProducts((prev) => prev.map((p) => (p.id === newId ? updatedProductData : p)));
             await updateDoc(doc(db, 'products', newId), updatedProductData);
+            const finalProduct = { ...updatedProductData, id: newId };
+            setProducts((prev) => prev.map((p) => (p.id === newId ? finalProduct : p)));
         }
 
         toast({
             title: "Product Updated",
-            description: `${updatedProductData.name} has been updated.`,
+            description: `${productData.name} has been updated.`,
         });
-
-        // --- Background Image Upload ---
-        if (productData.image instanceof File) {
-             uploadImageAndUpdateUrl(newId, productData.image).catch(error => {
-                console.error("Background image upload failed: ", error);
-                toast({
-                    title: "Image Upload Failed",
-                    description: `Could not upload new image for ${updatedProductData.name}.`,
-                    variant: "destructive",
-                });
-             });
-        }
         
     } catch (error) {
         console.error("Error updating product: ", error);
-        // NOTE: A full rollback of optimistic UI here is complex. 
-        // For now, we show an error and the user can refresh to see the true state.
         toast({
             title: "Error",
             description: "Failed to update product.",
