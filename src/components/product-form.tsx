@@ -20,7 +20,7 @@ const formSchema = z.object({
   category: z.string().min(2, { message: 'Category must be at least 2 characters.' }),
   brand: z.string().min(2, { message: 'Brand must be at least 2 characters.' }),
   color: z.string().min(2, { message: 'Color must be at least 2 characters.' }),
-  image: z.union([z.instanceof(File), z.string()]).refine(val => val, { message: 'Please provide an image.'}),
+  images: z.array(z.union([z.instanceof(File), z.string()])).optional(),
 });
 
 interface ProductFormProps {
@@ -31,7 +31,7 @@ interface ProductFormProps {
 
 export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductFormProps) {
   const router = useRouter();
-  const [imagePreview, setImagePreview] = useState<string | null>(initialData?.image || null);
+  const [imagePreviews, setImagePreviews] = useState<(string)[]>(initialData?.images || []);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -42,37 +42,36 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
       category: initialData?.category || '',
       brand: initialData?.brand || '',
       color: initialData?.color || '',
-      image: initialData?.image || undefined,
+      images: initialData?.images || [],
     },
   });
 
   const { control, handleSubmit, watch, setValue } = form;
-  const currentImage = watch('image');
+  const currentImages = watch('images');
   
   useEffect(() => {
-    let previewUrl: string | null = null;
-    if (currentImage) {
-        if (typeof currentImage === 'string') {
-            previewUrl = currentImage;
-        } else if (currentImage instanceof File) {
-            previewUrl = URL.createObjectURL(currentImage);
-        }
-    }
-    setImagePreview(previewUrl);
+    if (currentImages) {
+        const previews = currentImages.map(img => {
+            if (typeof img === 'string') return img;
+            return URL.createObjectURL(img);
+        });
+        setImagePreviews(previews);
 
-    return () => {
-      if (previewUrl && previewUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(previewUrl);
-      }
-    };
-  }, [currentImage]);
+        return () => {
+            previews.forEach(p => {
+                if (p.startsWith('blob:')) URL.revokeObjectURL(p)
+            });
+        };
+    }
+  }, [currentImages]);
 
   const onFormSubmit = (values: z.infer<typeof formSchema>) => {
     onSubmit(values, initialData?.id);
   }
 
-  const handleRemoveImage = () => {
-    setValue('image', undefined, { shouldValidate: true });
+  const handleRemoveImage = (indexToRemove: number) => {
+    const updatedImages = currentImages?.filter((_, index) => index !== indexToRemove);
+    setValue('images', updatedImages, { shouldValidate: true });
   };
   
   return (
@@ -162,10 +161,10 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
         
         <Controller
           control={control}
-          name="image"
+          name="images"
           render={({ field: { onChange, value }, fieldState }) => (
             <FormItem>
-              <FormLabel>Product Image</FormLabel>
+              <FormLabel>Product Images</FormLabel>
               <FormControl>
                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80">
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
@@ -177,13 +176,12 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                   </div>
                   <input 
                     type="file" 
+                    multiple
                     className="hidden" 
                     accept="image/*"
                     onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        onChange(file);
-                      }
+                      const files = Array.from(e.target.files || []);
+                      onChange([...(value || []), ...files]);
                     }}
                   />
                 </label>
@@ -193,23 +191,27 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
           )}
         />
 
-        {imagePreview && (
-          <div className="w-32 h-32 relative">
-            <Image
-              src={imagePreview}
-              alt="Product preview"
-              fill
-              className="rounded-lg object-cover"
-            />
-             <Button
-              type="button"
-              variant="destructive"
-              size="icon"
-              className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
-              onClick={handleRemoveImage}
-            >
-              <X className="h-4 w-4" />
-            </Button>
+        {imagePreviews.length > 0 && (
+          <div className="flex flex-wrap gap-4">
+            {imagePreviews.map((preview, index) => (
+                <div key={index} className="w-32 h-32 relative">
+                    <Image
+                    src={preview}
+                    alt={`Product preview ${index + 1}`}
+                    fill
+                    className="rounded-lg object-cover"
+                    />
+                    <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                        onClick={() => handleRemoveImage(index)}
+                    >
+                    <X className="h-4 w-4" />
+                    </Button>
+                </div>
+            ))}
           </div>
         )}
 
