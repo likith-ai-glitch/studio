@@ -10,7 +10,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { notFound } from 'next/navigation';
 import type { Product } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
-import type { z } from 'zod';
+import * as z from 'zod';
 
 // We can't import this from product-form due to client/server boundary issues
 const formSchema = z.object({

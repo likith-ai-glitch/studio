@@ -6,7 +6,7 @@ import { ProductForm } from '@/components/product-form';
 import { useProducts } from '@/context/product-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
-import type { z } from 'zod';
+import * as z from 'zod';
 
 // We can't import this from product-form due to client/server boundary issues
 const formSchema = z.object({
