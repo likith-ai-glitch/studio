@@ -3,7 +3,7 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, addDoc, updateDoc, deleteDoc, getDoc, writeBatch, query, where } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, getDoc, writeBatch, query, where } from 'firebase/firestore';
 import { products as initialProducts } from '@/lib/products';
 import type { Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -34,7 +34,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         console.log("No products found in Firestore, seeding database...");
         const batch = writeBatch(db);
         initialProducts.forEach((product) => {
-          // Note: Firestore will auto-generate IDs, but we use our own to match relations
           const docRef = doc(db, "products", product.id.toString());
           batch.set(docRef, product);
         });
@@ -67,9 +66,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const addProduct = async (productData: Omit<Product, 'id'>) => {
     try {
-      // Firestore will auto-generate a unique ID
-      const newDocRef = await addDoc(productsCollectionRef, productData);
-      const newProduct = { ...productData, id: newDocRef.id };
+      const newId = `P100${Date.now()}`;
+      const newProduct = { ...productData, id: newId };
+      await setDoc(doc(db, "products", newId), newProduct);
       setProducts((prev) => [...prev, newProduct]);
       toast({
         title: "Product Added",

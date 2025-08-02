@@ -3,7 +3,7 @@ import type { Product } from './types';
 
 export const products: Product[] = [
   {
-    id: 1001,
+    id: 'P1001001',
     name: 'Acoustic Guitar',
     description: 'A beautifully crafted acoustic guitar with a rich, warm tone. Perfect for beginners and seasoned players alike. Comes with a soft case and a set of picks.',
     price: 249.99,
@@ -13,7 +13,7 @@ export const products: Product[] = [
     brand: 'Fender',
   },
   {
-    id: 1002,
+    id: 'P1001002',
     name: 'Wireless Headphones',
     description: 'Experience immersive sound with these high-fidelity wireless headphones. Featuring noise-cancellation technology and a 20-hour battery life.',
     price: 199.99,
@@ -23,7 +23,7 @@ export const products: Product[] = [
     brand: 'Sony',
   },
   {
-    id: 1003,
+    id: 'P1001003',
     name: 'Modern Bookshelf',
     description: 'A sleek and sturdy bookshelf to organize your favorite reads. Made from sustainable bamboo with a minimalist design that fits any decor.',
     price: 150.0,
@@ -33,7 +33,7 @@ export const products: Product[] = [
     brand: 'IKEA',
   },
   {
-    id: 1004,
+    id: 'P1001004',
     name: 'Espresso Machine',
     description: 'Brew cafe-quality espresso at home with this professional-grade machine. Features a powerful 15-bar pump and a built-in milk frother.',
     price: 499.5,
@@ -43,7 +43,7 @@ export const products: Product[] = [
     brand: 'Breville',
   },
   {
-    id: 1005,
+    id: 'P1001005',
     name: 'Leather Backpack',
     description: 'A stylish and durable backpack crafted from genuine leather. It has multiple compartments, including a padded laptop sleeve.',
     price: 120.0,
@@ -53,7 +53,7 @@ export const products: Product[] = [
     brand: 'Herschel',
   },
   {
-    id: 1006,
+    id: 'P1001006',
     name: 'Yoga Mat',
     description: 'A non-slip, eco-friendly yoga mat providing excellent grip and cushioning. Made from natural rubber and comes with a carrying strap.',
     price: 45.0,
@@ -63,7 +63,7 @@ export const products: Product[] = [
     brand: 'Lululemon',
   },
   {
-    id: 1007,
+    id: 'P1001007',
     name: 'Smart Watch',
     description: 'Track your fitness, receive notifications, and more with this sleek smart watch. Compatible with both iOS and Android devices.',
     price: 299.0,
@@ -73,7 +73,7 @@ export const products: Product[] = [
     brand: 'Apple',
   },
   {
-    id: 1008,
+    id: 'P1001008',
     name: 'Electric Keyboard',
     description: 'A 61-key portable electric keyboard with hundreds of built-in sounds and rhythms. Ideal for learning and composing music.',
     price: 180.75,
@@ -83,7 +83,7 @@ export const products: Product[] = [
     brand: 'Yamaha',
   },
    {
-    id: 1009,
+    id: 'P1001009',
     name: 'Chef\'s Knife',
     description: 'A professional high-carbon stainless steel chef\'s knife. Perfectly balanced for precision cutting and dicing. An essential tool for any kitchen.',
     price: 89.99,
