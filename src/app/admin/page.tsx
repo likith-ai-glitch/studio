@@ -107,7 +107,7 @@ export default function AdminPage() {
       <header className="flex justify-between items-center">
         <h1 className="text-4xl font-bold font-headline">Dashboard</h1>
       </header>
-      
+
       <Card>
         <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <CardTitle>Product List</CardTitle>
@@ -157,7 +157,7 @@ export default function AdminPage() {
                   <TableCell className="font-mono text-xs">{product.id.toString().substring(0, 8)}...</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
-                    {product.images.map((image, index) => (
+                    {product.images && product.images.map((image, index) => (
                          <Image
                             key={index}
                             alt={`${product.name} image ${index + 1}`}
@@ -219,7 +219,7 @@ export default function AdminPage() {
           )}
         </CardContent>
       </Card>
-
+      
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -291,3 +291,4 @@ export default function AdminPage() {
     </div>
   );
 }
+
