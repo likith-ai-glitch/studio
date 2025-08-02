@@ -35,7 +35,6 @@ import { subDays, format } from 'date-fns';
 import type { Product } from '@/lib/types';
 import type { DropdownMenuItemProps } from '@radix-ui/react-dropdown-menu';
 
-// A wrapper for DropdownMenuItem to allow AlertDialogTrigger as a child
 const AlertDialogTriggerMenuItem = React.forwardRef<HTMLDivElement, DropdownMenuItemProps>(
   (props, ref) => <DropdownMenuItem {...props} ref={ref} onSelect={(e) => e.preventDefault()} />
 );
@@ -80,7 +79,7 @@ export default function AdminPage() {
 
     if (sortConfig.key) {
       sortableProducts.sort((a, b) => {
-        const key = sortConfig.key as keyof Product; // Cast because 'id' is handled, but TS doesn't know
+        const key = sortConfig.key as keyof Product; 
         if (a[key] < b[key]) {
           return sortConfig.direction === 'ascending' ? -1 : 1;
         }
@@ -136,8 +135,8 @@ export default function AdminPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>ID</TableHead>
-                <TableHead className="w-[200px]">
-                  Images
+                <TableHead className="w-[80px]">
+                  Image
                 </TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
@@ -156,19 +155,16 @@ export default function AdminPage() {
                 <TableRow key={product.id}>
                   <TableCell className="font-mono text-xs">{product.id.toString().substring(0, 8)}...</TableCell>
                   <TableCell>
-                    <div className="flex gap-2">
-                    {product.images && product.images.map((image, index) => (
+                    {product.image && (
                          <Image
-                            key={index}
-                            alt={`${product.name} image ${index + 1}`}
+                            alt={product.name}
                             className="aspect-square rounded-md object-cover"
                             height="40"
-                            src={image}
+                            src={product.image}
                             width="40"
                             data-ai-hint={`${product.category.toLowerCase()} ${product.name.split(' ')[0].toLowerCase()}`}
                         />
-                    ))}
-                    </div>
+                    )}
                   </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>{product.category}</TableCell>
@@ -291,4 +287,3 @@ export default function AdminPage() {
     </div>
   );
 }
-

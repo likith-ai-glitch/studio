@@ -21,7 +21,7 @@ const formSchema = z.object({
   category: z.string().min(2, { message: 'Category must be at least 2 characters.' }),
   brand: z.string().min(2, { message: 'Brand must be at least 2 characters.' }),
   color: z.string().min(2, { message: 'Color must be at least 2 characters.' }),
-  images: z.array(z.union([z.instanceof(File), z.string()])).min(1, { message: 'Please provide at least one image.' }),
+  image: z.union([z.instanceof(File), z.string()]).refine(val => val, { message: 'Please provide an image.'}),
 });
 
 interface ProductFormProps {
@@ -32,7 +32,7 @@ interface ProductFormProps {
 
 export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductFormProps) {
   const router = useRouter();
-  const [imagePreviews, setImagePreviews] = useState<string[]>(initialData?.images || []);
+  const [imagePreview, setImagePreview] = useState<string | null>(initialData?.image || null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -43,32 +43,37 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
       category: initialData?.category || '',
       brand: initialData?.brand || '',
       color: initialData?.color || '',
-      images: initialData?.images || [],
+      image: initialData?.image || undefined,
     },
   });
 
   const { control, handleSubmit, watch, setValue } = form;
-  const currentImages = watch('images');
+  const currentImage = watch('image');
   
   useEffect(() => {
-    const previews = currentImages?.map(img => (typeof img === 'string' ? img : URL.createObjectURL(img))) || [];
-    setImagePreviews(previews);
+    let previewUrl: string | null = null;
+    if (currentImage) {
+        if (typeof currentImage === 'string') {
+            previewUrl = currentImage;
+        } else if (currentImage instanceof File) {
+            previewUrl = URL.createObjectURL(currentImage);
+        }
+    }
+    setImagePreview(previewUrl);
 
     return () => {
-      previews.forEach(p => {
-        if(p.startsWith('blob:')) URL.revokeObjectURL(p);
-      });
+      if (previewUrl && previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrl);
+      }
     };
-  }, [currentImages]);
+  }, [currentImage]);
 
   const onFormSubmit = (values: z.infer<typeof formSchema>) => {
     onSubmit(values, initialData?.id);
   }
 
-  const handleRemoveImage = (index: number) => {
-    const updatedImages = [...currentImages];
-    updatedImages.splice(index, 1);
-    setValue('images', updatedImages, { shouldValidate: true });
+  const handleRemoveImage = () => {
+    setValue('image', undefined, { shouldValidate: true });
   };
   
   return (
@@ -158,10 +163,10 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
         
         <Controller
           control={control}
-          name="images"
+          name="image"
           render={({ field: { onChange, value }, fieldState }) => (
             <FormItem>
-              <FormLabel>Product Images</FormLabel>
+              <FormLabel>Product Image</FormLabel>
               <FormControl>
                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80">
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
@@ -173,12 +178,13 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                   </div>
                   <input 
                     type="file" 
-                    multiple 
                     className="hidden" 
                     accept="image/*"
                     onChange={(e) => {
-                      const files = Array.from(e.target.files || []);
-                      onChange([...(value || []), ...files]);
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        onChange(file);
+                      }
                     }}
                   />
                 </label>
@@ -188,27 +194,23 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
           )}
         />
 
-        {imagePreviews.length > 0 && (
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
-            {imagePreviews.map((preview, index) => (
-              <div key={index} className="relative aspect-square">
-                <Image
-                  src={preview}
-                  alt={`Product preview ${index + 1}`}
-                  fill
-                  className="rounded-lg object-cover"
-                />
-                 <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon"
-                  className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
-                  onClick={() => handleRemoveImage(index)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
+        {imagePreview && (
+          <div className="w-32 h-32 relative">
+            <Image
+              src={imagePreview}
+              alt="Product preview"
+              fill
+              className="rounded-lg object-cover"
+            />
+             <Button
+              type="button"
+              variant="destructive"
+              size="icon"
+              className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+              onClick={handleRemoveImage}
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
         )}
 

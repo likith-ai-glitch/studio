@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import * as z from 'zod';
 
-// We can't import this from product-form due to client/server boundary issues
 const formSchema = z.object({
   id: z.string().min(3),
   name: z.string().min(2),
@@ -16,7 +15,7 @@ const formSchema = z.object({
   category: z.string().min(2),
   brand: z.string().min(2),
   color: z.string().min(2),
-  images: z.array(z.union([z.instanceof(File), z.string()])),
+  image: z.union([z.instanceof(File), z.string()]),
 });
 type ProductFormValues = z.infer<typeof formSchema>;
 
@@ -32,7 +31,6 @@ export default function NewProductPage() {
       await addProduct(data);
       router.push('/admin');
     } catch (error) {
-      // Error toast is handled in context
       setIsSubmitting(false);
     }
   };

@@ -12,7 +12,6 @@ import type { Product } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import * as z from 'zod';
 
-// We can't import this from product-form due to client/server boundary issues
 const formSchema = z.object({
   id: z.string().min(3),
   name: z.string().min(2),
@@ -20,7 +19,7 @@ const formSchema = z.object({
   category: z.string().min(2),
   brand: z.string().min(2),
   color: z.string().min(2),
-  images: z.array(z.union([z.instanceof(File), z.string()])),
+  image: z.union([z.instanceof(File), z.string()]),
 });
 type ProductFormValues = z.infer<typeof formSchema>;
 
@@ -59,7 +58,6 @@ export default function EditProductPage() {
   }
 
   if (!product) {
-    // This will be caught by notFound() in useEffect, but as a fallback
     return notFound();
   }
 
@@ -70,7 +68,6 @@ export default function EditProductPage() {
       await updateProduct(data, originalId);
       router.push('/admin');
     } catch(error) {
-       // Error toast is handled in context
       setIsSubmitting(false);
     }
   };

@@ -22,12 +22,10 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
         const p = await getProduct(params.id);
         setProduct(p);
     }
-    // First, try to find the product in the already loaded list
     const foundProduct = products.find((p) => p.id.toString() === params.id);
     if(foundProduct){
         setProduct(foundProduct);
     } else {
-        // If not found (e.g. direct navigation), fetch it individually
         fetchProduct();
     }
   }, [params.id, products, getProduct]);
@@ -52,7 +50,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
       <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
         <div className="bg-card rounded-lg shadow-sm overflow-hidden">
           <Image
-            src={product.images[0]}
+            src={product.image}
             alt={product.name}
             width={800}
             height={800}
