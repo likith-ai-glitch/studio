@@ -1,6 +1,6 @@
 
 export interface Product {
-  id: number | string; // Can be number from initial data or string from Firestore
+  id: string;
   name: string;
   description: string;
   price: number;

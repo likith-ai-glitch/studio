@@ -34,7 +34,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         console.log("No products found in Firestore, seeding database...");
         const batch = writeBatch(db);
         initialProducts.forEach((product) => {
-          const docRef = doc(db, "products", product.id.toString());
+          const docRef = doc(db, "products", product.id);
           batch.set(docRef, product);
         });
         await batch.commit();
@@ -85,7 +85,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
 
   const updateProduct = async (updatedProduct: Product) => {
-    const productDoc = doc(db, 'products', updatedProduct.id.toString());
+    const productDoc = doc(db, 'products', updatedProduct.id);
     try {
       const { id, ...productData } = updatedProduct;
       await updateDoc(productDoc, productData);
@@ -109,9 +109,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const deleteProduct = async (productId: string) => {
     const productDoc = doc(db, 'products', productId);
     try {
-      const productName = products.find(p => p.id.toString() === productId)?.name;
+      const productName = products.find(p => p.id === productId)?.name;
       await deleteDoc(productDoc);
-      setProducts((prev) => prev.filter((p) => p.id.toString() !== productId));
+      setProducts((prev) => prev.filter((p) => p.id !== productId));
       toast({
         title: "Product Deleted",
         description: `${productName} has been successfully deleted.`,
@@ -145,7 +145,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   
   // The getProduct in context needs to match the interface, but components might need a sync version
   const getProductSync = (productId: string) => {
-      return products.find(p => p.id.toString() === productId);
+      return products.find(p => p.id === productId);
   }
 
 
