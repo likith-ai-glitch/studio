@@ -221,7 +221,7 @@ export default function AdminPage() {
             <TableBody>
               {sortedAndFilteredProducts.map((product) => (
                 <TableRow key={product.id}>
-                  <TableCell className="font-mono text-xs">{product.id.toString()}</TableCell>
+                  <TableCell className="font-mono text-xs">{product.id.toString().substring(0, 8)}...</TableCell>
                   <TableCell className="hidden sm:table-cell">
                     <Image
                       alt={product.name}
@@ -284,5 +284,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-    
