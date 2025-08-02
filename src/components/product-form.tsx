@@ -7,10 +7,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import type { Product } from '@/lib/types';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
 import Image from 'next/image';
 
 const formSchema = z.object({
@@ -20,10 +20,10 @@ const formSchema = z.object({
   category: z.string().min(2, { message: 'Category must be at least 2 characters.' }),
   brand: z.string().min(2, { message: 'Brand must be at least 2 characters.' }),
   color: z.string().min(2, { message: 'Color must be at least 2 characters.' }),
-  image: z.string().min(1, { message: 'Please upload an image.' }),
+  images: z.string().min(1, { message: 'Please provide at least one image URL.' }),
 });
 
-type ProductFormValues = Omit<Product, 'description'>;
+type ProductFormValues = Omit<Product, 'description' | 'images'> & { images: string };
 
 interface ProductFormProps {
   initialData?: Product;
@@ -32,41 +32,34 @@ interface ProductFormProps {
 
 export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
   const router = useRouter();
-  const [imagePreview, setImagePreview] = useState<string | null>(initialData?.image || null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: initialData || {
+    defaultValues: initialData ? {
+      ...initialData,
+      images: initialData.images.join(', '),
+    } : {
       id: '',
       name: '',
       price: 0,
       category: '',
       brand: '',
       color: '',
-      image: '',
+      images: '',
     },
   });
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const dataUrl = reader.result as string;
-        setImagePreview(dataUrl);
-        form.setValue('image', dataUrl);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const onFormSubmit = (values: z.infer<typeof formSchema>) => {
+    const imagesAsArray = values.images.split(',').map(url => url.trim()).filter(url => url);
+    
     onSubmit({
       ...values,
+      images: imagesAsArray,
       description: initialData?.description || '' 
     }, initialData?.id);
   }
 
+  const imagePreview = form.watch('images')?.split(',')[0]?.trim();
 
   return (
     <Form {...form}>
@@ -154,16 +147,14 @@ export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
         />
         <FormField
           control={form.control}
-          name="image"
+          name="images"
           render={({ field }) => (
              <FormItem>
-              <FormLabel>Product Image</FormLabel>
+              <FormLabel>Product Images</FormLabel>
               <FormControl>
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="file:text-primary file:font-medium"
+                 <Textarea 
+                  placeholder="Enter image URLs, separated by commas"
+                  {...field}
                 />
               </FormControl>
               <FormMessage />

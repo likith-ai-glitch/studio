@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Image from 'next/image';
@@ -40,7 +41,7 @@ export function ProductCard({ product }: ProductCardProps) {
         <CardHeader className="p-0">
           <div className="relative">
             <Image
-              src={product.image}
+              src={product.images[0]}
               alt={product.name}
               width={600}
               height={400}

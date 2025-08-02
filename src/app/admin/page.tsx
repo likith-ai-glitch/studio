@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useProducts } from '@/context/product-context';
 import { useOrders } from '@/context/order-context';
 import { Button } from '@/components/ui/button';
@@ -106,7 +107,7 @@ export default function AdminPage() {
       <header className="flex justify-between items-center">
         <h1 className="text-4xl font-bold font-headline">Dashboard</h1>
       </header>
-
+      
       <Card>
         <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <CardTitle>Product List</CardTitle>
@@ -135,8 +136,8 @@ export default function AdminPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>ID</TableHead>
-                <TableHead className="hidden w-[100px] sm:table-cell">
-                  Image
+                <TableHead className="w-[200px]">
+                  Images
                 </TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
@@ -154,15 +155,20 @@ export default function AdminPage() {
               {sortedAndFilteredProducts.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell className="font-mono text-xs">{product.id.toString().substring(0, 8)}...</TableCell>
-                  <TableCell className="hidden sm:table-cell">
-                    <Image
-                      alt={product.name}
-                      className="aspect-square rounded-md object-cover"
-                      height="64"
-                      src={product.image}
-                      width="64"
-                      data-ai-hint={`${product.category.toLowerCase()} ${product.name.split(' ')[0].toLowerCase()}`}
-                    />
+                  <TableCell>
+                    <div className="flex gap-2">
+                    {product.images.map((image, index) => (
+                         <Image
+                            key={index}
+                            alt={`${product.name} image ${index + 1}`}
+                            className="aspect-square rounded-md object-cover"
+                            height="40"
+                            src={image}
+                            width="40"
+                            data-ai-hint={`${product.category.toLowerCase()} ${product.name.split(' ')[0].toLowerCase()}`}
+                        />
+                    ))}
+                    </div>
                   </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>{product.category}</TableCell>

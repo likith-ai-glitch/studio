@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useProducts } from '@/context/product-context';
@@ -51,7 +52,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
       <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
         <div className="bg-card rounded-lg shadow-sm overflow-hidden">
           <Image
-            src={product.image}
+            src={product.images[0]}
             alt={product.name}
             width={800}
             height={800}
