@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useProducts } from '@/context/product-context';
 import { useOrders } from '@/context/order-context';
 import { Button } from '@/components/ui/button';
@@ -31,7 +31,7 @@ import {
 import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { subDays, format } from 'date-fns';
 import type { Product } from '@/lib/types';
-import { DropdownMenuItemProps } from '@radix-ui/react-dropdown-menu';
+import type { DropdownMenuItemProps } from '@radix-ui/react-dropdown-menu';
 
 // A wrapper for DropdownMenuItem to allow AlertDialogTrigger as a child
 const AlertDialogTriggerMenuItem = React.forwardRef<HTMLDivElement, DropdownMenuItemProps>(
