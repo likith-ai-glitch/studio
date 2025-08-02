@@ -9,7 +9,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { products as initialProducts } from '@/lib/products';
 import type { Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import type { z } from 'zod';
+import { z } from 'zod';
 
 // We can't import this from product-form due to client/server boundary issues
 const formSchema = z.object({
