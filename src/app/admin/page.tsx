@@ -141,9 +141,6 @@ export default function AdminPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>ID</TableHead>
-                <TableHead className="w-[80px]">
-                  Image
-                </TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Brand</TableHead>
@@ -160,18 +157,6 @@ export default function AdminPage() {
               {sortedAndFilteredProducts.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell className="font-mono text-xs">{product.id.toString().substring(0, 8)}...</TableCell>
-                  <TableCell>
-                    {product.image && (
-                         <Image
-                            alt={product.name}
-                            className="aspect-square rounded-md object-cover"
-                            height="40"
-                            src={product.image}
-                            width="40"
-                            data-ai-hint={`${product.category.toLowerCase()} ${product.name.split(' ')[0].toLowerCase()}`}
-                        />
-                    )}
-                  </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>{product.category}</TableCell>
                   <TableCell>{product.brand}</TableCell>
