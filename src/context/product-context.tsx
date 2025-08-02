@@ -172,11 +172,11 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     };
 
     // Optimistically update UI
-    if (newId !== originalId) {
-        setProducts((prev) => [...prev.filter(p => p.id !== originalId), tempUpdatedData]);
-    } else {
-        setProducts((prev) => prev.map((p) => (p.id === originalId ? tempUpdatedData : p)));
-    }
+    setProducts((prev) => {
+        const otherProducts = prev.filter(p => p.id !== originalId);
+        return [...otherProducts, tempUpdatedData];
+    });
+
 
     try {
         let imageUrl = oldProduct.image;
@@ -190,9 +190,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
                     if (e.code !== 'storage/object-not-found') console.error("Could not delete old image:", e);
                 }
             }
-        } else if (productData.image) {
+        } else if (typeof productData.image === 'string') {
             imageUrl = productData.image;
+        } else if (!productData.image) {
+            imageUrl = 'https://placehold.co/600x400.png';
         }
+
 
         const finalProductData: Product = { ...tempUpdatedData, image: imageUrl };
         
@@ -211,11 +214,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         await dbUpdate();
 
         // Final UI update with correct URL
-        if (newId !== originalId) {
-            setProducts((prev) => [...prev.filter(p => p.id !== newId), finalProductData]);
-        } else {
-            setProducts((prev) => prev.map((p) => (p.id === newId ? finalProductData : p)));
-        }
+        setProducts((prev) => prev.map((p) => (p.id === newId ? finalProductData : p)));
+
 
         toast({
             title: "Product Updated",
@@ -225,10 +225,17 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     } catch (error) {
         console.error("Error updating product: ", error);
         // Revert optimistic update on error
-        setProducts(prev => prev.map(p => p.id === (newId !== originalId ? newId : originalId) ? oldProduct : p).filter(p => !!p));
-        if(newId !== originalId){
-            setProducts(prev => prev.filter(p => p.id !== newId));
-        }
+         setProducts((prev) => {
+            const revertedProducts = prev.map(p => (p.id === newId ? oldProduct : p));
+            if(newId !== originalId) {
+                const withoutNew = revertedProducts.filter(p => p.id !== newId);
+                if(!withoutNew.some(p => p.id === originalId)){
+                    return [...withoutNew, oldProduct];
+                }
+                return withoutNew;
+            }
+            return revertedProducts;
+        });
 
         toast({
             title: "Error",
