@@ -140,6 +140,7 @@ export default function AdminPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="hidden md:table-cell">Image</TableHead>
                 <TableHead>ID</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
@@ -156,6 +157,15 @@ export default function AdminPage() {
             <TableBody>
               {sortedAndFilteredProducts.map((product) => (
                 <TableRow key={product.id}>
+                  <TableCell className="hidden md:table-cell">
+                    <Image
+                      alt={product.name}
+                      className="aspect-square rounded-md object-cover"
+                      height="64"
+                      src={product.image || 'https://placehold.co/64x64.png'}
+                      width="64"
+                    />
+                  </TableCell>
                   <TableCell className="font-mono text-xs">{product.id.toString().substring(0, 8)}...</TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>{product.category}</TableCell>
