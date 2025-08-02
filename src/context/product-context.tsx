@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
@@ -79,14 +80,11 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const uploadImage = async (productId: string, file: File): Promise<string> => {
-    const storageRef = ref(storage, `products/${productId}/${file.name}`);
-    const snapshot = await uploadBytes(storageRef, file);
-    return getDownloadURL(snapshot.ref);
-  };
-  
   const addProduct = async (productData: ProductFormValues) => {
     try {
+      const newId = productData.id;
+      const docRef = doc(db, 'products', newId);
+
       const newProductData: Omit<Product, 'id'> = {
         name: productData.name,
         price: productData.price,
@@ -97,25 +95,25 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         image: 'https://placehold.co/600x400.png',
       };
       
-      const newProduct: Product = {
-          ...newProductData,
-          id: productData.id,
-      }
-
-      await setDoc(doc(db, "products", newProduct.id), newProductData);
+      await setDoc(docRef, newProductData);
+      const newProduct = { ...newProductData, id: newId };
       setProducts((prev) => [...prev, newProduct]);
-      
-      if (productData.image && productData.image instanceof File) {
-          const imageUrl = await uploadImage(newProduct.id, productData.image);
-          await updateDoc(doc(db, "products", newProduct.id), { image: imageUrl });
-          setProducts((prev) => prev.map(p => p.id === newProduct.id ? { ...p, image: imageUrl } : p));
-      }
 
       toast({
         title: "Product Added",
         description: `${newProduct.name} has been successfully added.`,
       });
-
+      
+      if (productData.image && productData.image instanceof File) {
+          const file = productData.image;
+          const storageRef = ref(storage, `products/${newId}/${file.name}`);
+          uploadBytes(storageRef, file).then(snapshot => {
+              getDownloadURL(snapshot.ref).then(async (url) => {
+                  await updateDoc(docRef, { image: url });
+                  setProducts((prev) => prev.map(p => p.id === newId ? { ...p, image: url } : p));
+              });
+          });
+      }
     } catch (error) {
        console.error("Error adding product: ", error);
        toast({
@@ -133,37 +131,43 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const oldProduct = products.find(p => p.id === originalId);
         if (!oldProduct) throw new Error("Original product not found for update.");
         
-        const updatedProductData: Omit<Product, 'id'> = {
-          name: productData.name,
-          price: productData.price,
-          category: productData.category,
-          brand: productData.brand,
-          color: productData.color,
-          description: oldProduct.description,
-          image: (typeof productData.image === 'string' ? productData.image : oldProduct.image) || 'https://placehold.co/600x400.png',
+        let updatedProductData: Omit<Product, 'id'> & { id: string } = {
+            id: newId,
+            name: productData.name,
+            price: productData.price,
+            category: productData.category,
+            brand: productData.brand,
+            color: productData.color,
+            description: oldProduct.description,
+            image: (typeof productData.image === 'string' ? productData.image : oldProduct.image) || 'https://placehold.co/600x400.png',
         };
 
+        const docRef = doc(db, 'products', newId);
+
         if (newId !== originalId) {
-            await setDoc(doc(db, 'products', newId), updatedProductData);
+            await setDoc(docRef, updatedProductData);
             await deleteDoc(doc(db, 'products', originalId));
-            const finalProduct = { ...updatedProductData, id: newId };
-            setProducts((prev) => [...prev.filter((p) => p.id !== originalId), finalProduct]);
         } else {
-            await updateDoc(doc(db, 'products', newId), updatedProductData);
-            const finalProduct = { ...updatedProductData, id: newId };
-            setProducts((prev) => prev.map((p) => (p.id === newId ? finalProduct : p)));
+            await updateDoc(docRef, updatedProductData);
         }
 
-        if (productData.image && productData.image instanceof File) {
-            const imageUrl = await uploadImage(newId, productData.image);
-            await updateDoc(doc(db, "products", newId), { image: imageUrl });
-            setProducts((prev) => prev.map(p => p.id === newId ? { ...p, image: imageUrl } : p));
-        }
-
+        setProducts((prev) => prev.map((p) => (p.id === originalId ? updatedProductData : p)));
+        
         toast({
             title: "Product Updated",
             description: `${productData.name} has been updated.`,
         });
+
+        if (productData.image && productData.image instanceof File) {
+          const file = productData.image;
+          const storageRef = ref(storage, `products/${newId}/${file.name}`);
+          uploadBytes(storageRef, file).then(snapshot => {
+              getDownloadURL(snapshot.ref).then(async (url) => {
+                  await updateDoc(docRef, { image: url });
+                  setProducts((prev) => prev.map(p => p.id === newId ? { ...p, image: url } : p));
+              });
+          });
+        }
         
     } catch (error) {
         console.error("Error updating product: ", error);
@@ -187,8 +191,11 @@ export function ProductProvider({ children }: { children: ReactNode }) {
           const imageRef = ref(storage, product.image);
           await deleteObject(imageRef);
         } catch (storageError: any) {
-          if (storageError.code !== 'storage/object-not-found') {
-            console.error("Could not delete image from storage:", storageError);
+          if (storageError.code === 'storage/object-not-found') {
+             console.log("Image not found in storage, proceeding to delete Firestore doc.");
+          } else {
+            // Re-throw other storage errors
+            throw storageError;
           }
         }
       }
