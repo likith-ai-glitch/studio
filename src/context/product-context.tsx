@@ -80,38 +80,52 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     fetchProducts();
   }, [fetchProducts]);
 
-  const uploadImages = async (images: (File | string)[], productId: string): Promise<string[]> => {
-    const existingImageUrls = images.filter(img => typeof img === 'string') as string[];
-    const newImageFiles = images.filter(img => img instanceof File) as File[];
+  const uploadImagesAndUpdateUrls = async (productId: string, files: File[]) => {
+    const uploadPromises = files.map(async (file) => {
+      const storageRef = ref(storage, `products/${productId}/${file.name}`);
+      await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(storageRef);
 
-    const uploadPromises = newImageFiles.map(async (file) => {
-        const storageRef = ref(storage, `products/${productId}/${file.name}`);
-        await uploadBytes(storageRef, file);
-        return getDownloadURL(storageRef);
+      // We need to get the latest product data to append the new URL
+      const productDocRef = doc(db, 'products', productId);
+      const productDoc = await getDoc(productDocRef);
+      const productData = productDoc.data() as Product;
+      
+      const updatedImages = [...productData.images, downloadUrl];
+      await updateDoc(productDocRef, { images: updatedImages });
+      
+      return downloadUrl;
     });
 
-    const newImageUrls = await Promise.all(uploadPromises);
-
-    return [...existingImageUrls, ...newImageUrls];
+    await Promise.all(uploadPromises);
+    // Optionally re-fetch products to ensure UI consistency after all uploads
+    fetchProducts();
   };
-
 
   const addProduct = async (productData: ProductFormValues) => {
     try {
-      const imageUrls = await uploadImages(productData.images, productData.id);
+      const newImageFiles = productData.images.filter(img => img instanceof File) as File[];
 
       const newProduct: Product = {
         ...productData,
-        images: imageUrls,
+        images: [], // Start with no images, they will be added as they upload
         description: '' // Default empty description
       };
       
+      // Immediately save the product with no images
       await setDoc(doc(db, "products", newProduct.id), newProduct);
+      
+      // Optimistically update the local state
       setProducts((prev) => [...prev, newProduct]);
+      
       toast({
         title: "Product Added",
-        description: `${newProduct.name} has been successfully added.`,
+        description: `${newProduct.name} has been added. Images are uploading in the background.`,
       });
+      
+      // Start uploads in the background, don't await them here
+      uploadImagesAndUpdateUrls(newProduct.id, newImageFiles);
+
     } catch (error) {
        console.error("Error adding product: ", error);
        toast({
@@ -125,36 +139,42 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const updateProduct = async (productData: ProductFormValues, originalId: string) => {
     try {
-        const imageUrls = await uploadImages(productData.images, productData.id);
+        const existingImageUrls = productData.images.filter(img => typeof img === 'string') as string[];
+        const newImageFiles = productData.images.filter(img => img instanceof File) as File[];
         const existingProduct = await getProduct(originalId);
 
         const updatedProduct: Product = {
             ...productData,
-            images: imageUrls,
+            images: existingImageUrls,
             description: existingProduct?.description || '',
         };
 
-        // If the ID has changed, delete old and create new.
-        if (updatedProduct.id !== originalId) {
-            const batch = writeBatch(db);
-            const oldDocRef = doc(db, 'products', originalId);
-            batch.delete(oldDocRef);
-            const newDocRef = doc(db, 'products', updatedProduct.id);
-            batch.set(newDocRef, updatedProduct);
-            await batch.commit();
-        } else {
-            const productDoc = doc(db, 'products', updatedProduct.id);
-            await updateDoc(productDoc, updatedProduct);
+        const updateAndUpload = async () => {
+            const docRef = doc(db, 'products', updatedProduct.id);
+            await setDoc(docRef, updatedProduct, { merge: true });
+
+            setProducts((prev) =>
+                prev.map((p) => (p.id === originalId ? updatedProduct : p))
+            );
+
+            toast({
+                title: "Product Updated",
+                description: `${updatedProduct.name} has been updated. New images are uploading.`,
+            });
+
+            // Upload new images in the background
+            uploadImagesAndUpdateUrls(updatedProduct.id, newImageFiles);
         }
 
-        setProducts((prev) =>
-            prev.map((p) => (p.id === originalId ? updatedProduct : p))
-        );
+        // If the ID has changed, we need to do a delete-and-create operation
+        if (updatedProduct.id !== originalId) {
+            const oldDocRef = doc(db, 'products', originalId);
+            await deleteDoc(oldDocRef); // Consider what to do with old images
+            await updateAndUpload();
+        } else {
+            await updateAndUpload();
+        }
 
-        toast({
-            title: "Product Updated",
-            description: `${updatedProduct.name} has been successfully updated.`,
-        });
     } catch (error) {
         console.error("Error updating product: ", error);
         toast({
@@ -178,7 +198,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
           const imageRef = ref(storage, imageUrl);
           await deleteObject(imageRef);
         } catch (storageError: any) {
-            // It's okay if file doesn't exist (e.g. placehold.co images)
+            // It's okay if file doesn't exist (e.g. placehold.co images or if deletion fails)
             if (storageError.code !== 'storage/object-not-found') {
                 console.error("Could not delete image from storage:", storageError);
             }
