@@ -3,7 +3,7 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { db, storage } from '@/lib/firebase';
-import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, getDoc, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getDoc, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { products as initialProducts } from '@/lib/products';
 import type { Product } from '@/lib/types';
@@ -39,43 +39,43 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const productsCollectionRef = collection(db, 'products');
 
-  const fetchProducts = useCallback(async (forceReset = false) => {
+  useEffect(() => {
     setLoading(true);
-    try {
-      const querySnapshot = await getDocs(productsCollectionRef);
-      if (querySnapshot.empty || forceReset) {
-        if (forceReset) {
-          const deleteBatch = writeBatch(db);
-          querySnapshot.docs.forEach(doc => deleteBatch.delete(doc.ref));
-          await deleteBatch.commit();
-          console.log("Existing products cleared.");
-        }
+    const unsubscribe = onSnapshot(productsCollectionRef, async (querySnapshot) => {
+      if (querySnapshot.empty) {
         console.log("Seeding database with initial products...");
-        const seedBatch = writeBatch(db);
-        initialProducts.forEach((product) => {
-          const docRef = doc(db, "products", product.id);
-          seedBatch.set(docRef, product);
-        });
-        await seedBatch.commit();
-        setProducts(initialProducts);
+        try {
+            const seedBatch = writeBatch(db);
+            initialProducts.forEach((product) => {
+              const docRef = doc(db, "products", product.id);
+              seedBatch.set(docRef, product);
+            });
+            await seedBatch.commit();
+            setProducts(initialProducts);
+        } catch (error) {
+             console.error("Error seeding products: ", error);
+             toast({
+                title: "Error",
+                description: "Could not seed initial products.",
+                variant: "destructive",
+            });
+        }
       } else {
         const productsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
         setProducts(productsData);
       }
-    } catch (error) {
-      console.error("Error fetching/seeding products: ", error);
-      toast({
+      setLoading(false);
+    }, (error) => {
+       console.error("Error fetching products with snapshot: ", error);
+       toast({
         title: "Error",
-        description: "Could not fetch or reset products.",
+        description: "Could not connect to Firestore.",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+       setLoading(false);
+    });
 
-  useEffect(() => {
-    fetchProducts();
+    return () => unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
@@ -99,6 +99,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       throw new Error("Product ID already exists");
     }
 
+    let imageUrl = productData.image instanceof File 
+        ? URL.createObjectURL(productData.image) 
+        : (productData.image || 'https://placehold.co/600x400.png');
+
     const tempProductData: Product = {
       id: newId,
       name: productData.name,
@@ -106,34 +110,22 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       category: productData.category,
       brand: productData.brand,
       color: productData.color,
-      description: 'A great product.', // default description
-      image: productData.image instanceof File 
-        ? URL.createObjectURL(productData.image) 
-        : 'https://placehold.co/600x400.png',
+      description: 'A great product.',
+      image: imageUrl,
     };
     
-    // Immediately update UI
+    // Optimistically update UI
     setProducts((prev) => [...prev, tempProductData]);
 
     try {
       if (productData.image instanceof File) {
-        // Upload in background, don't await
-        uploadImage(newId, productData.image).then(imageUrl => {
-          const finalProductData = { ...tempProductData, image: imageUrl };
-          setDoc(docRef, finalProductData);
-          setProducts(prev => prev.map(p => p.id === newId ? finalProductData : p));
-        }).catch(error => {
-            console.error("Error uploading image:", error);
-            // Revert optimistic update on image upload error
-            setProducts((prev) => prev.filter(p => p.id !== newId));
-            toast({ title: "Error", description: "Failed to upload image.", variant: "destructive" });
-        });
-      } else {
-        // Save without image or with placeholder
-        const finalProductData = { ...tempProductData, image: productData.image || 'https://placehold.co/600x400.png' };
-        await setDoc(docRef, finalProductData);
+        imageUrl = await uploadImage(newId, productData.image)
       }
       
+      const finalProductData = { ...tempProductData, image: imageUrl };
+      await setDoc(docRef, finalProductData);
+      
+      // The onSnapshot listener will handle updating the final state.
       toast({
         title: "Product Added",
         description: `${productData.name} has been successfully added.`,
@@ -162,6 +154,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         throw new Error("Original product not found for update.");
     }
     
+    let newImageUrl = productData.image instanceof File 
+        ? URL.createObjectURL(productData.image) 
+        : (productData.image || oldProduct.image);
+
     const tempUpdatedData: Product = {
         ...oldProduct,
         id: newId,
@@ -170,9 +166,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         category: productData.category,
         brand: productData.brand,
         color: productData.color,
-        image: productData.image instanceof File 
-            ? URL.createObjectURL(productData.image) 
-            : (productData.image || oldProduct.image),
+        image: newImageUrl,
     };
 
     // Optimistically update UI
@@ -180,54 +174,31 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
 
     try {
-      const finalProductData = { ...tempUpdatedData };
-
       if (productData.image instanceof File) {
-        // Upload in background, don't await
-        uploadImage(newId, productData.image).then(imageUrl => {
-            finalProductData.image = imageUrl;
-             if (oldProduct.image && !oldProduct.image.includes('placehold.co') && oldProduct.image !== imageUrl) {
-                try {
-                    const imageRefPath = ref(storage, oldProduct.image).fullPath;
-                    if (imageRefPath) deleteObject(ref(storage, imageRefPath));
-                } catch (e: any) {
-                    if (e.code !== 'storage/object-not-found') console.error("Could not delete old image:", e);
-                }
+        newImageUrl = await uploadImage(newId, productData.image);
+        if (oldProduct.image && !oldProduct.image.includes('placehold.co') && oldProduct.image !== newImageUrl) {
+            try {
+                const imageRefPath = ref(storage, oldProduct.image).fullPath;
+                if (imageRefPath) deleteObject(ref(storage, imageRefPath));
+            } catch (e: any) {
+                if (e.code !== 'storage/object-not-found') console.error("Could not delete old image:", e);
             }
-             const dbUpdate = async () => {
-              if (newId !== originalId) {
-                  const oldDocRef = doc(db, 'products', originalId);
-                  const newDocRef = doc(db, 'products', newId);
-                  await setDoc(newDocRef, finalProductData);
-                  await deleteDoc(oldDocRef);
-              } else {
-                  const docRef = doc(db, 'products', originalId);
-                  await updateDoc(docRef, { ...finalProductData });
-              }
-            };
-            dbUpdate();
-            setProducts((prev) => prev.map((p) => (p.id === newId ? finalProductData : p)));
-        }).catch(error => {
-           console.error("Error uploading image:", error);
-           setProducts(prev => prev.map(p => p.id === newId ? oldProduct : p));
-           toast({ title: "Error", description: "Failed to upload image.", variant: "destructive" });
-        })
+        }
+      }
+      
+      const finalProductData = { ...tempUpdatedData, image: newImageUrl };
+
+      if (newId !== originalId) {
+          const oldDocRef = doc(db, 'products', originalId);
+          const newDocRef = doc(db, 'products', newId);
+          await setDoc(newDocRef, finalProductData);
+          await deleteDoc(oldDocRef);
       } else {
-         finalProductData.image = productData.image || oldProduct.image;
-          const dbUpdate = async () => {
-            if (newId !== originalId) {
-                const oldDocRef = doc(db, 'products', originalId);
-                const newDocRef = doc(db, 'products', newId);
-                await setDoc(newDocRef, finalProductData);
-                await deleteDoc(oldDocRef);
-            } else {
-                const docRef = doc(db, 'products', originalId);
-                await updateDoc(docRef, { ...finalProductData });
-            }
-          };
-          await dbUpdate();
+          const docRef = doc(db, 'products', originalId);
+          await updateDoc(docRef, { ...finalProductData });
       }
 
+      // onSnapshot will handle the final state update.
       toast({
           title: "Product Updated",
           description: `${productData.name} has been saved.`,
@@ -235,9 +206,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         
     } catch (error) {
         console.error("Error updating product: ", error);
-        // Revert optimistic update on error
-         setProducts((prev) => prev.map(p => p.id === newId ? oldProduct : p));
-
+        setProducts((prev) => prev.map(p => (p.id === newId ? oldProduct : p)));
         toast({
             title: "Error",
             description: "Failed to update product.",
@@ -250,9 +219,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const deleteProduct = async (productId: string) => {
     const productToDelete = products.find(p => p.id === productId);
     if (!productToDelete) return;
-
-    const originalProducts = [...products];
-    setProducts((prev) => prev.filter((p) => p.id !== productId));
 
     const productDocRef = doc(db, 'products', productId);
     try {
@@ -270,7 +236,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       }
       
       await deleteDoc(productDocRef);
-      
+      // onSnapshot will handle the UI removal.
       toast({
         title: "Product Deleted",
         description: `${productToDelete.name} has been successfully deleted.`,
@@ -278,7 +244,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       });
     } catch (error) {
       console.error("Error deleting product: ", error);
-      setProducts(originalProducts);
       toast({
         title: "Error",
         description: "Failed to delete product.",
@@ -297,12 +262,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       const docSnap = await getDoc(productDoc);
       if (docSnap.exists()) {
         const productData = { id: docSnap.id, ...docSnap.data() } as Product;
-        setProducts(p => {
-          if (p.some(i => i.id === productId)) {
-            return p.map(i => i.id === productId ? productData : i);
-          }
-          return [...p, productData];
-        });
         return productData;
       } else {
         console.log("No such document!");
