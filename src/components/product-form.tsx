@@ -170,12 +170,12 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                     <p className="mb-2 text-sm text-muted-foreground">
                       <span className="font-semibold">Click to upload</span> or drag and drop
                     </p>
-                    <p className="text-xs text-muted-foreground">JPG only</p>
+                    <p className="text-xs text-muted-foreground">Any image format</p>
                   </div>
                   <input 
                     type="file" 
                     className="hidden" 
-                    accept="image/jpeg"
+                    accept="image/*"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
