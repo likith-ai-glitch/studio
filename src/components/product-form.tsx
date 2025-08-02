@@ -27,7 +27,7 @@ type ProductFormValues = Omit<Product, 'description'>;
 
 interface ProductFormProps {
   initialData?: Product;
-  onSubmit: (data: ProductFormValues & { description: string }) => void;
+  onSubmit: (data: Product, originalId?: string) => void;
 }
 
 export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
@@ -64,7 +64,7 @@ export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
     onSubmit({
       ...values,
       description: initialData?.description || '' 
-    });
+    }, initialData?.id);
   }
 
 
@@ -78,7 +78,7 @@ export function ProductForm({ initialData, onSubmit }: ProductFormProps) {
             <FormItem>
               <FormLabel>Product ID</FormLabel>
               <FormControl>
-                <Input placeholder="e.g. P1001010" {...field} disabled={!!initialData} />
+                <Input placeholder="e.g. P1001010" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

@@ -12,8 +12,8 @@ import { useToast } from '@/hooks/use-toast';
 interface ProductContextType {
   products: Product[];
   loading: boolean;
-  addProduct: (product: Omit<Product, 'description'> & {description: string}) => Promise<void>;
-  updateProduct: (product: Product) => Promise<void>;
+  addProduct: (product: Product) => Promise<void>;
+  updateProduct: (product: Product, originalId?: string) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
   getProduct: (productId: string) => Promise<Product | undefined>;
 }
@@ -67,11 +67,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const addProduct = async (productData: Product) => {
     try {
-      await setDoc(doc(db, "products", productData.id), productData);
-      setProducts((prev) => [...prev, productData]);
+      const newProduct = { ...productData };
+      if (!newProduct.id) {
+          newProduct.id = `P100${Date.now()}`;
+      }
+      await setDoc(doc(db, "products", newProduct.id), newProduct);
+      setProducts((prev) => [...prev, newProduct]);
       toast({
         title: "Product Added",
-        description: `${productData.name} has been successfully added.`,
+        description: `${newProduct.name} has been successfully added.`,
       });
     } catch (error) {
        console.error("Error adding product: ", error);
@@ -83,14 +87,34 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateProduct = async (updatedProduct: Product) => {
-    const productDoc = doc(db, 'products', updatedProduct.id);
+  const updateProduct = async (updatedProduct: Product, originalId?: string) => {
+    const currentId = originalId || updatedProduct.id;
+    
     try {
-      const { id, ...productData } = updatedProduct;
-      await updateDoc(productDoc, productData);
+      // If the ID has not changed, just update the document.
+      if (updatedProduct.id === currentId) {
+        const productDoc = doc(db, 'products', updatedProduct.id);
+        await updateDoc(productDoc, updatedProduct);
+      } else {
+        // If the ID has changed, we must delete the old and create a new one.
+        const batch = writeBatch(db);
+        
+        // Reference to the old document to delete it
+        const oldDocRef = doc(db, 'products', currentId);
+        batch.delete(oldDocRef);
+
+        // Reference to the new document to create it
+        const newDocRef = doc(db, 'products', updatedProduct.id);
+        batch.set(newDocRef, updatedProduct);
+
+        await batch.commit();
+      }
+
+      // Update the local state
       setProducts((prev) =>
-        prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p))
+        prev.map((p) => (p.id === currentId ? updatedProduct : p))
       );
+
       toast({
         title: "Product Updated",
         description: `${updatedProduct.name} has been successfully updated.`,

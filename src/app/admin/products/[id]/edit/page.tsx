@@ -48,8 +48,8 @@ export default function EditProductPage() {
     return notFound();
   }
 
-  const handleSubmit = async (data: Omit<Product, 'id'>) => {
-    await updateProduct({ ...data, id });
+  const handleSubmit = async (data: Product, originalId?: string) => {
+    await updateProduct(data, originalId);
     router.push('/admin');
   };
 
