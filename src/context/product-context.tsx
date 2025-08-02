@@ -81,18 +81,18 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   }, [fetchProducts]);
 
   const uploadImages = async (images: (File | string)[], productId: string): Promise<string[]> => {
-      const imageUrls: string[] = [];
-      for (const image of images) {
-          if (typeof image === 'string') {
-              imageUrls.push(image);
-          } else {
-              const storageRef = ref(storage, `products/${productId}/${image.name}`);
-              await uploadBytes(storageRef, image);
-              const downloadURL = await getDownloadURL(storageRef);
-              imageUrls.push(downloadURL);
-          }
-      }
-      return imageUrls;
+    const existingImageUrls = images.filter(img => typeof img === 'string') as string[];
+    const newImageFiles = images.filter(img => img instanceof File) as File[];
+
+    const uploadPromises = newImageFiles.map(async (file) => {
+        const storageRef = ref(storage, `products/${productId}/${file.name}`);
+        await uploadBytes(storageRef, file);
+        return getDownloadURL(storageRef);
+    });
+
+    const newImageUrls = await Promise.all(uploadPromises);
+
+    return [...existingImageUrls, ...newImageUrls];
   };
 
 
