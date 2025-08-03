@@ -132,7 +132,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
 
   const updateProduct = async (productData: ProductFormValues, originalId: string): Promise<void> => {
-      const oldProduct = products.find(p => p.id === originalId);
+      const oldProduct = await getProduct(originalId);
       if (!oldProduct) {
           throw new Error("Original product not found for update.");
       }
@@ -161,7 +161,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       }
 
       const docRef = doc(db, 'products', originalId);
-      await updateDoc(docRef, updatedProductData);
+      await setDoc(docRef, updatedProductData, { merge: true });
   };
 
   const deleteProduct = async (productId: string) => {
@@ -250,8 +250,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     if (products.length === 0) return ['id', 'name', 'category', 'brand', 'color', 'price', 'status'];
     const keys = new Set<string>();
     products.forEach(p => Object.keys(p).forEach(k => keys.add(k)));
-    const fixedOrder = ['id', 'name', 'category', 'brand', 'color', 'price', 'status'];
-    const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k) && k !== 'description' && k !== 'image');
+    const fixedOrder = ['image', 'id', 'name', 'category', 'brand', 'color', 'price', 'status'];
+    const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k) && k !== 'description');
     return [...fixedOrder, ...dynamicKeys];
   }, [products]);
 
@@ -269,3 +269,5 @@ export function useProducts() {
   }
   return context;
 }
+
+    
