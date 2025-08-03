@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2 } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import {
     DropdownMenu,
@@ -64,6 +64,11 @@ export default function AdminPage() {
   const [columnToDelete, setColumnToDelete] = useState('');
   const [isDeletingColumn, setIsDeletingColumn] = useState(false);
   const [isDeleteColumnDialogOpen, setDeleteColumnDialogOpen] = useState(false);
+
+  const [columnToRename, setColumnToRename] = useState<string | null>(null);
+  const [newHeaderName, setNewHeaderName] = useState('');
+  const [headerNames, setHeaderNames] = useState<Record<string, string>>({});
+
 
   const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
   const totalSales = orders.length;
@@ -175,14 +180,61 @@ export default function AdminPage() {
     }
   };
 
+  const handleRenameColumn = () => {
+    if (columnToRename && newHeaderName.trim()) {
+      setHeaderNames(prev => ({
+        ...prev,
+        [columnToRename]: newHeaderName.trim(),
+      }));
+      setColumnToRename(null);
+      setNewHeaderName('');
+    }
+  };
 
-  const renderHeader = (key: string) => (
-    <TableHead>
-        <button className="flex items-center gap-1" onClick={() => requestSort(key)}>
-            {key.charAt(0).toUpperCase() + key.slice(1)} <ArrowUpDown className="inline-block h-4 w-4" />
-        </button>
-    </TableHead>
-  );
+
+  const renderHeader = (key: string) => {
+    const headerText = headerNames[key] || (key.charAt(0).toUpperCase() + key.slice(1));
+    return (
+        <TableHead>
+            <div className="flex items-center gap-2">
+                <button className="flex items-center gap-1" onClick={() => requestSort(key)}>
+                    {headerText} <ArrowUpDown className="inline-block h-4 w-4" />
+                </button>
+                <Dialog open={columnToRename === key} onOpenChange={(isOpen) => !isOpen && setColumnToRename(null)}>
+                    <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
+                            setColumnToRename(key);
+                            setNewHeaderName(headerText);
+                        }}>
+                            <Pencil className="h-3 w-3" />
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Rename Column</DialogTitle>
+                            <DialogDescription>
+                                Change the display name for the &quot;{key}&quot; column.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <Input
+                                value={newHeaderName}
+                                onChange={(e) => setNewHeaderName(e.target.value)}
+                                placeholder="Enter new column name"
+                            />
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild>
+                                <Button variant="outline">Cancel</Button>
+                            </DialogClose>
+                            <Button onClick={handleRenameColumn}>Save</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
+        </TableHead>
+    );
+};
 
   return (
     <div className="space-y-8">
