@@ -10,6 +10,7 @@ import { notFound } from 'next/navigation';
 import type { Product } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import * as z from 'zod';
+import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   id: z.string().min(3),
@@ -27,6 +28,7 @@ export default function EditProductPage() {
   const router = useRouter();
   const params = useParams();
   const { getProduct, updateProduct } = useProducts();
+  const { toast } = useToast();
   
   const id = params.id as string;
   const [product, setProduct] = useState<Product | null>(null);
@@ -60,26 +62,35 @@ export default function EditProductPage() {
     return notFound();
   }
 
-  const handleSubmit = async (data: ProductFormValues, originalId?: string) => {
+  const handleSubmit = (data: ProductFormValues, originalId?: string) => {
     if (!originalId) return;
     setIsSubmitting(true);
-    try {
-      await updateProduct(data, originalId);
-      router.push('/admin');
-      toast({
-        title: 'Product Updated',
-        description: `${data.name} has been successfully updated.`,
-      });
-    } catch(error) {
-      console.error(error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update product.',
-        variant: 'destructive',
+    
+    toast({
+      title: 'Saving Product...',
+      description: `${data.name} is being updated.`,
+    });
+
+    updateProduct(data, originalId)
+      .then(() => {
+        toast({
+          title: 'Product Updated',
+          description: `${data.name} has been successfully updated.`,
+        });
       })
-    } finally {
-      setIsSubmitting(false);
-    }
+      .catch((error) => {
+        console.error(error);
+        toast({
+          title: 'Error',
+          description: 'Failed to update product.',
+          variant: 'destructive',
+        });
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
+      
+    router.push('/admin');
   };
 
   return (

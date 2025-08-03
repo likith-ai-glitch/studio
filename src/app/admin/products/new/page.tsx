@@ -27,24 +27,33 @@ export default function NewProductPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const handleSubmit = async (data: ProductFormValues) => {
+  const handleSubmit = (data: ProductFormValues) => {
     setIsSubmitting(true);
-    try {
-      await addProduct(data);
-      router.push('/admin');
-      toast({
-        title: 'Product Added',
-        description: `${data.name} has been successfully added.`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error adding product",
-        description: error.message,
-        variant: 'destructive',
-      });
-    } finally {
+    
+    toast({
+      title: 'Adding Product...',
+      description: `${data.name} is being added to the store.`,
+    });
+
+    addProduct(data)
+      .then(() => {
+        toast({
+          title: 'Product Added',
+          description: `${data.name} has been successfully added.`,
+        });
+      })
+      .catch((error: any) => {
+        toast({
+          title: "Error adding product",
+          description: error.message,
+          variant: 'destructive',
+        });
+      })
+      .finally(() => {
         setIsSubmitting(false);
-    }
+      });
+
+    router.push('/admin');
   };
 
   return (
