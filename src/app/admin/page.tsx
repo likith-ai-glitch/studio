@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import {
     DropdownMenu,
@@ -41,6 +41,8 @@ import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'rec
 import { subDays, format } from 'date-fns';
 import type { Product } from '@/lib/types';
 import type { DropdownMenuItemProps } from '@radix-ui/react-dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 
 const AlertDialogTriggerMenuItem = React.forwardRef<HTMLDivElement, DropdownMenuItemProps>(
   (props, ref) => <DropdownMenuItem {...props} ref={ref} onSelect={(e) => e.preventDefault()} />
@@ -49,14 +51,19 @@ AlertDialogTriggerMenuItem.displayName = 'AlertDialogTriggerMenuItem';
 
 
 export default function AdminPage() {
-  const { products, deleteProduct, addColumn, loading: productsLoading } = useProducts();
+  const { products, deleteProduct, addColumn, deleteColumn, loading: productsLoading } = useProducts();
   const { orders } = useOrders();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Product | string | null; direction: 'ascending' | 'descending' }>({ key: 'price', direction: 'ascending' });
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  
   const [newColumnName, setNewColumnName] = useState('');
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const [isAddColumnDialogOpen, setAddColumnDialogOpen] = useState(false);
+
+  const [columnToDelete, setColumnToDelete] = useState('');
+  const [isDeletingColumn, setIsDeletingColumn] = useState(false);
+  const [isDeleteColumnDialogOpen, setDeleteColumnDialogOpen] = useState(false);
 
   const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
   const totalSales = orders.length;
@@ -84,10 +91,15 @@ export default function AdminPage() {
     if (products.length === 0) return [];
     const keys = new Set<string>();
     products.forEach(p => Object.keys(p).forEach(k => keys.add(k)));
-    const fixedOrder = ['id', 'name', 'category', 'brand', 'color', 'price'];
+    const fixedOrder = ['id', 'name', 'category', 'brand', 'color', 'price', 'status'];
     const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k) && k !== 'description' && k !== 'image');
     return [...fixedOrder, ...dynamicKeys];
   }, [products]);
+
+  const deletableColumns = useMemo(() => {
+    const fixedKeys = ['id', 'name', 'category', 'brand', 'color', 'price', 'status', 'description', 'image'];
+    return productKeys.filter(k => !fixedKeys.includes(k));
+  }, [productKeys]);
 
   const sortedAndFilteredProducts = useMemo(() => {
     let sortableProducts = [...products];
@@ -148,6 +160,21 @@ export default function AdminPage() {
        setIsAddingColumn(false);
     }
   }
+
+  const handleDeleteColumn = async () => {
+    if (!columnToDelete) return;
+    setIsDeletingColumn(true);
+    try {
+      await deleteColumn(columnToDelete);
+      setColumnToDelete('');
+      setDeleteColumnDialogOpen(false);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsDeletingColumn(false);
+    }
+  };
+
 
   const renderHeader = (key: string) => (
     <TableHead>
@@ -273,6 +300,45 @@ export default function AdminPage() {
               </DialogContent>
             </Dialog>
 
+            <Dialog open={isDeleteColumnDialogOpen} onOpenChange={setDeleteColumnDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="destructive">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Column
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Delete Column</DialogTitle>
+                  <DialogDescription>
+                    Select the column you want to permanently delete from all products. This action cannot be undone.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  <Select value={columnToDelete} onValueChange={setColumnToDelete}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a column to delete" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {deletableColumns.map(col => (
+                        <SelectItem key={col} value={col}>{col}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline" disabled={isDeletingColumn}>Cancel</Button>
+                  </DialogClose>
+                  <Button onClick={handleDeleteColumn} disabled={isDeletingColumn || !columnToDelete} variant="destructive">
+                    {isDeletingColumn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Delete Column
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+
             <Button asChild size="sm">
               <Link href="/admin/products/new">
                 <PlusCircle className="mr-2 h-4 w-4" />
@@ -341,7 +407,7 @@ export default function AdminPage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete}>
+              <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
                 Delete
               </AlertDialogAction>
             </AlertDialogFooter>

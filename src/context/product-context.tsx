@@ -3,7 +3,7 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { db, storage } from '@/lib/firebase';
-import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getDoc, writeBatch, getDocsFromServer, query, runTransaction } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getDoc, writeBatch, getDocsFromServer, query, runTransaction, FieldValue, deleteField } from 'firebase/firestore';
 import { products as initialProducts } from '@/lib/products';
 import type { Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -30,6 +30,7 @@ interface ProductContextType {
   deleteProduct: (productId: string) => Promise<void>;
   getProduct: (productId: string) => Promise<Product | undefined>;
   addColumn: (columnName: string) => Promise<void>;
+  deleteColumn: (columnName: string) => Promise<void>;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
@@ -224,6 +225,21 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     });
   }
 
+  const deleteColumn = async (columnName: string) => {
+    const batch = writeBatch(db);
+    const snapshot = await getDocsFromServer(productsCollectionRef);
+    snapshot.forEach(document => {
+      const docRef = document.ref;
+      batch.update(docRef, { [columnName]: deleteField() });
+    });
+    await batch.commit();
+    toast({
+      title: 'Column Deleted',
+      description: `The column "${columnName}" has been deleted from all products.`,
+      variant: 'destructive',
+    });
+  };
+
   const productKeys = useMemo(() => {
     if (products.length === 0) return ['id', 'name', 'category', 'brand', 'color', 'price', 'status'];
     const keys = new Set<string>();
@@ -234,7 +250,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   }, [products]);
 
   return (
-    <ProductContext.Provider value={{ products, productKeys, loading, addProduct, updateProduct, deleteProduct, getProduct, addColumn }}>
+    <ProductContext.Provider value={{ products, productKeys, loading, addProduct, updateProduct, deleteProduct, getProduct, addColumn, deleteColumn }}>
       {children}
     </ProductContext.Provider>
   );
