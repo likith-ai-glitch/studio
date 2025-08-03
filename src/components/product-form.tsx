@@ -163,18 +163,6 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                     {preview ? (
                       <>
                         <Image src={preview} alt="Product preview" fill style={{ objectFit: 'cover' }} />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className="absolute top-1 right-1 h-6 w-6"
-                          onClick={() => {
-                            onChange(undefined);
-                            setPreview(null);
-                          }}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
                       </>
                     ) : (
                        <label htmlFor="image-upload" className="cursor-pointer flex flex-col items-center justify-center text-muted-foreground text-sm text-center">
