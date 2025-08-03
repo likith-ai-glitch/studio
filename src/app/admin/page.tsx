@@ -64,7 +64,10 @@ export default function AdminPage() {
   const availableProducts = useMemo(() => {
     return products.filter(p => p.status === 'Available').length;
   }, [products]);
-  const unavailableProducts = products.length - availableProducts;
+
+  const unavailableProducts = useMemo(() => {
+    return products.filter(p => p.status === 'Unavailable').length;
+  }, [products]);
 
   const salesData = Array.from({ length: 7 }).map((_, i) => {
     const date = subDays(new Date(), i);
@@ -221,7 +224,7 @@ export default function AdminPage() {
           <CardContent>
             <div className="text-2xl font-bold">{unavailableProducts}</div>
             <p className="text-xs text-muted-foreground">
-               Products not available
+               Products marked as unavailable
             </p>
           </CardContent>
         </Card>
