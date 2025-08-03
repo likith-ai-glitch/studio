@@ -43,7 +43,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const initializeDatabase = async () => {
       setLoading(true);
       try {
-        const snapshot = await getDocsFromServer(productsCollectionRef);
+        // Use a query to ensure we're getting an up-to-date server snapshot.
+        const q = query(productsCollectionRef);
+        const snapshot = await getDocsFromServer(q);
         if (snapshot.empty) {
           console.log("Database is empty. Seeding with initial products...");
           const batch = writeBatch(db);
@@ -108,7 +110,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
     const imageFile = productData.image instanceof File ? productData.image : null;
     let localImageUrl = 'https://placehold.co/600x400.png';
-    if(imageFile) {
+    if (imageFile) {
         localImageUrl = URL.createObjectURL(imageFile);
     }
 
@@ -136,7 +138,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             const storageRef = ref(storage, `products/${newId}/${imageFile.name}`);
             const snapshot = await uploadBytes(storageRef, imageFile);
             finalImageUrl = await getDownloadURL(snapshot.ref);
-            if(localImageUrl.startsWith('blob:')) {
+            if (localImageUrl.startsWith('blob:')) {
                 URL.revokeObjectURL(localImageUrl);
             }
         }
@@ -163,7 +165,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         });
         // Revert optimistic update
         setProducts(prevProducts => prevProducts.filter(p => p.id !== newId));
-        if(localImageUrl.startsWith('blob:')) {
+        if (localImageUrl.startsWith('blob:')) {
             URL.revokeObjectURL(localImageUrl);
         }
         throw error;
@@ -209,7 +211,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
               const storageRef = ref(storage, `products/${newId}/${imageFile.name}`);
               const snapshot = await uploadBytes(storageRef, imageFile);
               finalImageUrl = await getDownloadURL(snapshot.ref);
-              if(localImageUrl.startsWith('blob:')) {
+              if (localImageUrl.startsWith('blob:')) {
                   URL.revokeObjectURL(localImageUrl);
               }
 
@@ -256,7 +258,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
               const revertedProducts = prev.map(p => (p.id === newId ? oldProduct : p));
               return revertedProducts;
           });
-          if(localImageUrl.startsWith('blob:')) {
+          if (localImageUrl.startsWith('blob:')) {
             URL.revokeObjectURL(localImageUrl);
           }
           throw error;
@@ -307,7 +309,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const getProduct = async (productId: string): Promise<Product | undefined> => {
     const localProduct = products.find(p => p.id === productId);
-    if(localProduct) return localProduct;
+    if (localProduct) return localProduct;
 
     if (loading) {
        console.log("Still loading products, can't fetch from server yet.");
