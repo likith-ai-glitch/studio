@@ -11,6 +11,7 @@ import { useCart } from '@/context/cart-context';
 import { useWishlist } from '@/context/wishlist-context';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { useRouter } from 'next/navigation';
 
 interface ProductCardProps {
   product: Product;
@@ -19,6 +20,7 @@ interface ProductCardProps {
 export function ProductCard({ product }: ProductCardProps) {
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const router = useRouter();
   const isWishlisted = isInWishlist(product.id);
   const isUnavailable = product.status === 'Unavailable';
 
@@ -35,6 +37,7 @@ export function ProductCard({ product }: ProductCardProps) {
     e.preventDefault();
     if (isUnavailable) return;
     addToCart(product);
+    router.push('/cart');
   }
 
   return (
@@ -74,7 +77,7 @@ export function ProductCard({ product }: ProductCardProps) {
         <CardFooter className="p-4 pt-0">
            <Button className="w-full" onClick={handleAddToCartClick} disabled={isUnavailable} variant={isUnavailable ? 'secondary' : 'default'}>
             {isUnavailable ? <EyeOff className="mr-2 h-4 w-4" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
-            {isUnavailable ? 'Unavailable' : 'Add to Cart'}
+            {isUnavailable ? 'Unavailable' : 'Add to Cart & Order'}
           </Button>
         </CardFooter>
       </Link>
