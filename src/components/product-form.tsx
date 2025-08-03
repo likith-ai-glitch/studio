@@ -7,11 +7,9 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Product } from '@/lib/types';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import { Upload } from 'lucide-react';
-import { useState, useEffect } from 'react';
 import { useProducts } from '@/context/product-context';
 
 const formSchema = z.object({
@@ -21,6 +19,7 @@ const formSchema = z.object({
   category: z.string().min(2, { message: 'Category must be at least 2 characters.' }),
   brand: z.string().min(2, { message: 'Brand must be at least 2 characters.' }),
   color: z.string().min(2, { message: 'Color must be at least 2 characters.' }),
+  status: z.string().optional(),
 }).catchall(z.any());
 
 interface ProductFormProps {
@@ -52,6 +51,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
       category: '',
       brand: '',
       color: '',
+      status: 'Available',
     },
   });
   
@@ -68,6 +68,32 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
       <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
         {Object.keys(watchedValues).map((key) => {
            if (key === 'description' || key === 'image') return null;
+            if (key === 'status') {
+              return (
+                 <FormField
+                  key={key}
+                  control={control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                       <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Available">Available</SelectItem>
+                          <SelectItem value="Unavailable">Unavailable</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )
+            }
             return (
                 <FormField
                   key={key}

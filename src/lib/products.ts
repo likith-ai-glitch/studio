@@ -11,6 +11,7 @@ export const products: Product[] = [
     category: 'Instruments',
     color: 'Natural',
     brand: 'Fender',
+    status: 'Available',
   },
   {
     id: 'P1001002',
@@ -21,6 +22,7 @@ export const products: Product[] = [
     category: 'Electronics',
     color: 'Black',
     brand: 'Sony',
+    status: 'Available',
   },
   {
     id: 'P1001003',
@@ -31,6 +33,7 @@ export const products: Product[] = [
     category: 'Furniture',
     color: 'Bamboo',
     brand: 'IKEA',
+    status: 'Unavailable',
   },
   {
     id: 'P1001004',
@@ -41,6 +44,7 @@ export const products: Product[] = [
     category: 'Appliances',
     color: 'Silver',
     brand: 'Breville',
+    status: 'Available',
   },
   {
     id: 'P1001005',
@@ -51,6 +55,7 @@ export const products: Product[] = [
     category: 'Accessories',
     color: 'Brown',
     brand: 'Herschel',
+    status: 'Available',
   },
   {
     id: 'P1001006',
@@ -61,6 +66,7 @@ export const products: Product[] = [
     category: 'Sports',
     color: 'Teal',
     brand: 'Lululemon',
+    status: 'Unavailable',
   },
   {
     id: 'P1001007',
@@ -71,6 +77,7 @@ export const products: Product[] = [
     category: 'Electronics',
     color: 'Rose Gold',
     brand: 'Apple',
+    status: 'Available',
   },
   {
     id: 'P1001008',
@@ -81,6 +88,7 @@ export const products: Product[] = [
     category: 'Instruments',
     color: 'Black',
     brand: 'Yamaha',
+    status: 'Available',
   },
    {
     id: 'P1001009',
@@ -91,5 +99,6 @@ export const products: Product[] = [
     category: 'Kitchen',
     color: 'Silver',
     brand: 'Wüsthof',
+    status: 'Available',
   },
 ];

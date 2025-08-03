@@ -16,6 +16,7 @@ const formSchema = z.object({
   category: z.string().min(2),
   brand: z.string().min(2),
   color: z.string().min(2),
+  status: z.string().optional(),
 }).catchall(z.any());
 type ProductFormValues = z.infer<typeof formSchema>;
 
@@ -113,6 +114,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       ...productData,
       description: 'A great product.', // default description
       image: 'https://placehold.co/600x400.png',
+      status: productData.status || 'Available',
     };
     
     await setDoc(docRef, newProduct);
@@ -223,10 +225,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   }
 
   const productKeys = useMemo(() => {
-    if (products.length === 0) return ['id', 'name', 'category', 'brand', 'color', 'price'];
+    if (products.length === 0) return ['id', 'name', 'category', 'brand', 'color', 'price', 'status'];
     const keys = new Set<string>();
     products.forEach(p => Object.keys(p).forEach(k => keys.add(k)));
-    const fixedOrder = ['id', 'name', 'category', 'brand', 'color', 'price'];
+    const fixedOrder = ['id', 'name', 'category', 'brand', 'color', 'price', 'status'];
     const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k) && k !== 'description' && k !== 'image');
     return [...fixedOrder, ...dynamicKeys];
   }, [products]);
