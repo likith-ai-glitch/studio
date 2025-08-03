@@ -105,6 +105,24 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       throw new Error("Product ID already exists");
     }
 
+    let tempImageUrl = 'https://placehold.co/600x400.png';
+    if (productData.image instanceof File) {
+      tempImageUrl = URL.createObjectURL(productData.image);
+    }
+    
+    const tempProduct: Product = {
+      id: newId,
+      name: productData.name,
+      price: productData.price,
+      category: productData.category,
+      brand: productData.brand,
+      color: productData.color,
+      description: 'A great product.', // Default description
+      image: tempImageUrl,
+    };
+    
+    setProducts(prev => [...prev, tempProduct]);
+
     try {
       let finalImageUrl = 'https://placehold.co/600x400.png';
       if (productData.image instanceof File) {
@@ -112,20 +130,17 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const storageRef = ref(storage, `products/${newId}/${imageFile.name}`);
         const snapshot = await uploadBytes(storageRef, imageFile);
         finalImageUrl = await getDownloadURL(snapshot.ref);
+        URL.revokeObjectURL(tempImageUrl); // Clean up the temporary URL
       }
 
       const newProduct: Product = {
-        id: newId,
-        name: productData.name,
-        price: productData.price,
-        category: productData.category,
-        brand: productData.brand,
-        color: productData.color,
-        description: 'A great product.', // Default description
+        ...tempProduct,
         image: finalImageUrl,
       };
 
       await setDoc(docRef, newProduct);
+      
+      // Firestore's onSnapshot will update the local state, so we don't need to call setProducts here.
 
       toast({
         title: "Product Added",
@@ -134,6 +149,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
     } catch (error) {
       console.error("Error adding product: ", error);
+      // Revert the optimistic update on error
+      setProducts(prev => prev.filter(p => p.id !== newId));
       toast({
         title: "Save Error",
         description: `Failed to save ${productData.name}. Please try again.`,
@@ -152,6 +169,24 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       
       const newId = productData.id;
       
+      let tempImageUrl = oldProduct.image;
+      if (productData.image instanceof File) {
+        tempImageUrl = URL.createObjectURL(productData.image);
+      }
+
+      const tempProduct: Product = {
+        ...oldProduct,
+        id: newId,
+        name: productData.name,
+        price: productData.price,
+        category: productData.category,
+        brand: productData.brand,
+        color: productData.color,
+        image: tempImageUrl,
+      };
+
+      setProducts(prev => prev.map(p => p.id === originalId ? tempProduct : p));
+
       try {
           let finalImageUrl = oldProduct.image;
           if (productData.image instanceof File) {
@@ -159,6 +194,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
               const storageRef = ref(storage, `products/${newId}/${imageFile.name}`);
               const snapshot = await uploadBytes(storageRef, imageFile);
               finalImageUrl = await getDownloadURL(snapshot.ref);
+              URL.revokeObjectURL(tempImageUrl);
 
               if (oldProduct.image && oldProduct.image !== finalImageUrl && !oldProduct.image.includes('placehold.co')) {
                   try {
@@ -171,13 +207,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
           }
           
           const finalProductData: Product = {
-            ...oldProduct,
-            id: newId,
-            name: productData.name,
-            price: productData.price,
-            category: productData.category,
-            brand: productData.brand,
-            color: productData.color,
+            ...tempProduct,
             image: finalImageUrl,
           };
           
@@ -190,6 +220,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
               const docRef = doc(db, 'products', originalId);
               await updateDoc(docRef, finalProductData);
           }
+          
+           // Firestore's onSnapshot will update the local state.
 
           toast({
               title: "Product Updated",
@@ -197,6 +229,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
           });
       } catch (error) {
           console.error("Error updating product: ", error);
+          // Revert optimistic update
+           setProducts(prev => prev.map(p => p.id === newId ? oldProduct : p));
           toast({
               title: "Save Error",
               description: `Failed to save ${productData.name}. Please try again.`,
