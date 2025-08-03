@@ -29,6 +29,7 @@ interface ProductContextType {
   updateProduct: (productData: ProductFormValues, originalId: string) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
   getProduct: (productId: string) => Promise<Product | undefined>;
+  addRow: () => Promise<void>;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
@@ -39,51 +40,49 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const productsCollectionRef = collection(db, 'products');
 
-  useEffect(() => {
-    const initializeDatabase = async () => {
-      setLoading(true);
-      try {
-        // Use a query to ensure we're getting an up-to-date server snapshot.
-        const q = query(productsCollectionRef);
-        const snapshot = await getDocsFromServer(q);
-        if (snapshot.empty) {
-          console.log("Database is empty. Seeding with initial products...");
-          const batch = writeBatch(db);
-          initialProducts.forEach((product) => {
-            const docRef = doc(db, "products", product.id);
-            batch.set(docRef, { ...product });
-          });
-          await batch.commit();
-          console.log("Seeding complete.");
-        }
-      } catch (error) {
-        console.error("Error checking or seeding database:", error);
-        toast({
-          title: "Firestore Error",
-          description: "Could not initialize the product database.",
-          variant: "destructive",
+  const initializeDatabase = useCallback(async () => {
+    setLoading(true);
+    try {
+      const q = query(productsCollectionRef);
+      const snapshot = await getDocsFromServer(q);
+      if (snapshot.empty) {
+        console.log("Database is empty. Seeding with initial products...");
+        const batch = writeBatch(db);
+        initialProducts.forEach((product) => {
+          const docRef = doc(db, "products", product.id);
+          batch.set(docRef, product);
         });
+        await batch.commit();
+        console.log("Seeding complete.");
       }
-
-      const unsubscribe = onSnapshot(productsCollectionRef, (snapshot) => {
-          const productsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-          setProducts(productsData);
-          setLoading(false);
-      }, (error) => {
-        console.error("Error fetching products with snapshot: ", error);
-        toast({
-            title: "Connection Error",
-            description: "Could not connect to Firestore for real-time updates.",
-            variant: "destructive",
-        });
-        setLoading(false);
+    } catch (error) {
+      console.error("Error checking or seeding database:", error);
+      toast({
+        title: "Firestore Error",
+        description: "Could not initialize the product database.",
+        variant: "destructive",
       });
+    }
 
-      return unsubscribe;
-    };
+    const unsubscribe = onSnapshot(productsCollectionRef, (snapshot) => {
+        const productsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Product));
+        setProducts(productsData.sort((a, b) => a.name.localeCompare(b.name)));
+        setLoading(false);
+    }, (error) => {
+      console.error("Error fetching products with snapshot: ", error);
+      toast({
+          title: "Connection Error",
+          description: "Could not connect to Firestore for real-time updates.",
+          variant: "destructive",
+      });
+      setLoading(false);
+    });
 
+    return unsubscribe;
+  }, [toast]);
+
+  useEffect(() => {
     const unsubscribePromise = initializeDatabase();
-
     return () => {
         unsubscribePromise.then(unsubscribe => {
             if (unsubscribe) {
@@ -91,10 +90,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             }
         }).catch(err => console.error("Error during unsubscribe cleanup:", err));
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initializeDatabase]);
   
- const addProduct = async (productData: ProductFormValues): Promise<void> => {
+  const addProduct = async (productData: ProductFormValues): Promise<void> => {
     const newId = productData.id;
     const docRef = doc(db, 'products', newId);
 
@@ -107,70 +105,62 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       });
       throw new Error("Product ID already exists");
     }
-
+    
+    let imageUrl = 'https://placehold.co/600x400.png';
     const imageFile = productData.image instanceof File ? productData.image : null;
-    let localImageUrl = 'https://placehold.co/600x400.png';
+    
     if (imageFile) {
-        localImageUrl = URL.createObjectURL(imageFile);
+        const storageRef = ref(storage, `products/${newId}/${imageFile.name}`);
+        const snapshot = await uploadBytes(storageRef, imageFile);
+        imageUrl = await getDownloadURL(snapshot.ref);
     }
-
-    // Optimistic UI update
-    const optimisticProduct: Product = {
-        id: newId,
-        name: productData.name,
-        price: productData.price,
-        category: productData.category,
-        brand: productData.brand,
-        color: productData.color,
-        description: 'A great product.', // default description
-        image: localImageUrl,
+    
+    const newProduct: Product = {
+      id: newId,
+      name: productData.name,
+      price: productData.price,
+      category: productData.category,
+      brand: productData.brand,
+      color: productData.color,
+      description: 'A great product.', // default description
+      image: imageUrl,
     };
-    setProducts(prevProducts => [...prevProducts, optimisticProduct]);
-
+    
+    await setDoc(docRef, newProduct);
     toast({
-        title: "Product Added",
-        description: `${productData.name} has been added. Saving in background.`,
+      title: 'Product Added',
+      description: `${newProduct.name} has been successfully added.`,
     });
-
+  };
+  
+  const addRow = async (): Promise<void> => {
+    const newId = `P${Date.now()}`;
+    const newProduct: Product = {
+      id: newId,
+      name: "New Product",
+      price: 0,
+      category: "Uncategorized",
+      brand: "Unknown",
+      color: "N/A",
+      description: "Enter description here.",
+      image: 'https://placehold.co/600x400.png',
+    };
     try {
-        let finalImageUrl = 'https://placehold.co/600x400.png';
-        if (imageFile) {
-            const storageRef = ref(storage, `products/${newId}/${imageFile.name}`);
-            const snapshot = await uploadBytes(storageRef, imageFile);
-            finalImageUrl = await getDownloadURL(snapshot.ref);
-            if (localImageUrl.startsWith('blob:')) {
-                URL.revokeObjectURL(localImageUrl);
-            }
-        }
-
-        const newProductForFirestore: Omit<Product, 'id'> = {
-            name: productData.name,
-            price: productData.price,
-            category: productData.category,
-            brand: productData.brand,
-            color: productData.color,
-            description: 'A great product.',
-            image: finalImageUrl,
-        };
-        
-        await setDoc(docRef, newProductForFirestore);
-        // Firestore's onSnapshot listener will automatically update the UI with the final data,
-        // replacing the optimistic one with the confirmed one from the server.
-    } catch (error) {
-        console.error("Error adding product: ", error);
+        await setDoc(doc(db, 'products', newId), newProduct);
         toast({
-            title: "Save Error",
-            description: `Failed to save ${productData.name}. Please try again.`,
+            title: "Row Added",
+            description: "A new row has been added. Click Edit to modify.",
+        });
+    } catch (error) {
+        console.error("Error adding new row: ", error);
+        toast({
+            title: "Error",
+            description: "Could not add a new row.",
             variant: "destructive",
         });
-        // Revert optimistic update
-        setProducts(prevProducts => prevProducts.filter(p => p.id !== newId));
-        if (localImageUrl.startsWith('blob:')) {
-            URL.revokeObjectURL(localImageUrl);
-        }
-        throw error;
     }
-  };
+  }
+
 
   const updateProduct = async (productData: ProductFormValues, originalId: string): Promise<void> => {
       const oldProduct = products.find(p => p.id === originalId);
@@ -181,96 +171,53 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       
       const newId = productData.id;
       const imageFile = productData.image instanceof File ? productData.image : null;
-      let localImageUrl = oldProduct.image;
+      
+      let imageUrl = oldProduct.image;
+      
       if (imageFile) {
-          localImageUrl = URL.createObjectURL(imageFile);
+          const storageRef = ref(storage, `products/${newId}/${imageFile.name}`);
+          const snapshot = await uploadBytes(storageRef, imageFile);
+          imageUrl = await getDownloadURL(snapshot.ref);
+          
+          if (oldProduct.image && oldProduct.image !== imageUrl && !oldProduct.image.includes('placehold.co')) {
+              try {
+                  const oldImageRef = ref(storage, oldProduct.image);
+                  await deleteObject(oldImageRef);
+              } catch (e: any) {
+                  if (e.code !== 'storage/object-not-found') console.error("Could not delete old image:", e);
+              }
+          }
       }
-
-      // Optimistic UI Update
-      const optimisticProduct: Product = {
-        id: newId,
+      
+      const updatedProductData: Omit<Product, 'id'> = {
         name: productData.name,
         price: productData.price,
         category: productData.category,
         brand: productData.brand,
         color: productData.color,
         description: oldProduct.description,
-        image: localImageUrl
+        image: imageUrl,
       };
-
-      setProducts(prev => prev.map(p => (p.id === originalId ? optimisticProduct : p)));
-
-       toast({
-          title: "Product Updated",
-          description: `${productData.name} has been updated. Saving in background.`,
-       });
-
-      try {
-          let finalImageUrl = oldProduct.image;
-          if (imageFile) {
-              const storageRef = ref(storage, `products/${newId}/${imageFile.name}`);
-              const snapshot = await uploadBytes(storageRef, imageFile);
-              finalImageUrl = await getDownloadURL(snapshot.ref);
-              if (localImageUrl.startsWith('blob:')) {
-                  URL.revokeObjectURL(localImageUrl);
-              }
-
-              if (oldProduct.image && oldProduct.image !== finalImageUrl && !oldProduct.image.includes('placehold.co')) {
-                  try {
-                      const oldImageRef = ref(storage, oldProduct.image);
-                      await deleteObject(oldImageRef);
-                  } catch (e: any) {
-                      if (e.code !== 'storage/object-not-found') console.error("Could not delete old image:", e);
-                  }
-              }
-          }
-          
-          const finalProductData: Omit<Product, 'id'> & { id?: string } = {
-            name: productData.name,
-            price: productData.price,
-            category: productData.category,
-            brand: productData.brand,
-            color: productData.color,
-            description: oldProduct.description,
-            image: finalImageUrl,
-          };
-          
-          if (newId !== originalId) {
-              const oldDocRef = doc(db, 'products', originalId);
-              const newDocRef = doc(db, 'products', newId);
-              await setDoc(newDocRef, finalProductData);
-              await deleteDoc(oldDocRef);
-          } else {
-              const docRef = doc(db, 'products', originalId);
-              await updateDoc(docRef, finalProductData);
-          }
-          
-          // onSnapshot will handle the final state update
-      } catch (error) {
-          console.error("Error updating product: ", error);
-          toast({
-              title: "Save Error",
-              description: `Failed to save ${productData.name}. Please try again.`,
-              variant: "destructive",
-          });
-          // Revert optimistic update
-          setProducts(prev => {
-              const revertedProducts = prev.map(p => (p.id === newId ? oldProduct : p));
-              return revertedProducts;
-          });
-          if (localImageUrl.startsWith('blob:')) {
-            URL.revokeObjectURL(localImageUrl);
-          }
-          throw error;
+      
+      if (newId !== originalId) {
+          const oldDocRef = doc(db, 'products', originalId);
+          const newDocRef = doc(db, 'products', newId);
+          await setDoc(newDocRef, updatedProductData);
+          await deleteDoc(oldDocRef);
+      } else {
+          const docRef = doc(db, 'products', originalId);
+          await updateDoc(docRef, updatedProductData);
       }
+      toast({
+          title: 'Product Updated',
+          description: `${productData.name} has been successfully updated.`,
+      });
   };
-
 
   const deleteProduct = async (productId: string) => {
     const productToDelete = products.find(p => p.id === productId);
     if (!productToDelete) return;
     
-    // Optimistic delete
     const originalProducts = products;
     setProducts(prev => prev.filter(p => p.id !== productId));
     
@@ -302,7 +249,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         description: "Failed to delete product.",
         variant: "destructive",
       });
-      // Revert optimistic delete
       setProducts(originalProducts);
     }
   };
@@ -335,7 +281,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <ProductContext.Provider value={{ products, loading, addProduct, updateProduct, deleteProduct, getProduct }}>
+    <ProductContext.Provider value={{ products, loading, addProduct, updateProduct, deleteProduct, getProduct, addRow }}>
       {children}
     </ProductContext.Provider>
   );

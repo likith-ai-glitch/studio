@@ -39,7 +39,7 @@ AlertDialogTriggerMenuItem.displayName = 'AlertDialogTriggerMenuItem';
 
 
 export default function AdminPage() {
-  const { products, deleteProduct, loading: productsLoading } = useProducts();
+  const { products, deleteProduct, addRow, loading: productsLoading } = useProducts();
   const { orders } = useOrders();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Product | 'id' | null; direction: 'ascending' | 'descending' }>({ key: 'price', direction: 'ascending' });
@@ -130,6 +130,10 @@ export default function AdminPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full md:w-64"
               />
+            <Button onClick={addRow} size="sm" variant="outline">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add Row
+            </Button>
             <Button asChild size="sm">
               <Link href="/admin/products/new">
                 <PlusCircle className="mr-2 h-4 w-4" />
