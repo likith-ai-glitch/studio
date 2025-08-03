@@ -106,42 +106,61 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       throw new Error("Product ID already exists");
     }
 
-    try {
-      let finalImageUrl = 'https://placehold.co/600x400.png';
-      const imageFile = productData.image instanceof File ? productData.image : null;
+    const imageFile = productData.image instanceof File ? productData.image : null;
+    let localImageUrl = 'https://placehold.co/600x400.png';
+    if(imageFile) {
+        localImageUrl = URL.createObjectURL(imageFile);
+    }
 
-      if (imageFile) {
-        const storageRef = ref(storage, `products/${newId}/${imageFile.name}`);
-        const snapshot = await uploadBytes(storageRef, imageFile);
-        finalImageUrl = await getDownloadURL(snapshot.ref);
-      }
-
-      const newProduct: Omit<Product, 'id'> = {
+    // Optimistic UI update
+    const optimisticProduct: Product = {
+        id: newId,
         name: productData.name,
         price: productData.price,
         category: productData.category,
         brand: productData.brand,
         color: productData.color,
-        description: 'A great product.', // Default description
-        image: finalImageUrl,
-      };
+        description: 'A great product.',
+        image: localImageUrl,
+    };
+    setProducts(prevProducts => [...prevProducts, optimisticProduct]);
 
-      await setDoc(docRef, newProduct);
-      
-      // onSnapshot will handle the final state update from Firestore
-      toast({
+    toast({
         title: "Product Added",
-        description: `${productData.name} has been successfully added.`,
-      });
+        description: `${productData.name} has been added and is saving.`,
+    });
 
+    try {
+        let finalImageUrl = 'https://placehold.co/600x400.png';
+        if (imageFile) {
+            const storageRef = ref(storage, `products/${newId}/${imageFile.name}`);
+            const snapshot = await uploadBytes(storageRef, imageFile);
+            finalImageUrl = await getDownloadURL(snapshot.ref);
+            URL.revokeObjectURL(localImageUrl);
+        }
+
+        const newProductForFirestore: Omit<Product, 'id'> = {
+            name: productData.name,
+            price: productData.price,
+            category: productData.category,
+            brand: productData.brand,
+            color: productData.color,
+            description: 'A great product.',
+            image: finalImageUrl,
+        };
+
+        await setDoc(docRef, newProductForFirestore);
+        // Firestore's onSnapshot listener will automatically update the UI with the final data.
     } catch (error) {
-      console.error("Error adding product: ", error);
-      toast({
-        title: "Save Error",
-        description: `Failed to save ${productData.name}. Please try again.`,
-        variant: "destructive",
-      });
-      throw error;
+        console.error("Error adding product: ", error);
+        toast({
+            title: "Save Error",
+            description: `Failed to save ${productData.name}. Please try again.`,
+            variant: "destructive",
+        });
+        // Revert optimistic update
+        setProducts(prevProducts => prevProducts.filter(p => p.id !== newId));
+        throw error;
     }
   };
 
@@ -154,13 +173,37 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       
       const newId = productData.id;
       const imageFile = productData.image instanceof File ? productData.image : null;
-      
+      let localImageUrl = oldProduct.image;
+      if (imageFile) {
+          localImageUrl = URL.createObjectURL(imageFile);
+      }
+
+      // Optimistic UI Update
+      const optimisticProduct: Product = {
+        id: newId,
+        name: productData.name,
+        price: productData.price,
+        category: productData.category,
+        brand: productData.brand,
+        color: productData.color,
+        description: oldProduct.description,
+        image: localImageUrl
+      };
+
+      setProducts(prev => prev.map(p => p.id === originalId ? optimisticProduct : p));
+
+       toast({
+          title: "Product Updated",
+          description: `${productData.name} has been updated and is saving.`,
+       });
+
       try {
           let finalImageUrl = oldProduct.image;
           if (imageFile) {
               const storageRef = ref(storage, `products/${newId}/${imageFile.name}`);
               const snapshot = await uploadBytes(storageRef, imageFile);
               finalImageUrl = await getDownloadURL(snapshot.ref);
+              URL.revokeObjectURL(localImageUrl);
 
               if (oldProduct.image && oldProduct.image !== finalImageUrl && !oldProduct.image.includes('placehold.co')) {
                   try {
@@ -193,10 +236,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
           }
           
           // onSnapshot will handle the final state update
-          toast({
-              title: "Product Updated",
-              description: `${productData.name} has been saved.`,
-          });
       } catch (error) {
           console.error("Error updating product: ", error);
           toast({
@@ -204,6 +243,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
               description: `Failed to save ${productData.name}. Please try again.`,
               variant: "destructive",
           });
+          // Revert optimistic update
+          setProducts(prev => prev.map(p => p.id === newId ? oldProduct : p));
           throw error;
       }
   };
@@ -212,6 +253,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const deleteProduct = async (productId: string) => {
     const productToDelete = products.find(p => p.id === productId);
     if (!productToDelete) return;
+    
+    // Optimistic delete
+    setProducts(prev => prev.filter(p => p.id !== productId));
     
     const productDocRef = doc(db, 'products', productId);
     try {
@@ -241,6 +285,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         description: "Failed to delete product.",
         variant: "destructive",
       });
+      // Revert optimistic delete
+      setProducts(prev => [...prev, productToDelete]);
     }
   };
 
