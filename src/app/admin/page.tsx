@@ -26,7 +26,18 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog"
 import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { subDays, format } from 'date-fns';
 import type { Product } from '@/lib/types';
@@ -44,6 +55,18 @@ export default function AdminPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Product | 'id' | null; direction: 'ascending' | 'descending' }>({ key: 'price', direction: 'ascending' });
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [columnNames, setColumnNames] = useState<Record<keyof Product | 'id', string>>({
+    id: 'ID',
+    name: 'Name',
+    category: 'Category',
+    brand: 'Brand',
+    color: 'Color',
+    price: 'Price',
+    description: 'Description',
+    image: 'Image',
+  });
+  const [editingColumn, setEditingColumn] = useState<{key: keyof Product | 'id' | null, name: string}>({key: null, name: ''});
+
 
   const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
   const totalSales = orders.length;
@@ -106,15 +129,46 @@ export default function AdminPage() {
     }
   }
 
+  const handleRenameColumn = () => {
+    if (editingColumn.key) {
+      setColumnNames(prev => ({...prev, [editingColumn.key!]: editingColumn.name}));
+    }
+  }
+
   const renderHeader = (label: string, key: keyof Product | 'id') => (
     <TableHead className="group">
         <div className="flex items-center gap-2">
             <span className="cursor-pointer" onClick={() => requestSort(key)}>
                 {label} <ArrowUpDown className="inline-block ml-1 h-4 w-4" />
             </span>
-            <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100">
-                <Pencil className="h-3 w-3" />
-            </Button>
+             <Dialog onOpenChange={(open) => !open && setEditingColumn({key: null, name: ''})}>
+                <DialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => setEditingColumn({key, name: columnNames[key]})}>
+                        <Pencil className="h-3 w-3" />
+                    </Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader>
+                    <DialogTitle>Edit Column Name</DialogTitle>
+                    <DialogDescription>
+                        Change the display name for the &quot;{columnNames[key]}&quot; column.
+                    </DialogDescription>
+                    </DialogHeader>
+                    <Input 
+                        value={editingColumn.name} 
+                        onChange={(e) => setEditingColumn(prev => ({...prev, name: e.target.value}))}
+                        placeholder="Enter new column name"
+                    />
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button variant="outline">Cancel</Button>
+                        </DialogClose>
+                        <DialogClose asChild>
+                            <Button onClick={handleRenameColumn}>Save</Button>
+                        </DialogClose>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     </TableHead>
   );
@@ -152,12 +206,12 @@ export default function AdminPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                {renderHeader('ID', 'id')}
-                {renderHeader('Name', 'name')}
-                {renderHeader('Category', 'category')}
-                {renderHeader('Brand', 'brand')}
-                {renderHeader('Color', 'color')}
-                {renderHeader('Price', 'price')}
+                {renderHeader(columnNames.id, 'id')}
+                {renderHeader(columnNames.name, 'name')}
+                {renderHeader(columnNames.category, 'category')}
+                {renderHeader(columnNames.brand, 'brand')}
+                {renderHeader(columnNames.color, 'color')}
+                {renderHeader(columnNames.price, 'price')}
                 <TableHead>
                   <span className="sr-only">Actions</span>
                 </TableHead>
@@ -287,3 +341,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    
