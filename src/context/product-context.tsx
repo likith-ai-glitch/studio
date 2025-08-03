@@ -40,19 +40,19 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const productsCollectionRef = collection(db, 'products');
 
   useEffect(() => {
-    const initializeAndSubscribe = async () => {
+    const initializeDatabase = async () => {
       setLoading(true);
       try {
-        const q = query(productsCollectionRef);
-        const snapshot = await getDocsFromServer(q);
+        const snapshot = await getDocsFromServer(productsCollectionRef);
         if (snapshot.empty) {
-            console.log("Seeding database with initial products...");
-            const seedBatch = writeBatch(db);
-            initialProducts.forEach((product) => {
-              const docRef = doc(db, "products", product.id);
-              seedBatch.set(docRef, product);
-            });
-            await seedBatch.commit();
+          console.log("Database is empty. Seeding with initial products...");
+          const batch = writeBatch(db);
+          initialProducts.forEach((product) => {
+            const docRef = doc(db, "products", product.id);
+            batch.set(docRef, { ...product });
+          });
+          await batch.commit();
+          console.log("Seeding complete.");
         }
       } catch (error) {
         console.error("Error checking or seeding database:", error);
@@ -80,7 +80,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       return unsubscribe;
     };
 
-    const unsubscribePromise = initializeAndSubscribe();
+    const unsubscribePromise = initializeDatabase();
 
     return () => {
         unsubscribePromise.then(unsubscribe => {
@@ -120,14 +120,14 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         category: productData.category,
         brand: productData.brand,
         color: productData.color,
-        description: 'A great product.',
+        description: 'A great product.', // default description
         image: localImageUrl,
     };
     setProducts(prevProducts => [...prevProducts, optimisticProduct]);
 
     toast({
         title: "Product Added",
-        description: `${productData.name} has been added and is saving.`,
+        description: `${productData.name} has been added. Saving in background.`,
     });
 
     try {
@@ -136,7 +136,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             const storageRef = ref(storage, `products/${newId}/${imageFile.name}`);
             const snapshot = await uploadBytes(storageRef, imageFile);
             finalImageUrl = await getDownloadURL(snapshot.ref);
-            URL.revokeObjectURL(localImageUrl);
+            if(localImageUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(localImageUrl);
+            }
         }
 
         const newProductForFirestore: Omit<Product, 'id'> = {
@@ -148,9 +150,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             description: 'A great product.',
             image: finalImageUrl,
         };
-
+        
         await setDoc(docRef, newProductForFirestore);
-        // Firestore's onSnapshot listener will automatically update the UI with the final data.
+        // Firestore's onSnapshot listener will automatically update the UI with the final data,
+        // replacing the optimistic one with the confirmed one from the server.
     } catch (error) {
         console.error("Error adding product: ", error);
         toast({
@@ -160,6 +163,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         });
         // Revert optimistic update
         setProducts(prevProducts => prevProducts.filter(p => p.id !== newId));
+        if(localImageUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(localImageUrl);
+        }
         throw error;
     }
   };
@@ -190,11 +196,11 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         image: localImageUrl
       };
 
-      setProducts(prev => prev.map(p => p.id === originalId ? optimisticProduct : p));
+      setProducts(prev => prev.map(p => (p.id === originalId ? optimisticProduct : p)));
 
        toast({
           title: "Product Updated",
-          description: `${productData.name} has been updated and is saving.`,
+          description: `${productData.name} has been updated. Saving in background.`,
        });
 
       try {
@@ -203,7 +209,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
               const storageRef = ref(storage, `products/${newId}/${imageFile.name}`);
               const snapshot = await uploadBytes(storageRef, imageFile);
               finalImageUrl = await getDownloadURL(snapshot.ref);
-              URL.revokeObjectURL(localImageUrl);
+              if(localImageUrl.startsWith('blob:')) {
+                  URL.revokeObjectURL(localImageUrl);
+              }
 
               if (oldProduct.image && oldProduct.image !== finalImageUrl && !oldProduct.image.includes('placehold.co')) {
                   try {
@@ -215,7 +223,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
               }
           }
           
-          const finalProductData: Omit<Product, 'id'> = {
+          const finalProductData: Omit<Product, 'id'> & { id?: string } = {
             name: productData.name,
             price: productData.price,
             category: productData.category,
@@ -244,7 +252,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
               variant: "destructive",
           });
           // Revert optimistic update
-          setProducts(prev => prev.map(p => p.id === newId ? oldProduct : p));
+          setProducts(prev => {
+              const revertedProducts = prev.map(p => (p.id === newId ? oldProduct : p));
+              return revertedProducts;
+          });
+          if(localImageUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(localImageUrl);
+          }
           throw error;
       }
   };
@@ -255,6 +269,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     if (!productToDelete) return;
     
     // Optimistic delete
+    const originalProducts = products;
     setProducts(prev => prev.filter(p => p.id !== productId));
     
     const productDocRef = doc(db, 'products', productId);
@@ -286,7 +301,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         variant: "destructive",
       });
       // Revert optimistic delete
-      setProducts(prev => [...prev, productToDelete]);
+      setProducts(originalProducts);
     }
   };
 
@@ -294,16 +309,21 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const localProduct = products.find(p => p.id === productId);
     if(localProduct) return localProduct;
 
-    if (loading) return;
+    if (loading) {
+       console.log("Still loading products, can't fetch from server yet.");
+       return;
+    };
 
     try {
+      console.log(`Product ${productId} not found locally, fetching from Firestore...`);
       const productDoc = doc(db, 'products', productId);
       const docSnap = await getDoc(productDoc);
       if (docSnap.exists()) {
+        console.log("Product found in Firestore.");
         const productData = { id: docSnap.id, ...docSnap.data() } as Product;
         return productData;
       } else {
-        console.log("No such document!");
+        console.log("No such document in Firestore!");
         return undefined;
       }
     } catch (error) {
