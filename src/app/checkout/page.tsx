@@ -19,6 +19,7 @@ import { useEffect } from 'react';
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   email: z.string().email({ message: 'Please enter a valid email.' }),
+  phone: z.string().min(10, { message: 'Please enter a valid mobile number.' }),
   address: z.string().min(5, { message: 'Address is too short.' }),
   city: z.string().min(2, { message: 'City is too short.' }),
   zip: z.string().min(5, { message: 'Postal code must be at least 5 characters.' }),
@@ -41,6 +42,7 @@ export default function CheckoutPage() {
     defaultValues: {
       name: '',
       email: '',
+      phone: '',
       address: '',
       city: '',
       zip: '',
@@ -90,6 +92,19 @@ export default function CheckoutPage() {
                       <FormLabel>Email Address</FormLabel>
                       <FormControl>
                         <Input placeholder="you@example.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Mobile Number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="123-456-7890" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
