@@ -1,9 +1,12 @@
 
 'use client';
 
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import type { Product } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from '@/context/auth-context';
+import { db } from '@/lib/firebase';
+import { doc, onSnapshot, setDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 
 interface WishlistContextType {
   wishlistItems: Product[];
@@ -18,31 +21,58 @@ const WishlistContext = createContext<WishlistContextType | undefined>(undefined
 export function WishlistProvider({ children }: { children: ReactNode }) {
   const [wishlistItems, setWishlistItems] = useState<Product[]>([]);
   const { toast } = useToast();
+  const { user } = useAuth();
 
-  const addToWishlist = (product: Product) => {
-    setWishlistItems((prevItems) => {
-      if (!prevItems.find((item) => item.id === product.id)) {
-        toast({
-          title: "Added to wishlist",
-          description: `${product.name} has been added to your wishlist.`,
-        });
-        return [...prevItems, product];
+  const getWishlistRef = useCallback(() => {
+    if (!user) return null;
+    return doc(db, 'wishlists', user.uid);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setWishlistItems([]);
+      return;
+    }
+    const wishlistRef = getWishlistRef();
+    if (!wishlistRef) return;
+
+    const unsubscribe = onSnapshot(wishlistRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const wishlistData = docSnap.data();
+        setWishlistItems(wishlistData.items || []);
+      } else {
+        setWishlistItems([]);
       }
-      return prevItems;
+    });
+
+    return () => unsubscribe();
+  }, [user, getWishlistRef]);
+
+  const addToWishlist = async (product: Product) => {
+    const wishlistRef = getWishlistRef();
+    if (!wishlistRef) {
+      toast({ title: 'Please log in', description: 'You need to be logged in to add items to your wishlist.', variant: 'destructive'});
+      return;
+    }
+    await setDoc(wishlistRef, { items: arrayUnion(product) }, { merge: true });
+    toast({
+      title: "Added to wishlist",
+      description: `${product.name} has been added to your wishlist.`,
     });
   };
 
-  const removeFromWishlist = (productId: number | string) => {
-    setWishlistItems((prevItems) => {
-        const itemToRemove = prevItems.find(item => item.id === productId);
-        if (itemToRemove) {
-             toast({
-              title: "Removed from wishlist",
-              description: `${itemToRemove.name} has been removed from your wishlist.`,
-            });
-        }
-        return prevItems.filter((item) => item.id !== productId)
-    });
+  const removeFromWishlist = async (productId: string | number) => {
+    const wishlistRef = getWishlistRef();
+    if (!wishlistRef) return;
+    
+    const itemToRemove = wishlistItems.find(item => item.id === productId);
+    if (itemToRemove) {
+      await setDoc(wishlistRef, { items: arrayRemove(itemToRemove) }, { merge: true });
+      toast({
+        title: "Removed from wishlist",
+        description: `${itemToRemove.name} has been removed from your wishlist.`,
+      });
+    }
   };
 
   const isInWishlist = (productId: number | string) => {

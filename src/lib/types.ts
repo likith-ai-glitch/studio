@@ -17,7 +17,7 @@ export interface CartItem extends Product {
 }
 
 export interface AppEvent {
-  id: number;
+  id: string;
   type: 'login' | 'logout' | 'product_added';
   timestamp: Date;
   userEmail: string;
@@ -25,7 +25,7 @@ export interface AppEvent {
 }
 
 export interface Order {
-  id: number;
+  id: string;
   customer: {
     name: string;
     email: string;
