@@ -17,7 +17,6 @@ const formSchema = z.object({
   category: z.string().min(2),
   brand: z.string().min(2),
   color: z.string().min(2),
-  image: z.union([z.instanceof(File), z.string()]).optional(),
 });
 type ProductFormValues = z.infer<typeof formSchema>;
 
@@ -29,7 +28,6 @@ interface ProductContextType {
   updateProduct: (productData: ProductFormValues, originalId: string) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
   getProduct: (productId: string) => Promise<Product | undefined>;
-  addRow: () => Promise<void>;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
@@ -107,13 +105,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
     
     let imageUrl = 'https://placehold.co/600x400.png';
-    const imageFile = productData.image instanceof File ? productData.image : null;
-    
-    if (imageFile) {
-        const storageRef = ref(storage, `products/${newId}/${imageFile.name}`);
-        const snapshot = await uploadBytes(storageRef, imageFile);
-        imageUrl = await getDownloadURL(snapshot.ref);
-    }
     
     const newProduct: Product = {
       id: newId,
@@ -132,35 +123,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       description: `${newProduct.name} has been successfully added.`,
     });
   };
-  
-  const addRow = async (): Promise<void> => {
-    const newId = `P${Date.now()}`;
-    const newProduct: Product = {
-      id: newId,
-      name: "New Product",
-      price: 0,
-      category: "Uncategorized",
-      brand: "Unknown",
-      color: "N/A",
-      description: "Enter description here.",
-      image: 'https://placehold.co/600x400.png',
-    };
-    try {
-        await setDoc(doc(db, 'products', newId), newProduct);
-        toast({
-            title: "Row Added",
-            description: "A new row has been added. Click Edit to modify.",
-        });
-    } catch (error) {
-        console.error("Error adding new row: ", error);
-        toast({
-            title: "Error",
-            description: "Could not add a new row.",
-            variant: "destructive",
-        });
-    }
-  }
-
 
   const updateProduct = async (productData: ProductFormValues, originalId: string): Promise<void> => {
       const oldProduct = products.find(p => p.id === originalId);
@@ -170,24 +132,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       }
       
       const newId = productData.id;
-      const imageFile = productData.image instanceof File ? productData.image : null;
       
       let imageUrl = oldProduct.image;
-      
-      if (imageFile) {
-          const storageRef = ref(storage, `products/${newId}/${imageFile.name}`);
-          const snapshot = await uploadBytes(storageRef, imageFile);
-          imageUrl = await getDownloadURL(snapshot.ref);
-          
-          if (oldProduct.image && oldProduct.image !== imageUrl && !oldProduct.image.includes('placehold.co')) {
-              try {
-                  const oldImageRef = ref(storage, oldProduct.image);
-                  await deleteObject(oldImageRef);
-              } catch (e: any) {
-                  if (e.code !== 'storage/object-not-found') console.error("Could not delete old image:", e);
-              }
-          }
-      }
       
       const updatedProductData: Omit<Product, 'id'> = {
         name: productData.name,
@@ -281,7 +227,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <ProductContext.Provider value={{ products, loading, addProduct, updateProduct, deleteProduct, getProduct, addRow }}>
+    <ProductContext.Provider value={{ products, loading, addProduct, updateProduct, deleteProduct, getProduct }}>
       {children}
     </ProductContext.Provider>
   );
