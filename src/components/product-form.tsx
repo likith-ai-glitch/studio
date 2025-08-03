@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Upload } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useProducts } from '@/context/product-context';
 
 const formSchema = z.object({
   id: z.string().min(3, { message: 'Product ID must be at least 3 characters.' }),
@@ -20,8 +21,7 @@ const formSchema = z.object({
   category: z.string().min(2, { message: 'Category must be at least 2 characters.' }),
   brand: z.string().min(2, { message: 'Brand must be at least 2 characters.' }),
   color: z.string().min(2, { message: 'Color must be at least 2 characters.' }),
-  image: z.union([z.instanceof(File), z.string()]).optional(),
-});
+}).catchall(z.any());
 
 interface ProductFormProps {
   initialData?: Product | null;
@@ -31,110 +31,67 @@ interface ProductFormProps {
 
 export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductFormProps) {
   const router = useRouter();
+  const { productKeys } = useProducts();
+
+  const defaultValues = productKeys.reduce((acc, key) => {
+    if (initialData && initialData[key] !== undefined) {
+      acc[key] = initialData[key];
+    } else {
+       acc[key] = '';
+    }
+    return acc;
+  }, {} as Record<string, any>);
+
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      id: initialData?.id || '',
-      name: initialData?.name || '',
-      price: initialData?.price || 0,
-      category: initialData?.category || '',
-      brand: initialData?.brand || '',
-      color: initialData?.color || '',
-      image: initialData?.image || undefined,
+    defaultValues: initialData ? defaultValues : {
+      id: '',
+      name: '',
+      price: 0,
+      category: '',
+      brand: '',
+      color: '',
     },
   });
-
-  const { control, handleSubmit } = form;
+  
+  const { control, handleSubmit, watch } = form;
 
   const onFormSubmit = (values: z.infer<typeof formSchema>) => {
     onSubmit(values, initialData?.id);
   }
-  
+
+  const watchedValues = watch();
+
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
-        <FormField
-          control={control}
-          name="id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Product ID</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g. P1001010" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Product Name</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g. Acoustic Guitar" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-         <FormField
-          control={control}
-          name="price"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Price</FormLabel>
-              <FormControl>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">₹</span>
-                  <Input type="number" placeholder="e.g. 249.99" className="pl-7" {...field} />
-                </div>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-         <FormField
-          control={control}
-          name="category"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Category</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g. Instruments" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={control}
-          name="brand"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Brand</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g. Fender" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={control}
-          name="color"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Color</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g. Blue" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {Object.keys(watchedValues).map((key) => {
+           if (key === 'description' || key === 'image') return null;
+            return (
+                <FormField
+                  key={key}
+                  control={control}
+                  name={key}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{key.charAt(0).toUpperCase() + key.slice(1)}</FormLabel>
+                      <FormControl>
+                        {key === 'price' ? (
+                          <div className="relative">
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">₹</span>
+                            <Input type="number" {...field} className="pl-7" />
+                          </div>
+                        ) : (
+                          <Input {...field} />
+                        )}
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+            )
+        })}
         
         <div className="flex gap-4">
           <Button type="submit" className="flex-grow" disabled={isSubmitting}>

@@ -8,6 +8,7 @@ export interface Product {
   category: string;
   color: string;
   brand: string;
+  [key: string]: any; // Allow for dynamic properties
 }
 
 export interface CartItem extends Product {

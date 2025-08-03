@@ -1,10 +1,9 @@
 
 'use client';
 
-import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { db, storage } from '@/lib/firebase';
-import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getDoc, writeBatch, getDocsFromServer, query } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getDoc, writeBatch, getDocsFromServer, query, runTransaction } from 'firebase/firestore';
 import { products as initialProducts } from '@/lib/products';
 import type { Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -17,17 +16,19 @@ const formSchema = z.object({
   category: z.string().min(2),
   brand: z.string().min(2),
   color: z.string().min(2),
-});
+}).catchall(z.any());
 type ProductFormValues = z.infer<typeof formSchema>;
 
 
 interface ProductContextType {
   products: Product[];
+  productKeys: string[];
   loading: boolean;
   addProduct: (productData: ProductFormValues) => Promise<void>;
   updateProduct: (productData: ProductFormValues, originalId: string) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
   getProduct: (productId: string) => Promise<Product | undefined>;
+  addColumn: (columnName: string) => Promise<void>;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
@@ -92,6 +93,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
     const newId = productData.id;
+    if (!newId) {
+       toast({ title: "Error", description: "Product ID is required.", variant: "destructive" });
+       throw new Error("Product ID is required.");
+    }
     const docRef = doc(db, 'products', newId);
 
     const docSnap = await getDoc(docRef);
@@ -104,17 +109,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       throw new Error("Product ID already exists");
     }
     
-    let imageUrl = 'https://placehold.co/600x400.png';
-    
-    const newProduct: Product = {
-      id: newId,
-      name: productData.name,
-      price: productData.price,
-      category: productData.category,
-      brand: productData.brand,
-      color: productData.color,
+    const newProduct = {
+      ...productData,
       description: 'A great product.', // default description
-      image: imageUrl,
+      image: 'https://placehold.co/600x400.png',
     };
     
     await setDoc(docRef, newProduct);
@@ -132,17 +130,14 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       }
       
       const newId = productData.id;
+       if (!newId) {
+         toast({ title: "Error", description: "Product ID is required.", variant: "destructive" });
+         throw new Error("Product ID is required.");
+      }
       
-      let imageUrl = oldProduct.image;
-      
-      const updatedProductData: Omit<Product, 'id'> = {
-        name: productData.name,
-        price: productData.price,
-        category: productData.category,
-        brand: productData.brand,
-        color: productData.color,
-        description: oldProduct.description,
-        image: imageUrl,
+      const updatedProductData = {
+        ...oldProduct,
+        ...productData
       };
       
       if (newId !== originalId) {
@@ -169,19 +164,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     
     const productDocRef = doc(db, 'products', productId);
     try {
-      if (productToDelete.image && !productToDelete.image.includes('placehold.co') && !productToDelete.image.startsWith('blob:')) {
-        try {
-          const imageRef = ref(storage, productToDelete.image);
-          await deleteObject(imageRef);
-        } catch (storageError: any) {
-          if (storageError.code === 'storage/object-not-found') {
-             console.log("Image not found in storage, proceeding to delete Firestore doc.");
-          } else {
-             throw storageError; // Rethrow other storage errors
-          }
-        }
-      }
-      
       await deleteDoc(productDocRef);
       toast({
         title: "Product Deleted",
@@ -226,8 +208,31 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const addColumn = async (columnName: string) => {
+    const batch = writeBatch(db);
+    const snapshot = await getDocsFromServer(productsCollectionRef);
+    snapshot.forEach(doc => {
+      const docRef = doc.ref;
+      batch.update(docRef, { [columnName]: '' });
+    });
+    await batch.commit();
+     toast({
+        title: 'Column Added',
+        description: `The column "${columnName}" has been added to all products.`,
+    });
+  }
+
+  const productKeys = useMemo(() => {
+    if (products.length === 0) return ['id', 'name', 'category', 'brand', 'color', 'price'];
+    const keys = new Set<string>();
+    products.forEach(p => Object.keys(p).forEach(k => keys.add(k)));
+    const fixedOrder = ['id', 'name', 'category', 'brand', 'color', 'price'];
+    const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k) && k !== 'description' && k !== 'image');
+    return [...fixedOrder, ...dynamicKeys];
+  }, [products]);
+
   return (
-    <ProductContext.Provider value={{ products, loading, addProduct, updateProduct, deleteProduct, getProduct }}>
+    <ProductContext.Provider value={{ products, productKeys, loading, addProduct, updateProduct, deleteProduct, getProduct, addColumn }}>
       {children}
     </ProductContext.Provider>
   );

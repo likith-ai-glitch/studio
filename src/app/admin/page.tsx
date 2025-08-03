@@ -26,7 +26,18 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog"
 import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { subDays, format } from 'date-fns';
 import type { Product } from '@/lib/types';
@@ -39,11 +50,14 @@ AlertDialogTriggerMenuItem.displayName = 'AlertDialogTriggerMenuItem';
 
 
 export default function AdminPage() {
-  const { products, deleteProduct, loading: productsLoading } = useProducts();
+  const { products, deleteProduct, addColumn, loading: productsLoading } = useProducts();
   const { orders } = useOrders();
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Product | 'id' | null; direction: 'ascending' | 'descending' }>({ key: 'price', direction: 'ascending' });
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Product | string | null; direction: 'ascending' | 'descending' }>({ key: 'price', direction: 'ascending' });
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [newColumnName, setNewColumnName] = useState('');
+  const [isAddingColumn, setIsAddingColumn] = useState(false);
+  const [isAddColumnDialogOpen, setAddColumnDialogOpen] = useState(false);
 
   const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
   const totalSales = orders.length;
@@ -59,29 +73,37 @@ export default function AdminPage() {
     };
   }).reverse();
 
+  const productKeys = useMemo(() => {
+    if (products.length === 0) return [];
+    const keys = new Set<string>();
+    products.forEach(p => Object.keys(p).forEach(k => keys.add(k)));
+    const fixedOrder = ['id', 'name', 'category', 'brand', 'color', 'price'];
+    const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k) && k !== 'description' && k !== 'image');
+    return [...fixedOrder, ...dynamicKeys];
+  }, [products]);
+
   const sortedAndFilteredProducts = useMemo(() => {
     let sortableProducts = [...products];
 
     if (searchTerm) {
         const lowercasedFilter = searchTerm.toLowerCase();
         sortableProducts = sortableProducts.filter(product => {
-            return (
-              product.id.toString().includes(lowercasedFilter) ||
-              product.name.toLowerCase().includes(lowercasedFilter) ||
-              product.category.toLowerCase().includes(lowercasedFilter) ||
-              product.brand.toLowerCase().includes(lowercasedFilter) ||
-              product.color.toLowerCase().includes(lowercasedFilter)
+            return Object.values(product).some(value => 
+                String(value).toLowerCase().includes(lowercasedFilter)
             );
         });
     }
 
     if (sortConfig.key) {
       sortableProducts.sort((a, b) => {
-        const key = sortConfig.key as keyof Product; 
-        if (a[key] < b[key]) {
+        const key = sortConfig.key as string;
+        const aValue = a[key as keyof Product] ?? '';
+        const bValue = b[key as keyof Product] ?? '';
+
+        if (aValue < bValue) {
           return sortConfig.direction === 'ascending' ? -1 : 1;
         }
-        if (a[key] > b[key]) {
+        if (aValue > bValue) {
           return sortConfig.direction === 'ascending' ? 1 : -1;
         }
         return 0;
@@ -91,7 +113,7 @@ export default function AdminPage() {
     return sortableProducts;
   }, [products, searchTerm, sortConfig]);
 
-  const requestSort = (key: keyof Product | 'id') => {
+  const requestSort = (key: string) => {
     let direction: 'ascending' | 'descending' = 'ascending';
     if (sortConfig.key === key && sortConfig.direction === 'ascending') {
       direction = 'descending';
@@ -106,10 +128,24 @@ export default function AdminPage() {
     }
   }
 
-  const renderHeader = (label: string, key: keyof Product | 'id') => (
+  const handleAddColumn = async () => {
+    if (!newColumnName.trim()) return;
+    setIsAddingColumn(true);
+    try {
+      await addColumn(newColumnName.trim());
+      setNewColumnName('');
+      setAddColumnDialogOpen(false);
+    } catch(error) {
+       console.error(error);
+    } finally {
+       setIsAddingColumn(false);
+    }
+  }
+
+  const renderHeader = (key: string) => (
     <TableHead>
         <button className="flex items-center gap-1" onClick={() => requestSort(key)}>
-            {label} <ArrowUpDown className="inline-block h-4 w-4" />
+            {key.charAt(0).toUpperCase() + key.slice(1)} <ArrowUpDown className="inline-block h-4 w-4" />
         </button>
     </TableHead>
   );
@@ -130,10 +166,39 @@ export default function AdminPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full md:w-64"
               />
-            <Button size="sm" variant="outline" disabled>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add Column
-            </Button>
+            <Dialog open={isAddColumnDialogOpen} onOpenChange={setAddColumnDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Column
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Column</DialogTitle>
+                  <DialogDescription>
+                    Enter a name for the new column. This will be added to all existing products.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  <Input 
+                    placeholder="e.g. SKU, Stock, etc."
+                    value={newColumnName}
+                    onChange={(e) => setNewColumnName(e.target.value)}
+                  />
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button variant="outline" disabled={isAddingColumn}>Cancel</Button>
+                    </DialogClose>
+                    <Button onClick={handleAddColumn} disabled={isAddingColumn}>
+                        {isAddingColumn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Add Column
+                    </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
             <Button asChild size="sm">
               <Link href="/admin/products/new">
                 <PlusCircle className="mr-2 h-4 w-4" />
@@ -151,12 +216,7 @@ export default function AdminPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                {renderHeader('ID', 'id')}
-                {renderHeader('Name', 'name')}
-                {renderHeader('Category', 'category')}
-                {renderHeader('Brand', 'brand')}
-                {renderHeader('Color', 'color')}
-                {renderHeader('Price', 'price')}
+                {productKeys.map(key => renderHeader(key))}
                 <TableHead>
                   <span className="sr-only">Actions</span>
                 </TableHead>
@@ -165,12 +225,11 @@ export default function AdminPage() {
             <TableBody>
               {sortedAndFilteredProducts.map((product) => (
                 <TableRow key={product.id}>
-                  <TableCell className="font-mono text-xs">{product.id.toString().substring(0, 8)}...</TableCell>
-                  <TableCell className="font-medium">{product.name}</TableCell>
-                  <TableCell>{product.category}</TableCell>
-                  <TableCell>{product.brand}</TableCell>
-                  <TableCell>{product.color}</TableCell>
-                  <TableCell>₹{product.price.toFixed(2)}</TableCell>
+                  {productKeys.map(key => (
+                     <TableCell key={key} className={key === 'id' ? 'font-mono text-xs' : ''}>
+                       {key === 'id' ? product.id.substring(0,8) + '...' : String(product[key as keyof Product] ?? '')}
+                     </TableCell>
+                  ))}
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
