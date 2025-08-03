@@ -8,8 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2 } from 'lucide-react';
-import Image from 'next/image';
+import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import {
     DropdownMenu,
@@ -107,6 +106,19 @@ export default function AdminPage() {
     }
   }
 
+  const renderHeader = (label: string, key: keyof Product | 'id') => (
+    <TableHead className="group">
+        <div className="flex items-center gap-2">
+            <span className="cursor-pointer" onClick={() => requestSort(key)}>
+                {label} <ArrowUpDown className="inline-block ml-1 h-4 w-4" />
+            </span>
+            <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100">
+                <Pencil className="h-3 w-3" />
+            </Button>
+        </div>
+    </TableHead>
+  );
+
   return (
     <div className="space-y-8">
       <header className="flex justify-between items-center">
@@ -140,14 +152,12 @@ export default function AdminPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Brand</TableHead>
-                <TableHead>Color</TableHead>
-                <TableHead className="hidden md:table-cell cursor-pointer" onClick={() => requestSort('price')}>
-                  Price <ArrowUpDown className="inline-block ml-1 h-4 w-4" />
-                </TableHead>
+                {renderHeader('ID', 'id')}
+                {renderHeader('Name', 'name')}
+                {renderHeader('Category', 'category')}
+                {renderHeader('Brand', 'brand')}
+                {renderHeader('Color', 'color')}
+                {renderHeader('Price', 'price')}
                 <TableHead>
                   <span className="sr-only">Actions</span>
                 </TableHead>
@@ -161,7 +171,7 @@ export default function AdminPage() {
                   <TableCell>{product.category}</TableCell>
                   <TableCell>{product.brand}</TableCell>
                   <TableCell>{product.color}</TableCell>
-                  <TableCell className="hidden md:table-cell">₹{product.price.toFixed(2)}</TableCell>
+                  <TableCell>₹{product.price.toFixed(2)}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
