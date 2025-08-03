@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -9,7 +9,8 @@ import { auth } from '@/lib/firebase';
 import { 
   signInWithEmailAndPassword,
   RecaptchaVerifier,
-  signInWithPhoneNumber
+  signInWithPhoneNumber,
+  ConfirmationResult
 } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -29,7 +30,7 @@ const emailFormSchema = z.object({
 });
 
 const phoneFormSchema = z.object({
-    phone: z.string().min(10, { message: 'Please enter a valid phone number.' }),
+    phone: z.string().min(10, { message: 'Please enter a valid phone number including country code.' }).startsWith('+', {message: 'Phone number must start with a country code (+).'}),
 });
 
 const otpFormSchema = z.object({
@@ -41,8 +42,18 @@ export default function LoginPage() {
   const { toast } = useToast();
   const { logEvent } = useEvents();
   const [isLoading, setIsLoading] = useState(false);
-  const [confirmationResult, setConfirmationResult] = useState<any>(null);
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [showOtpInput, setShowOtpInput] = useState(false);
+  
+  useEffect(() => {
+    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        'size': 'invisible',
+        'callback': (response: any) => {
+          // reCAPTCHA solved - not much to do here if it's invisible
+        }
+    });
+  }, []);
+
 
   const emailForm = useForm<z.infer<typeof emailFormSchema>>({
     resolver: zodResolver(emailFormSchema),
@@ -54,7 +65,7 @@ export default function LoginPage() {
 
   const phoneForm = useForm<z.infer<typeof phoneFormSchema>>({
     resolver: zodResolver(phoneFormSchema),
-    defaultValues: { phone: '' },
+    defaultValues: { phone: '+' },
   });
 
   const otpForm = useForm<z.infer<typeof otpFormSchema>>({
@@ -83,23 +94,15 @@ export default function LoginPage() {
     }
   }
 
-  const setupRecaptcha = () => {
-    if (!window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        'size': 'invisible',
-        'callback': (response: any) => {
-          // reCAPTCHA solved, allow signInWithPhoneNumber.
-        },
-      });
-    }
-    return window.recaptchaVerifier;
-  };
 
   async function onPhoneSubmit(values: z.infer<typeof phoneFormSchema>) {
     setIsLoading(true);
     try {
-      const recaptchaVerifier = setupRecaptcha();
-      const phoneNumber = `+${values.phone.replace(/\D/g, '')}`; // Format number
+      const recaptchaVerifier = window.recaptchaVerifier;
+      if (!recaptchaVerifier) {
+        throw new Error("reCAPTCHA verifier not initialized.");
+      }
+      const phoneNumber = values.phone;
       const result = await signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifier);
       setConfirmationResult(result);
       setShowOtpInput(true);
@@ -206,7 +209,7 @@ export default function LoginPage() {
                         <FormItem>
                           <FormLabel>Phone Number</FormLabel>
                           <FormControl>
-                            <Input placeholder="+1 123 456 7890" {...field} />
+                            <Input placeholder="+11234567890" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
