@@ -19,7 +19,7 @@ const formSchema = z.object({
   brand: z.string().min(2),
   color: z.string().min(2),
   image: z.union([z.instanceof(File), z.string()]).optional(),
-});
+}).catchall(z.any());
 type ProductFormValues = z.infer<typeof formSchema>;
 
 
@@ -66,7 +66,18 @@ export default function EditProductPage() {
     try {
       await updateProduct(data, originalId);
       router.push('/admin');
+      toast({
+        title: 'Product Updated',
+        description: `${data.name} has been successfully updated.`,
+      });
     } catch(error) {
+      console.error(error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update product.',
+        variant: 'destructive',
+      })
+    } finally {
       setIsSubmitting(false);
     }
   };

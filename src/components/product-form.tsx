@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { Product } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useProducts } from '@/context/product-context';
+import Image from 'next/image';
+import { useState } from 'react';
 
 const formSchema = z.object({
   id: z.string().min(3, { message: 'Product ID must be at least 3 characters.' }),
@@ -20,6 +22,7 @@ const formSchema = z.object({
   brand: z.string().min(2, { message: 'Brand must be at least 2 characters.' }),
   color: z.string().min(2, { message: 'Color must be at least 2 characters.' }),
   status: z.string().optional(),
+  image: z.union([z.instanceof(File), z.string()]).optional(),
 }).catchall(z.any());
 
 interface ProductFormProps {
@@ -31,6 +34,7 @@ interface ProductFormProps {
 export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductFormProps) {
   const router = useRouter();
   const { productKeys } = useProducts();
+  const [imagePreview, setImagePreview] = useState<string | null>(initialData?.image || null);
 
   const defaultValues = productKeys.reduce((acc, key) => {
     if (initialData && initialData[key] !== undefined) {
@@ -44,7 +48,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: initialData ? defaultValues : {
+    defaultValues: initialData ? { ...defaultValues, image: undefined } : {
       id: '',
       name: '',
       price: 0,
@@ -52,6 +56,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
       brand: '',
       color: '',
       status: 'Available',
+      image: undefined,
     },
   });
   
@@ -63,9 +68,41 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
 
   const watchedValues = watch();
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+              setImagePreview(reader.result as string);
+          };
+          reader.readAsDataURL(file);
+          form.setValue('image', file);
+      }
+  };
+
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
+        
+        <FormField
+          control={control}
+          name="image"
+          render={({ field }) => (
+              <FormItem>
+                  <FormLabel>Product Image</FormLabel>
+                  <FormControl>
+                      <Input type="file" accept="image/*" onChange={handleImageChange} />
+                  </FormControl>
+                  <FormMessage />
+                  {imagePreview && (
+                      <div className="mt-4">
+                          <Image src={imagePreview} alt="Image preview" width={200} height={200} className="rounded-md object-cover" />
+                      </div>
+                  )}
+              </FormItem>
+          )}
+        />
+
         {Object.keys(watchedValues).map((key) => {
            if (key === 'description' || key === 'image') return null;
             if (key === 'status') {
@@ -109,7 +146,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                             <Input type="number" {...field} className="pl-7" />
                           </div>
                         ) : (
-                          <Input {...field} />
+                          <Input {...field} disabled={key === 'id' && !!initialData} />
                         )}
                       </FormControl>
                       <FormMessage />

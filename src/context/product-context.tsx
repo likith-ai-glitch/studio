@@ -4,6 +4,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { db, storage } from '@/lib/firebase';
 import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getDoc, writeBatch, getDocsFromServer, query, runTransaction, FieldValue, deleteField } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { products as initialProducts } from '@/lib/products';
 import type { Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -17,6 +18,7 @@ const formSchema = z.object({
   brand: z.string().min(2),
   color: z.string().min(2),
   status: z.string().optional(),
+  image: z.union([z.instanceof(File), z.string()]).optional(),
 }).catchall(z.any());
 type ProductFormValues = z.infer<typeof formSchema>;
 
@@ -93,69 +95,73 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     };
   }, [initializeDatabase]);
   
+  const uploadImage = async (imageFile: File, productId: string): Promise<string> => {
+      const storageRef = ref(storage, `products/${productId}/${imageFile.name}`);
+      const snapshot = await uploadBytes(storageRef, imageFile);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      return downloadURL;
+  };
+  
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
     const newId = productData.id;
     if (!newId) {
-       toast({ title: "Error", description: "Product ID is required.", variant: "destructive" });
        throw new Error("Product ID is required.");
     }
     const docRef = doc(db, 'products', newId);
 
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
-      toast({
-        title: "Error",
-        description: "A product with this ID already exists.",
-        variant: "destructive",
-      });
-      throw new Error("Product ID already exists");
+      throw new Error("A product with this ID already exists.");
     }
     
+    let imageUrl = 'https://placehold.co/600x400.png';
+    if (productData.image instanceof File) {
+        imageUrl = await uploadImage(productData.image, newId);
+    }
+    
+    const { image, ...restOfProductData } = productData;
+
     const newProduct = {
-      ...productData,
+      ...restOfProductData,
       description: 'A great product.', // default description
-      image: 'https://placehold.co/600x400.png',
+      image: imageUrl,
       status: productData.status || 'Available',
     };
     
     await setDoc(docRef, newProduct);
-    toast({
-      title: 'Product Added',
-      description: `${newProduct.name} has been successfully added.`,
-    });
   };
 
   const updateProduct = async (productData: ProductFormValues, originalId: string): Promise<void> => {
       const oldProduct = products.find(p => p.id === originalId);
       if (!oldProduct) {
-          toast({ title: "Error", description: "Product not found.", variant: "destructive" });
           throw new Error("Original product not found for update.");
       }
       
-      const newId = productData.id;
-       if (!newId) {
-         toast({ title: "Error", description: "Product ID is required.", variant: "destructive" });
-         throw new Error("Product ID is required.");
+      let imageUrl = oldProduct.image;
+      if (productData.image instanceof File) {
+          imageUrl = await uploadImage(productData.image, originalId);
       }
+      
+      const { image, ...restOfProductData } = productData;
       
       const updatedProductData = {
         ...oldProduct,
-        ...productData
+        ...restOfProductData,
+        image: imageUrl
       };
       
-      if (newId !== originalId) {
-          const oldDocRef = doc(db, 'products', originalId);
-          const newDocRef = doc(db, 'products', newId);
-          await setDoc(newDocRef, updatedProductData);
-          await deleteDoc(oldDocRef);
-      } else {
-          const docRef = doc(db, 'products', originalId);
-          await updateDoc(docRef, updatedProductData);
+      // ID cannot be changed in this implementation to prevent storage path issues.
+      // If ID change is needed, it requires moving the image file in storage.
+      if (productData.id !== originalId) {
+          toast({
+              title: "Update Info",
+              description: "Changing product ID is not allowed. Other fields updated.",
+              variant: "default",
+          });
       }
-      toast({
-          title: 'Product Updated',
-          description: `${productData.name} has been successfully updated.`,
-      });
+
+      const docRef = doc(db, 'products', originalId);
+      await updateDoc(docRef, updatedProductData);
   };
 
   const deleteProduct = async (productId: string) => {
