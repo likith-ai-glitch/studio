@@ -21,7 +21,7 @@ const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
   address: z.string().min(5, { message: 'Address is too short.' }),
   city: z.string().min(2, { message: 'City is too short.' }),
-  zip: z.string().min(5, { message: 'ZIP code must be 5 digits.' }).max(5),
+  zip: z.string().min(5, { message: 'Postal code must be at least 5 characters.' }),
 });
 
 export default function CheckoutPage() {
@@ -127,7 +127,7 @@ export default function CheckoutPage() {
                     name="zip"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>ZIP Code</FormLabel>
+                        <FormLabel>Postal Code</FormLabel>
                         <FormControl>
                           <Input placeholder="12345" {...field} />
                         </FormControl>
