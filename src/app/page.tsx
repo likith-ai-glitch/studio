@@ -9,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import Image from 'next/image';
 
 export default function Home() {
   const { products: allProducts, loading: productsLoading } = useProducts();
@@ -35,18 +38,46 @@ export default function Home() {
       return matchesSearch && matchesCategory && matchesPrice;
     });
   }, [allProducts, searchTerm, category, priceRange]);
+  
+  const featuredProducts = useMemo(() => {
+    // Basic featured logic: take first 4 available products
+    return allProducts.filter(p => p.status === 'Available').slice(0, 4);
+  }, [allProducts]);
 
   return (
-    <div className="flex flex-col gap-8">
-      <header className="text-center space-y-2">
-        <h1 className="text-4xl font-bold font-headline text-primary">Welcome to Shopstream</h1>
-        <p className="text-lg text-muted-foreground">Discover your next favorite product.</p>
-      </header>
-      
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+    <div className="flex flex-col gap-12">
+      <section className="relative bg-card p-8 rounded-lg shadow-lg overflow-hidden flex items-center min-h-[400px]">
+        <div className="z-10 relative md:w-1/2 text-center md:text-left">
+            <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary mb-4">Welcome to Shopstream</h1>
+            <p className="text-lg md:text-xl text-muted-foreground mb-6">Your one-stop shop for everything you need. Discover high-quality products at unbeatable prices.</p>
+            <Button size="lg" asChild>
+                <Link href="#all-products">Start Shopping</Link>
+            </Button>
+        </div>
+         <div className="absolute inset-0 z-0 opacity-20">
+            <Image
+                src="https://placehold.co/1200x400.png"
+                alt="Shop background"
+                fill
+                className="object-cover"
+                data-ai-hint="shopping abstract"
+            />
+        </div>
+      </section>
+
+      {featuredProducts.length > 0 && (
+        <section className="space-y-6">
+           <h2 className="text-3xl font-bold font-headline text-center">Featured Products</h2>
+           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+             {featuredProducts.map(p => <ProductCard key={p.id} product={p} />)}
+           </div>
+        </section>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pt-8" id="all-products">
         <aside className="md:col-span-1 bg-card p-6 rounded-lg shadow-sm self-start sticky top-24">
           <div className="space-y-6">
-            <h2 className="text-xl font-headline font-semibold">Filters</h2>
+            <h2 className="text-xl font-headline font-semibold">Filter All Products</h2>
             <div>
               <Input
                 placeholder="Search products..."
