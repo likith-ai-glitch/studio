@@ -42,27 +42,31 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   const defaultValues = useMemo(() => {
+    const baseValues: Record<string, any> = {
+      id: '',
+      name: '',
+      price: 0,
+      category: '',
+      brand: '',
+      color: '',
+      status: 'Available',
+      image: undefined,
+    };
+
     if (!initialData) {
-      return {
-        id: '',
-        name: '',
-        price: 0,
-        category: '',
-        brand: '',
-        color: '',
-        status: 'Available',
-        image: undefined,
-      };
+      return baseValues;
     }
+    
     const values = productKeys.reduce((acc, key) => {
-      if (initialData && initialData[key] !== undefined) {
+      if (initialData[key] !== undefined) {
         acc[key] = initialData[key];
       } else {
          acc[key] = '';
       }
       return acc;
     }, {} as Record<string, any>);
-    values.image = undefined;
+    
+    values.image = undefined; // Never pre-fill the file input
     return values;
   }, [initialData, productKeys]);
 
@@ -77,6 +81,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   useEffect(() => {
     reset(defaultValues);
     setImagePreview(initialData?.image || null);
+    setUploadProgress(null); // Reset progress when data changes
   }, [initialData, defaultValues, reset]);
 
 
@@ -97,6 +102,10 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
           reader.readAsDataURL(file);
           form.setValue('image', file);
           setUploadProgress(0); // Show progress bar as soon as file is selected
+      } else {
+         setImagePreview(initialData?.image || null);
+         form.setValue('image', undefined);
+         setUploadProgress(null);
       }
   };
 
