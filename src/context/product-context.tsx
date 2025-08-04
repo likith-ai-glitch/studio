@@ -4,7 +4,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { db, storage } from '@/lib/firebase';
 import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getDoc, writeBatch, getDocsFromServer, query, runTransaction, FieldValue, deleteField } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { products as initialProducts } from '@/lib/products';
 import type { Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -27,8 +27,8 @@ interface ProductContextType {
   products: Product[];
   productKeys: string[];
   loading: boolean;
-  addProduct: (productData: ProductFormValues, toastId?: string) => Promise<void>;
-  updateProduct: (productData: ProductFormValues, originalId: string, toastId?: string) => Promise<void>;
+  addProduct: (productData: ProductFormValues, toastId?: string, onProgress?: (progress: number) => void) => Promise<void>;
+  updateProduct: (productData: ProductFormValues, originalId: string, toastId?: string, onProgress?: (progress: number) => void) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
   getProduct: (productId: string) => Promise<Product | undefined>;
   addColumn: (columnName: string) => Promise<void>;
@@ -95,14 +95,29 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     };
   }, [initializeDatabase]);
   
-  const uploadImage = async (imageFile: File, productId: string): Promise<string> => {
+  const uploadImage = (imageFile: File, productId: string, onProgress?: (progress: number) => void): Promise<string> => {
+    return new Promise((resolve, reject) => {
       const storageRef = ref(storage, `products/${productId}/${imageFile.name}`);
-      const snapshot = await uploadBytes(storageRef, imageFile);
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      return downloadURL;
+      const uploadTask = uploadBytesResumable(storageRef, imageFile);
+
+      uploadTask.on('state_changed', 
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          onProgress?.(progress);
+        }, 
+        (error) => {
+          console.error("Upload failed:", error);
+          reject(error);
+        }, 
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve(downloadURL);
+        }
+      );
+    });
   };
   
-  const addProduct = async (productData: ProductFormValues, toastId?: string): Promise<void> => {
+  const addProduct = async (productData: ProductFormValues, toastId?: string, onProgress?: (progress: number) => void): Promise<void> => {
     const newId = productData.id;
     if (!newId) {
        throw new Error("Product ID is required.");
@@ -119,7 +134,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         if (toastId) {
           toast({ id: toastId, title: 'Uploading image...'})
         }
-        imageUrl = await uploadImage(productData.image, newId);
+        imageUrl = await uploadImage(productData.image, newId, onProgress);
     }
     
     if (toastId) {
@@ -138,7 +153,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     await setDoc(docRef, newProduct);
   };
 
-  const updateProduct = async (productData: ProductFormValues, originalId: string, toastId?: string): Promise<void> => {
+  const updateProduct = async (productData: ProductFormValues, originalId: string, toastId?: string, onProgress?: (progress: number) => void): Promise<void> => {
       const oldProduct = await getProduct(originalId);
       if (!oldProduct) {
           throw new Error("Original product not found for update.");
@@ -147,7 +162,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       let imageUrl = oldProduct.image;
       if (productData.image instanceof File) {
           if(toastId) toast({ id: toastId, title: 'Uploading image...'});
-          imageUrl = await uploadImage(productData.image, originalId);
+          imageUrl = await uploadImage(productData.image, originalId, onProgress);
       }
       
       if(toastId) toast({ id: toastId, title: 'Saving product details...'});

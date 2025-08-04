@@ -14,6 +14,7 @@ import { useProducts } from '@/context/product-context';
 import Image from 'next/image';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 
 const formSchema = z.object({
   id: z.string().min(3, { message: 'Product ID must be at least 3 characters.' }),
@@ -26,9 +27,11 @@ const formSchema = z.object({
   image: z.union([z.instanceof(File), z.string()]).optional(),
 }).catchall(z.any());
 
+type ProductFormValues = z.infer<typeof formSchema>;
+
 interface ProductFormProps {
   initialData?: Product | null;
-  onSubmit: (data: z.infer<typeof formSchema>, originalId?: string) => void;
+  onSubmit: (data: ProductFormValues, originalId?: string, onProgress?: (progress: number) => void) => Promise<void>;
   isSubmitting?: boolean;
 }
 
@@ -36,6 +39,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   const router = useRouter();
   const { productKeys } = useProducts();
   const [imagePreview, setImagePreview] = useState<string | null>(initialData?.image || null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   const defaultValues = productKeys.reduce((acc, key) => {
     if (initialData && initialData[key] !== undefined) {
@@ -63,8 +67,13 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   
   const { control, handleSubmit, watch } = form;
 
-  const onFormSubmit = (values: z.infer<typeof formSchema>) => {
-    onSubmit(values, initialData?.id);
+  const onFormSubmit = async (values: z.infer<typeof formSchema>) => {
+    setUploadProgress(null);
+    const onProgress = (progress: number) => {
+      setUploadProgress(progress);
+    };
+    await onSubmit(values, initialData?.id, onProgress);
+    setUploadProgress(null);
   }
 
   const watchedValues = watch();
@@ -78,6 +87,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
           };
           reader.readAsDataURL(file);
           form.setValue('image', file);
+          setUploadProgress(0);
       }
   };
 
@@ -99,6 +109,9 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                       <div className="mt-4">
                           <Image src={imagePreview} alt="Image preview" width={200} height={200} className="rounded-md object-cover" />
                       </div>
+                  )}
+                  {uploadProgress !== null && (
+                     <Progress value={uploadProgress} className="mt-2" />
                   )}
               </FormItem>
           )}

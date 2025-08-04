@@ -27,7 +27,7 @@ export default function NewProductPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const handleSubmit = async (data: ProductFormValues) => {
+  const handleSubmit = async (data: ProductFormValues, originalId?: string, onProgress?: (progress: number) => void) => {
     setIsSubmitting(true);
     
     const { id: toastId } = toast({
@@ -36,7 +36,7 @@ export default function NewProductPage() {
     });
 
     try {
-      await addProduct(data, toastId);
+      await addProduct(data, toastId, onProgress);
       toast({
         id: toastId,
         title: 'Product Added',
