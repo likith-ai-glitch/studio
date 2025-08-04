@@ -12,14 +12,16 @@ import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Image from 'next/image';
+import type { Product } from '@/lib/types';
 
 export default function Home() {
   const { products: allProducts, loading: productsLoading } = useProducts();
   const [searchTerm, setSearchTerm] = useState('');
+  
+  const allCategories = useMemo(() => ['All', ...Array.from(new Set(allProducts.map((p) => p.category)))], [allProducts]);
   const [category, setCategory] = useState('All');
   
-  const categories = ['All', ...Array.from(new Set(allProducts.map((p) => p.category)))];
-  const maxPrice = Math.ceil(Math.max(...allProducts.map((p) => p.price), 100));
+  const maxPrice = useMemo(() => Math.ceil(Math.max(...allProducts.map((p) => p.price || 0), 100)), [allProducts]);
 
   const [priceRange, setPriceRange] = useState([maxPrice]);
 
@@ -34,7 +36,7 @@ export default function Home() {
     return allProducts.filter((product) => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = category === 'All' || product.category === category;
-      const matchesPrice = product.price <= priceRange[0];
+      const matchesPrice = (product.price || 0) <= priceRange[0];
       return matchesSearch && matchesCategory && matchesPrice;
     });
   }, [allProducts, searchTerm, category, priceRange]);
@@ -69,7 +71,7 @@ export default function Home() {
         <section className="space-y-6">
            <h2 className="text-3xl font-bold font-headline text-center">Featured Products</h2>
            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-             {featuredProducts.map(p => <ProductCard key={p.id} product={p} />)}
+             {featuredProducts.map(p => <ProductCard key={p.id} product={p as Product} />)}
            </div>
         </section>
       )}
@@ -93,7 +95,7 @@ export default function Home() {
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((cat) => (
+                  {allCategories.map((cat) => (
                     <SelectItem key={cat} value={cat}>
                       {cat}
                     </SelectItem>
@@ -128,7 +130,7 @@ export default function Home() {
           ) : filteredProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
+                <ProductCard key={product.id} product={product as Product} />
               ))}
             </div>
           ) : (
@@ -142,5 +144,3 @@ export default function Home() {
     </div>
   );
 }
-
-    

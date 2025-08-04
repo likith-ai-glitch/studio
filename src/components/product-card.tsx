@@ -61,12 +61,12 @@ export function ProductCard({ product }: ProductCardProps) {
             </Button>
           </div>
           <div className="p-4">
-            <p className="text-sm text-muted-foreground">{product.category}</p>
+            <p className="text-sm text-muted-foreground">{product.manufacturer}</p>
             <CardTitle className="text-lg font-headline mt-1 line-clamp-2">{product.name}</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="flex-grow p-4 pt-0">
-          <p className="text-2xl font-semibold text-primary">₹{product.price.toFixed(2)}</p>
+          <p className="text-2xl font-semibold text-primary">₹{(product.price || 0).toFixed(2)}</p>
         </CardContent>
         <CardFooter className="p-4 pt-0">
            <Button className="w-full" onClick={handleAddToCartClick} disabled={isUnavailable} variant={isUnavailable ? 'secondary' : 'default'}>
@@ -78,5 +78,3 @@ export function ProductCard({ product }: ProductCardProps) {
     </Card>
   );
 }
-
-    

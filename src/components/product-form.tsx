@@ -13,15 +13,20 @@ import { useRouter } from 'next/navigation';
 import { useProducts } from '@/context/product-context';
 import { useState, useEffect, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
+import { Textarea } from './ui/textarea';
 
 const formSchema = z.object({
   id: z.string().min(3, { message: 'Product ID must be at least 3 characters.' }),
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
-  price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
-  category: z.string().min(2, { message: 'Category must be at least 2 characters.' }),
-  brand: z.string().min(2, { message: 'Brand must be at least 2 characters.' }),
-  color: z.string().min(2, { message: 'Color must be at least 2 characters.' }),
+  description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
+  manufacturer: z.string().min(2, { message: 'Manufacturer must be at least 2 characters.' }),
+  partNumber: z.string().min(2, { message: 'Part Number must be at least 2 characters.' }),
+  codeName: z.string().min(2, { message: 'Code Name must be at least 2 characters.' }),
+  mapping1: z.string().optional(),
+  mapping2: z.string().optional(),
+  mapping3: z.string().optional(),
   status: z.string().optional(),
+  price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
 }).catchall(z.any());
 
 type ProductFormValues = z.infer<typeof formSchema>;
@@ -40,11 +45,15 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
     const baseValues: Record<string, any> = {
       id: '',
       name: '',
-      price: 0,
-      category: '',
-      brand: '',
-      color: '',
+      description: '',
+      manufacturer: '',
+      partNumber: '',
+      codeName: '',
+      mapping1: '',
+      mapping2: '',
+      mapping3: '',
       status: 'Available',
+      price: 0,
     };
 
     if (!initialData) {
@@ -81,12 +90,16 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
 
   const watchedValues = watch();
 
+  const formFields = [
+    'id', 'name', 'description', 'manufacturer', 'partNumber', 'codeName',
+    'mapping1', 'mapping2', 'mapping3', 'price', 'status'
+  ];
+
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
         
-        {Object.keys(watchedValues).map((key) => {
-           if (key === 'description') return null;
+        {formFields.map((key) => {
             if (key === 'status') {
               return (
                  <FormField
@@ -107,6 +120,24 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                           <SelectItem value="Unavailable">Unavailable</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )
+            }
+             if (key === 'description') {
+              return (
+                <FormField
+                  key={key}
+                  control={control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea {...field} disabled={isSubmitting} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -151,5 +182,3 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
     </Form>
   );
 }
-
-    

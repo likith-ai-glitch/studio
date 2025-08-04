@@ -1,18 +1,30 @@
 
 export interface Product {
-  id: string;
+  id: string; // Autonumber (PK)
   name: string;
   description: string;
-  price: number;
-  category: string;
-  color: string;
-  brand: string;
+  manufacturer: string;
+  partNumber: string;
+  codeName: string;
+  mapping1: string;
+  mapping2: string;
+  mapping3: string;
   status: string;
-  [key: string]: any; // Allow for dynamic properties
+  [key: string]: any;
+}
+
+export interface Price {
+  id: string; // Autonumber (PK)
+  name: string;
+  description: string;
+  baseCurrency: string;
+  amount: number;
+  productId: string;
 }
 
 export interface CartItem extends Product {
   quantity: number;
+  price: number; // For simplicity in cart, we'll store the resolved price.
 }
 
 export interface AppEvent {
@@ -37,5 +49,3 @@ export interface Order {
   total: number;
   orderDate: Date;
 }
-
-    

@@ -37,8 +37,6 @@ import {
   DialogTrigger,
   DialogClose,
 } from "@/components/ui/dialog"
-import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
-import { subDays, format } from 'date-fns';
 import type { Product } from '@/lib/types';
 import type { DropdownMenuItemProps } from '@radix-ui/react-dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -54,7 +52,7 @@ export default function AdminPage() {
   const { products, deleteProduct, addColumn, deleteColumn, loading: productsLoading } = useProducts();
   const { orders } = useOrders();
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Product | string | null; direction: 'ascending' | 'descending' }>({ key: 'price', direction: 'ascending' });
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Product | string | null; direction: 'ascending' | 'descending' }>({ key: 'name', direction: 'ascending' });
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   
   const [newColumnName, setNewColumnName] = useState('');
@@ -81,23 +79,12 @@ export default function AdminPage() {
     return products.filter(p => p.status === 'Unavailable').length;
   }, [products]);
 
-  const salesData = Array.from({ length: 7 }).map((_, i) => {
-    const date = subDays(new Date(), i);
-    const dailySales = orders
-      .filter(order => format(order.orderDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd'))
-      .reduce((sum, order) => sum + order.total, 0);
-    return {
-      name: format(date, 'MMM d'),
-      total: dailySales,
-    };
-  }).reverse();
-
   const productKeys = useMemo(() => {
     if (products.length === 0) return [];
     const keys = new Set<string>();
     products.forEach(p => Object.keys(p).forEach(k => keys.add(k)));
-    const fixedOrder = ['id', 'name', 'category', 'brand', 'color', 'price', 'status'];
-    const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k) && k !== 'description');
+    const fixedOrder = ['id', 'name', 'description', 'manufacturer', 'partNumber', 'codeName', 'status', 'mapping1', 'mapping2', 'mapping3'];
+    const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k) && !['price', 'category', 'brand', 'color'].includes(k));
     return [...fixedOrder, ...dynamicKeys];
   }, [products]);
 
@@ -312,7 +299,7 @@ export default function AdminPage() {
 
       <Card>
         <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <CardTitle>Product List</CardTitle>
+          <CardTitle>Product Master (prd_master)</CardTitle>
           <div className="flex items-center gap-4 w-full md:w-auto">
              <Input
                 placeholder="Filter products..."
@@ -466,33 +453,7 @@ export default function AdminPage() {
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-       <Card>
-        <CardHeader>
-          <CardTitle>Sales This Week</CardTitle>
-        </CardHeader>
-        <CardContent className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={salesData}>
-               <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-               <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `₹${value}`} />
-               <Tooltip 
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--background))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: 'var(--radius)',
-                }}
-                labelStyle={{
-                   color: 'hsl(var(--foreground))'
-                }}
-               />
-              <Line type="monotone" dataKey="total" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4, fill: 'hsl(var(--primary))' }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
       
     </div>
   );
-
-    
+}

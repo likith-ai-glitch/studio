@@ -12,11 +12,15 @@ import { z } from 'zod';
 const formSchema = z.object({
   id: z.string().min(3),
   name: z.string().min(2),
-  price: z.coerce.number().min(0),
-  category: z.string().min(2),
-  brand: z.string().min(2),
-  color: z.string().min(2),
+  description: z.string().min(10),
+  manufacturer: z.string().min(2),
+  partNumber: z.string().min(2),
+  codeName: z.string().min(2),
+  mapping1: z.string().optional(),
+  mapping2: z.string().optional(),
+  mapping3: z.string().optional(),
   status: z.string().optional(),
+  price: z.coerce.number().min(0),
 }).catchall(z.any());
 type ProductFormValues = z.infer<typeof formSchema>;
 
@@ -105,9 +109,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       throw new Error("A product with this ID already exists.");
     }
 
+    const { price, category, brand, color, ...restOfData } = productData;
+
     const newProduct = {
-      ...productData,
-      description: 'A great product.', // default description
+      ...restOfData,
       status: productData.status || 'Available',
     };
     
@@ -119,10 +124,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       if (!oldProduct) {
           throw new Error("Original product not found for update.");
       }
-            
+      
+      const { price, category, brand, color, ...restOfData } = productData;
+
       const updatedProductData = {
         ...oldProduct,
-        ...productData,
+        ...restOfData,
       };
       
       if (productData.id !== originalId) {
@@ -218,11 +225,11 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
 
   const productKeys = useMemo(() => {
-    if (products.length === 0) return ['id', 'name', 'category', 'brand', 'color', 'price', 'status'];
+    if (products.length === 0) return ['id', 'name', 'description', 'manufacturer', 'partNumber', 'codeName', 'status'];
     const keys = new Set<string>();
     products.forEach(p => Object.keys(p).forEach(k => keys.add(k)));
-    const fixedOrder = ['id', 'name', 'category', 'brand', 'color', 'price', 'status'];
-    const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k) && k !== 'description');
+    const fixedOrder = ['id', 'name', 'description', 'manufacturer', 'partNumber', 'codeName', 'status', 'mapping1', 'mapping2', 'mapping3'];
+    const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k) && !['price', 'category', 'brand', 'color'].includes(k));
     return [...fixedOrder, ...dynamicKeys];
   }, [products]);
 
@@ -240,5 +247,3 @@ export function useProducts() {
   }
   return context;
 }
-
-    
