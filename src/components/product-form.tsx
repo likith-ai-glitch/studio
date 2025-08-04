@@ -75,11 +75,10 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   const { control, handleSubmit, watch, reset } = form;
 
   useEffect(() => {
-    if (initialData) {
-      setImagePreview(initialData.image);
-    }
     reset(defaultValues);
+    setImagePreview(initialData?.image || null);
   }, [initialData, defaultValues, reset]);
+
 
   const onFormSubmit = async (values: z.infer<typeof formSchema>) => {
     await onSubmit(values, initialData?.id, setUploadProgress);
@@ -97,7 +96,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
           };
           reader.readAsDataURL(file);
           form.setValue('image', file);
-          setUploadProgress(0);
+          setUploadProgress(0); // Show progress bar as soon as file is selected
       }
   };
 
