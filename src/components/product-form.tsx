@@ -12,7 +12,7 @@ import type { Product } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useProducts } from '@/context/product-context';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
@@ -41,31 +41,42 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   const [imagePreview, setImagePreview] = useState<string | null>(initialData?.image || null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
-  const defaultValues = productKeys.reduce((acc, key) => {
-    if (initialData && initialData[key] !== undefined) {
-      acc[key] = initialData[key];
-    } else {
-       acc[key] = '';
+  const defaultValues = useMemo(() => {
+    if (!initialData) {
+      return {
+        id: '',
+        name: '',
+        price: 0,
+        category: '',
+        brand: '',
+        color: '',
+        status: 'Available',
+        image: undefined,
+      };
     }
-    return acc;
-  }, {} as Record<string, any>);
+    const values = productKeys.reduce((acc, key) => {
+      if (initialData && initialData[key] !== undefined) {
+        acc[key] = initialData[key];
+      } else {
+         acc[key] = '';
+      }
+      return acc;
+    }, {} as Record<string, any>);
+    values.image = undefined;
+    return values;
+  }, [initialData, productKeys]);
 
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: initialData ? { ...defaultValues, image: undefined } : {
-      id: '',
-      name: '',
-      price: 0,
-      category: '',
-      brand: '',
-      color: '',
-      status: 'Available',
-      image: undefined,
-    },
+    defaultValues,
   });
   
-  const { control, handleSubmit, watch } = form;
+  const { control, handleSubmit, watch, reset } = form;
+
+  useEffect(() => {
+    reset(defaultValues);
+  }, [defaultValues, reset]);
 
   const onFormSubmit = async (values: z.infer<typeof formSchema>) => {
     const onProgress = (progress: number) => {
