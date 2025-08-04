@@ -12,7 +12,7 @@ import type { Product } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useProducts } from '@/context/product-context';
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
@@ -75,8 +75,11 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   const { control, handleSubmit, watch, reset } = form;
 
   useEffect(() => {
+    if (initialData) {
+      setImagePreview(initialData.image);
+    }
     reset(defaultValues);
-  }, [defaultValues, reset]);
+  }, [initialData, defaultValues, reset]);
 
   const onFormSubmit = async (values: z.infer<typeof formSchema>) => {
     const onProgress = (progress: number) => {
