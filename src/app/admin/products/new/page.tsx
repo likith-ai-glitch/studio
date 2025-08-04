@@ -15,7 +15,6 @@ const formSchema = z.object({
   description: z.string().min(10),
   brand: z.string().min(2),
   category: z.string().min(2),
-  color: z.string().min(2),
   status: z.string().optional(),
 }).catchall(z.any());
 type ProductFormValues = z.infer<typeof formSchema>;

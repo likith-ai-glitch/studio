@@ -8,7 +8,6 @@ export const products: Omit<Product, 'price'>[] = [
     description: 'A beautifully crafted acoustic guitar with a rich, warm tone. Perfect for beginners and seasoned players alike.',
     brand: 'Fender',
     category: 'Instruments',
-    color: 'Natural',
     status: 'Available',
   },
   {
@@ -17,7 +16,6 @@ export const products: Omit<Product, 'price'>[] = [
     description: 'Experience immersive sound with these high-fidelity wireless headphones. Featuring noise-cancellation technology and a 20-hour battery life.',
     brand: 'Sony',
     category: 'Electronics',
-    color: 'Black',
     status: 'Available',
   },
   {
@@ -26,7 +24,6 @@ export const products: Omit<Product, 'price'>[] = [
     description: 'A sleek and sturdy bookshelf to organize your favorite reads. Made from sustainable bamboo with a minimalist design that fits any decor.',
     brand: 'IKEA',
     category: 'Furniture',
-    color: 'Light Wood',
     status: 'Unavailable',
   },
   {
@@ -35,7 +32,6 @@ export const products: Omit<Product, 'price'>[] = [
     description: 'Brew cafe-quality espresso at home with this professional-grade machine. Features a powerful 15-bar pump and a built-in milk frother.',
     brand: 'Breville',
     category: 'Appliances',
-    color: 'Stainless Steel',
     status: 'Available',
   },
   {
@@ -44,7 +40,6 @@ export const products: Omit<Product, 'price'>[] = [
     description: 'A stylish and durable backpack crafted from genuine leather. It has multiple compartments, including a padded laptop sleeve.',
     brand: 'Herschel',
     category: 'Accessories',
-    color: 'Brown',
     status: 'Available',
   },
 ];

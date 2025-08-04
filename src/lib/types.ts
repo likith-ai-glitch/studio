@@ -5,7 +5,6 @@ export interface Product {
   description: string;
   brand: string;
   category: string;
-  color: string;
   status: string;
   [key: string]: any;
 }

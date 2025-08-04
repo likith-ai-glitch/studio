@@ -21,7 +21,6 @@ const formSchema = z.object({
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   brand: z.string().min(2, { message: 'Brand must be at least 2 characters.' }),
   category: z.string().min(2, { message: 'Category must be at least 2 characters.' }),
-  color: z.string().min(2, { message: 'Color must be at least 2 characters.' }),
   status: z.string().optional(),
 }).catchall(z.any());
 
@@ -44,7 +43,6 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
       description: '',
       brand: '',
       category: '',
-      color: '',
       status: 'Available',
     };
 
@@ -83,7 +81,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   const watchedValues = watch();
 
   const formFields = [
-    'id', 'name', 'description', 'brand', 'category', 'color', 'status'
+    'id', 'name', 'description', 'brand', 'category', 'status'
   ];
 
   return (

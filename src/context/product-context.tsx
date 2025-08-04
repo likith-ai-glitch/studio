@@ -15,7 +15,6 @@ const formSchema = z.object({
   description: z.string().min(10),
   brand: z.string().min(2),
   category: z.string().min(2),
-  color: z.string().min(2),
   status: z.string().optional(),
 }).catchall(z.any());
 type ProductFormValues = z.infer<typeof formSchema>;
@@ -222,10 +221,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
 
   const productKeys = useMemo(() => {
-    if (products.length === 0) return ['id', 'name', 'description', 'brand', 'category', 'color', 'status'];
+    if (products.length === 0) return ['id', 'name', 'description', 'brand', 'category', 'status'];
     const keys = new Set<string>();
     products.forEach(p => Object.keys(p).forEach(k => keys.add(k)));
-    const fixedOrder = ['id', 'name', 'description', 'brand', 'category', 'color', 'status'];
+    const fixedOrder = ['id', 'name', 'description', 'brand', 'category', 'status'];
     const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k));
     return [...fixedOrder, ...dynamicKeys];
   }, [products]);
