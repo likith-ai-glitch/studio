@@ -27,8 +27,8 @@ interface ProductContextType {
   products: Product[];
   productKeys: string[];
   loading: boolean;
-  addProduct: (productData: ProductFormValues) => Promise<void>;
-  updateProduct: (productData: ProductFormValues, originalId: string) => Promise<void>;
+  addProduct: (productData: ProductFormValues, toastId?: string) => Promise<void>;
+  updateProduct: (productData: ProductFormValues, originalId: string, toastId?: string) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
   getProduct: (productId: string) => Promise<Product | undefined>;
   addColumn: (columnName: string) => Promise<void>;
@@ -102,7 +102,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       return downloadURL;
   };
   
-  const addProduct = async (productData: ProductFormValues): Promise<void> => {
+  const addProduct = async (productData: ProductFormValues, toastId?: string): Promise<void> => {
     const newId = productData.id;
     if (!newId) {
        throw new Error("Product ID is required.");
@@ -116,9 +116,16 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     
     let imageUrl = 'https://placehold.co/600x400.png';
     if (productData.image instanceof File) {
+        if (toastId) {
+          toast({ id: toastId, title: 'Uploading image...'})
+        }
         imageUrl = await uploadImage(productData.image, newId);
     }
     
+    if (toastId) {
+        toast({ id: toastId, title: 'Saving product details...'})
+    }
+
     const { image, ...restOfProductData } = productData;
 
     const newProduct = {
@@ -131,7 +138,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     await setDoc(docRef, newProduct);
   };
 
-  const updateProduct = async (productData: ProductFormValues, originalId: string): Promise<void> => {
+  const updateProduct = async (productData: ProductFormValues, originalId: string, toastId?: string): Promise<void> => {
       const oldProduct = await getProduct(originalId);
       if (!oldProduct) {
           throw new Error("Original product not found for update.");
@@ -139,9 +146,11 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       
       let imageUrl = oldProduct.image;
       if (productData.image instanceof File) {
+          if(toastId) toast({ id: toastId, title: 'Uploading image...'});
           imageUrl = await uploadImage(productData.image, originalId);
       }
       
+      if(toastId) toast({ id: toastId, title: 'Saving product details...'});
       const { image, ...restOfProductData } = productData;
       
       const updatedProductData = {
@@ -150,8 +159,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         image: imageUrl
       };
       
-      // ID cannot be changed in this implementation to prevent storage path issues.
-      // If ID change is needed, it requires moving the image file in storage.
       if (productData.id !== originalId) {
           toast({
               title: "Update Info",
@@ -269,5 +276,3 @@ export function useProducts() {
   }
   return context;
 }
-
-    

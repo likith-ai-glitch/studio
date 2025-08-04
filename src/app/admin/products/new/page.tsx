@@ -30,20 +30,22 @@ export default function NewProductPage() {
   const handleSubmit = (data: ProductFormValues) => {
     setIsSubmitting(true);
     
-    toast({
+    const { id: toastId } = toast({
       title: 'Adding Product...',
       description: `${data.name} is being added to the store.`,
     });
 
-    addProduct(data)
+    addProduct(data, toastId)
       .then(() => {
         toast({
+          id: toastId,
           title: 'Product Added',
           description: `${data.name} has been successfully added.`,
         });
       })
       .catch((error: any) => {
         toast({
+          id: toastId,
           title: "Error adding product",
           description: error.message,
           variant: 'destructive',

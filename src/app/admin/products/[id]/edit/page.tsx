@@ -66,14 +66,15 @@ export default function EditProductPage() {
     if (!originalId) return;
     setIsSubmitting(true);
     
-    toast({
+    const { id: toastId } = toast({
       title: 'Saving Product...',
-      description: `${data.name} is being updated.`,
+      description: `Your changes to ${data.name} are being saved.`,
     });
 
-    updateProduct(data, originalId)
+    updateProduct(data, originalId, toastId)
       .then(() => {
         toast({
+          id: toastId,
           title: 'Product Updated',
           description: `${data.name} has been successfully updated.`,
         });
@@ -81,6 +82,7 @@ export default function EditProductPage() {
       .catch((error) => {
         console.error(error);
         toast({
+          id: toastId,
           title: 'Error',
           description: 'Failed to update product.',
           variant: 'destructive',
