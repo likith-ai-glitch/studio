@@ -95,17 +95,17 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file) {
+          setUploadProgress(0); // Show progress bar as soon as file is selected
           const reader = new FileReader();
           reader.onloadend = () => {
               setImagePreview(reader.result as string);
           };
           reader.readAsDataURL(file);
           form.setValue('image', file);
-          setUploadProgress(0); // Show progress bar as soon as file is selected
       } else {
+         setUploadProgress(null);
          setImagePreview(initialData?.image || null);
          form.setValue('image', undefined);
-         setUploadProgress(null);
       }
   };
 
