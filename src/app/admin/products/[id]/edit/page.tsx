@@ -62,7 +62,7 @@ export default function EditProductPage() {
     return notFound();
   }
 
-  const handleSubmit = (data: ProductFormValues, originalId?: string) => {
+  const handleSubmit = async (data: ProductFormValues, originalId?: string) => {
     if (!originalId) return;
     setIsSubmitting(true);
     
@@ -71,15 +71,15 @@ export default function EditProductPage() {
       description: `Your changes to ${data.name} are being saved.`,
     });
 
-    updateProduct(data, originalId, toastId)
-      .then(() => {
-        toast({
-          id: toastId,
-          title: 'Product Updated',
-          description: `${data.name} has been successfully updated.`,
-        });
-      })
-      .catch((error) => {
+    try {
+      await updateProduct(data, originalId, toastId);
+      toast({
+        id: toastId,
+        title: 'Product Updated',
+        description: `${data.name} has been successfully updated.`,
+      });
+      router.push('/admin');
+    } catch (error) {
         console.error(error);
         toast({
           id: toastId,
@@ -87,12 +87,9 @@ export default function EditProductPage() {
           description: 'Failed to update product.',
           variant: 'destructive',
         });
-      })
-      .finally(() => {
+    } finally {
         setIsSubmitting(false);
-      });
-      
-    router.push('/admin');
+    }
   };
 
   return (

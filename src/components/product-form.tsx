@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import { useProducts } from '@/context/product-context';
 import Image from 'next/image';
 import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
   id: z.string().min(3, { message: 'Product ID must be at least 3 characters.' }),
@@ -91,7 +92,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
               <FormItem>
                   <FormLabel>Product Image</FormLabel>
                   <FormControl>
-                      <Input type="file" accept="image/*" onChange={handleImageChange} />
+                      <Input type="file" accept="image/*" onChange={handleImageChange} disabled={isSubmitting} />
                   </FormControl>
                   <FormMessage />
                   {imagePreview && (
@@ -114,7 +115,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Status</FormLabel>
-                       <Select onValueChange={field.onChange} defaultValue={field.value}>
+                       <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a status" />
@@ -143,10 +144,10 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                         {key === 'price' ? (
                           <div className="relative">
                             <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">₹</span>
-                            <Input type="number" {...field} className="pl-7" />
+                            <Input type="number" {...field} className="pl-7" disabled={isSubmitting} />
                           </div>
                         ) : (
-                          <Input {...field} disabled={key === 'id' && !!initialData} />
+                          <Input {...field} disabled={(key === 'id' && !!initialData) || isSubmitting} />
                         )}
                       </FormControl>
                       <FormMessage />
@@ -158,6 +159,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
         
         <div className="flex gap-4">
           <Button type="submit" className="flex-grow" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isSubmitting ? 'Saving...' : (initialData ? 'Save Changes' : 'Create Product')}
           </Button>
           <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>
