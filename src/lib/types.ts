@@ -22,11 +22,6 @@ export interface Price {
   productId: string;
 }
 
-export interface CartItem extends Product {
-  quantity: number;
-  price: number; // For simplicity in cart, we'll store the resolved price.
-}
-
 export interface AppEvent {
   id: string;
   type: 'login' | 'logout' | 'product_added';
@@ -45,7 +40,7 @@ export interface Order {
     city: string;
     zip: string;
   };
-  items: CartItem[];
+  items: Product[];
   total: number;
   orderDate: Date;
 }

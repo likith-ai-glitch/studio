@@ -5,8 +5,7 @@ import Link from 'next/link';
 import type { Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Heart, ShoppingCart, EyeOff, Package } from 'lucide-react';
-import { useCart } from '@/context/cart-context';
+import { Heart, EyeOff, Package } from 'lucide-react';
 import { useWishlist } from '@/context/wishlist-context';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +16,6 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const router = useRouter();
   const isWishlisted = isInWishlist(product.id);
@@ -31,13 +29,6 @@ export function ProductCard({ product }: ProductCardProps) {
       addToWishlist(product);
     }
   };
-
-  const handleAddToCartClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (isUnavailable) return;
-    addToCart(product);
-    router.push('/cart');
-  }
 
   return (
     <Card className="flex flex-col h-full overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
@@ -69,9 +60,8 @@ export function ProductCard({ product }: ProductCardProps) {
           <p className="text-2xl font-semibold text-primary">₹{(product.price || 0).toFixed(2)}</p>
         </CardContent>
         <CardFooter className="p-4 pt-0">
-           <Button className="w-full" onClick={handleAddToCartClick} disabled={isUnavailable} variant={isUnavailable ? 'secondary' : 'default'}>
-            {isUnavailable ? <EyeOff className="mr-2 h-4 w-4" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
-            {isUnavailable ? 'Unavailable' : 'Add to Cart & Order'}
+           <Button className="w-full" disabled={isUnavailable} variant={'secondary'}>
+            View Product
           </Button>
         </CardFooter>
       </Link>

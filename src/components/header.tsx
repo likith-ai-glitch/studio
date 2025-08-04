@@ -2,14 +2,12 @@
 'use client';
 
 import Link from 'next/link';
-import { ShoppingCart, Heart, Store, Wrench, LogIn, LogOut, User as UserIcon, ShieldCheck, Package } from 'lucide-react';
+import { Heart, Store, Wrench, LogIn, LogOut, ShieldCheck, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useCart } from '@/context/cart-context';
 import { useWishlist } from '@/context/wishlist-context';
 import { useAuth } from '@/context/auth-context';
 
 export function Header() {
-  const { cartCount } = useCart();
   const { wishlistCount } = useWishlist();
   const { user, logout, loading } = useAuth();
 
@@ -53,17 +51,6 @@ export function Header() {
                 {wishlistCount > 0 && (
                   <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
                     {wishlistCount}
-                  </span>
-                )}
-              </Link>
-            </Button>
-            <Button variant="ghost" asChild>
-              <Link href="/cart" className="relative flex items-center gap-1">
-                <ShoppingCart className="h-5 w-5" />
-                <span className="hidden md:inline">Cart</span>
-                {cartCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                    {cartCount}
                   </span>
                 )}
               </Link>
