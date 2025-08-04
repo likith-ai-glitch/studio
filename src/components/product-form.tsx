@@ -68,7 +68,6 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   const { control, handleSubmit, watch } = form;
 
   const onFormSubmit = async (values: z.infer<typeof formSchema>) => {
-    setUploadProgress(null);
     const onProgress = (progress: number) => {
       setUploadProgress(progress);
     };
