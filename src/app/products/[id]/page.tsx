@@ -40,7 +40,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
     notFound();
   }
   
-  const relatedProducts = products.filter(p => p.id !== product.id).slice(0, 3);
+  const relatedProducts = products.filter(p => p.id !== product.id && p.category === product.category).slice(0, 3);
 
   return (
     <div className="space-y-12">
@@ -50,7 +50,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
         </div>
         <div className="flex flex-col justify-center space-y-6">
           <div>
-            <p className="text-sm font-medium text-muted-foreground">{product.manufacturer}</p>
+            <p className="text-sm font-medium text-muted-foreground">{product.brand}</p>
             <h1 className="text-4xl font-bold font-headline mt-1">{product.name}</h1>
           </div>
           

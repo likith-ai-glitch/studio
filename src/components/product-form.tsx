@@ -19,12 +19,9 @@ const formSchema = z.object({
   id: z.string().min(3, { message: 'Product ID must be at least 3 characters.' }),
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
-  manufacturer: z.string().min(2, { message: 'Manufacturer must be at least 2 characters.' }),
-  partNumber: z.string().min(2, { message: 'Part Number must be at least 2 characters.' }),
-  codeName: z.string().min(2, { message: 'Code Name must be at least 2 characters.' }),
-  mapping1: z.string().optional(),
-  mapping2: z.string().optional(),
-  mapping3: z.string().optional(),
+  brand: z.string().min(2, { message: 'Brand must be at least 2 characters.' }),
+  category: z.string().min(2, { message: 'Category must be at least 2 characters.' }),
+  color: z.string().min(2, { message: 'Color must be at least 2 characters.' }),
   status: z.string().optional(),
 }).catchall(z.any());
 
@@ -45,12 +42,9 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
       id: '',
       name: '',
       description: '',
-      manufacturer: '',
-      partNumber: '',
-      codeName: '',
-      mapping1: '',
-      mapping2: '',
-      mapping3: '',
+      brand: '',
+      category: '',
+      color: '',
       status: 'Available',
     };
 
@@ -89,8 +83,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   const watchedValues = watch();
 
   const formFields = [
-    'id', 'name', 'description', 'manufacturer', 'partNumber', 'codeName',
-    'mapping1', 'mapping2', 'mapping3', 'status'
+    'id', 'name', 'description', 'brand', 'category', 'color', 'status'
   ];
 
   return (

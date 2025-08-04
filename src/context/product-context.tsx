@@ -13,12 +13,9 @@ const formSchema = z.object({
   id: z.string().min(3),
   name: z.string().min(2),
   description: z.string().min(10),
-  manufacturer: z.string().min(2),
-  partNumber: z.string().min(2),
-  codeName: z.string().min(2),
-  mapping1: z.string().optional(),
-  mapping2: z.string().optional(),
-  mapping3: z.string().optional(),
+  brand: z.string().min(2),
+  category: z.string().min(2),
+  color: z.string().min(2),
   status: z.string().optional(),
 }).catchall(z.any());
 type ProductFormValues = z.infer<typeof formSchema>;
@@ -54,7 +51,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const batch = writeBatch(db);
         initialProducts.forEach((product) => {
           const docRef = doc(db, "products", product.id);
-          const { price, ...restOfProduct } = product; // Exclude price
+          const { ...restOfProduct } = product;
           batch.set(docRef, restOfProduct);
         });
         await batch.commit();
@@ -109,7 +106,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       throw new Error("A product with this ID already exists.");
     }
     
-    const { price, ...restOfData } = productData;
+    const { ...restOfData } = productData;
 
     const newProduct = {
       ...restOfData,
@@ -125,7 +122,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
           throw new Error("Original product not found for update.");
       }
       
-      const { price, ...restOfData } = productData;
+      const { ...restOfData } = productData;
 
       const updatedProductData = {
         ...oldProduct,
@@ -225,11 +222,11 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
 
   const productKeys = useMemo(() => {
-    if (products.length === 0) return ['id', 'name', 'description', 'manufacturer', 'partNumber', 'codeName', 'status'];
+    if (products.length === 0) return ['id', 'name', 'description', 'brand', 'category', 'color', 'status'];
     const keys = new Set<string>();
     products.forEach(p => Object.keys(p).forEach(k => keys.add(k)));
-    const fixedOrder = ['id', 'name', 'description', 'manufacturer', 'partNumber', 'codeName', 'status', 'mapping1', 'mapping2', 'mapping3'];
-    const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k) && !['price', 'category', 'brand', 'color'].includes(k));
+    const fixedOrder = ['id', 'name', 'description', 'brand', 'category', 'color', 'status'];
+    const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k));
     return [...fixedOrder, ...dynamicKeys];
   }, [products]);
 

@@ -79,14 +79,7 @@ export default function AdminPage() {
     return products.filter(p => p.status === 'Unavailable').length;
   }, [products]);
 
-  const productKeys = useMemo(() => {
-    if (products.length === 0) return [];
-    const keys = new Set<string>();
-    products.forEach(p => Object.keys(p).forEach(k => keys.add(k)));
-    const fixedOrder = ['id', 'name', 'description', 'manufacturer', 'partNumber', 'codeName', 'status', 'mapping1', 'mapping2', 'mapping3'];
-    const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k) && !['price', 'category', 'brand', 'color'].includes(k));
-    return [...fixedOrder, ...dynamicKeys];
-  }, [products]);
+  const { productKeys } = useProducts();
 
   const deletableColumns = useMemo(() => {
     // Allow deleting all columns except for 'id'

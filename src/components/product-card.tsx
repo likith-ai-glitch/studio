@@ -52,7 +52,7 @@ export function ProductCard({ product }: ProductCardProps) {
             </Button>
           </div>
           <div className="p-4">
-            <p className="text-sm text-muted-foreground">{product.manufacturer}</p>
+            <p className="text-sm text-muted-foreground">{product.brand}</p>
             <CardTitle className="text-lg font-headline mt-1 line-clamp-2">{product.name}</CardTitle>
           </div>
         </CardHeader>

@@ -16,12 +16,9 @@ const formSchema = z.object({
   id: z.string().min(3),
   name: z.string().min(2),
   description: z.string().min(10),
-  manufacturer: z.string().min(2),
-  partNumber: z.string().min(2),
-  codeName: z.string().min(2),
-  mapping1: z.string().optional(),
-  mapping2: z.string().optional(),
-  mapping3: z.string().optional(),
+  brand: z.string().min(2),
+  category: z.string().min(2),
+  color: z.string().min(2),
   status: z.string().optional(),
 }).catchall(z.any());
 type ProductFormValues = z.infer<typeof formSchema>;

@@ -1,14 +1,11 @@
 
 export interface Product {
-  id: string; // Autonumber (PK)
+  id: string;
   name: string;
   description: string;
-  manufacturer: string;
-  partNumber: string;
-  codeName: string;
-  mapping1: string;
-  mapping2: string;
-  mapping3: string;
+  brand: string;
+  category: string;
+  color: string;
   status: string;
   [key: string]: any;
 }
