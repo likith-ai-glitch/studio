@@ -4,7 +4,6 @@ export interface Product {
   name: string;
   description: string;
   price: number;
-  image: string;
   category: string;
   color: string;
   brand: string;
@@ -38,3 +37,5 @@ export interface Order {
   total: number;
   orderDate: Date;
 }
+
+    

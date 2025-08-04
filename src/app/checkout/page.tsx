@@ -13,7 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
+import { Package } from 'lucide-react';
 import { useEffect } from 'react';
 
 const formSchema = z.object({
@@ -167,7 +167,9 @@ export default function CheckoutPage() {
             {cartItems.map((item) => (
               <div key={item.id} className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <Image src={item.image} alt={item.name} width={64} height={64} className="rounded-md object-cover" data-ai-hint={`${item.category.toLowerCase()} ${item.name.split(' ')[0].toLowerCase()}`} />
+                    <div className="flex items-center justify-center bg-muted rounded-md w-16 h-16">
+                        <Package className="w-8 h-8 text-muted-foreground" />
+                    </div>
                   <div>
                     <p className="font-semibold">{item.name}</p>
                     <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
@@ -187,3 +189,5 @@ export default function CheckoutPage() {
     </div>
   );
 }
+
+    

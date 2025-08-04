@@ -19,7 +19,6 @@ const formSchema = z.object({
   category: z.string().min(2),
   brand: z.string().min(2),
   color: z.string().min(2),
-  image: z.union([z.instanceof(File), z.string()]).optional(),
 }).catchall(z.any());
 type ProductFormValues = z.infer<typeof formSchema>;
 
@@ -62,7 +61,7 @@ export default function EditProductPage() {
     return notFound();
   }
 
-  const handleSubmit = async (data: ProductFormValues, originalId?: string, onProgress?: (progress: number) => void) => {
+  const handleSubmit = async (data: ProductFormValues, originalId?: string) => {
     if (!originalId) return;
     setIsSubmitting(true);
     
@@ -72,7 +71,7 @@ export default function EditProductPage() {
     });
 
     try {
-      await updateProduct(data, originalId, toastId, onProgress);
+      await updateProduct(data, originalId);
       toast({
         id: toastId,
         title: 'Product Updated',
@@ -105,3 +104,5 @@ export default function EditProductPage() {
     </div>
   );
 }
+
+    

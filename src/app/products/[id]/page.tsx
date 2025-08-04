@@ -4,13 +4,12 @@
 import { useProducts } from '@/context/product-context';
 import type { Product } from '@/lib/types';
 import { notFound } from 'next/navigation';
-import Image from 'next/image';
 import { AddToCartButton } from '@/components/add-to-cart-button';
 import { AddToWishlistButton } from '@/components/add-to-wishlist-button';
 import { AiDescriptionEditor } from '@/components/ai-description-editor';
 import { ProductCard } from '@/components/product-card';
 import { useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Package } from 'lucide-react';
 
 export default function ProductDetailPage({ params }: { params: { id: string } }) {
   const { products, getProduct, loading } = useProducts();
@@ -47,15 +46,8 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
   return (
     <div className="space-y-12">
       <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
-        <div className="bg-card rounded-lg shadow-sm overflow-hidden">
-          <Image
-            src={product.image}
-            alt={product.name}
-            width={800}
-            height={800}
-            className="w-full h-full object-cover"
-            data-ai-hint={`${product.category.toLowerCase()} ${product.name.split(' ')[0].toLowerCase()}`}
-          />
+        <div className="bg-card rounded-lg shadow-sm overflow-hidden flex items-center justify-center aspect-square">
+            <Package className="w-1/2 h-1/2 text-muted-foreground" />
         </div>
         <div className="flex flex-col justify-center space-y-6">
           <div>
@@ -91,3 +83,5 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
     </div>
   );
 }
+
+    

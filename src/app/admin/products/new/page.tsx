@@ -16,7 +16,6 @@ const formSchema = z.object({
   category: z.string().min(2),
   brand: z.string().min(2),
   color: z.string().min(2),
-  image: z.union([z.instanceof(File), z.string()]).optional(),
 }).catchall(z.any());
 type ProductFormValues = z.infer<typeof formSchema>;
 
@@ -27,7 +26,7 @@ export default function NewProductPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const handleSubmit = async (data: ProductFormValues, originalId?: string, onProgress?: (progress: number) => void) => {
+  const handleSubmit = async (data: ProductFormValues) => {
     setIsSubmitting(true);
     
     const { id: toastId } = toast({
@@ -36,7 +35,7 @@ export default function NewProductPage() {
     });
 
     try {
-      await addProduct(data, toastId, onProgress);
+      await addProduct(data);
       toast({
         id: toastId,
         title: 'Product Added',
@@ -68,3 +67,5 @@ export default function NewProductPage() {
     </div>
   );
 }
+
+    

@@ -2,9 +2,8 @@
 'use client';
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
-import { db, storage } from '@/lib/firebase';
-import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getDoc, writeBatch, getDocsFromServer, query, runTransaction, FieldValue, deleteField } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, getDoc, writeBatch, getDocsFromServer, query, deleteField } from 'firebase/firestore';
 import { products as initialProducts } from '@/lib/products';
 import type { Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -18,7 +17,6 @@ const formSchema = z.object({
   brand: z.string().min(2),
   color: z.string().min(2),
   status: z.string().optional(),
-  image: z.union([z.instanceof(File), z.string()]).optional(),
 }).catchall(z.any());
 type ProductFormValues = z.infer<typeof formSchema>;
 
@@ -27,8 +25,8 @@ interface ProductContextType {
   products: Product[];
   productKeys: string[];
   loading: boolean;
-  addProduct: (productData: ProductFormValues, toastId?: string, onProgress?: (progress: number) => void) => Promise<void>;
-  updateProduct: (productData: ProductFormValues, originalId: string, toastId?: string, onProgress?: (progress: number) => void) => Promise<void>;
+  addProduct: (productData: ProductFormValues) => Promise<void>;
+  updateProduct: (productData: ProductFormValues, originalId: string) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
   getProduct: (productId: string) => Promise<Product | undefined>;
   addColumn: (columnName: string) => Promise<void>;
@@ -95,29 +93,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     };
   }, [initializeDatabase]);
   
-  const uploadImage = (imageFile: File, productId: string, onProgress?: (progress: number) => void): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const storageRef = ref(storage, `products/${productId}/${imageFile.name}`);
-      const uploadTask = uploadBytesResumable(storageRef, imageFile);
-
-      uploadTask.on('state_changed', 
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          onProgress?.(progress);
-        }, 
-        (error) => {
-          console.error("Upload failed:", error);
-          reject(error);
-        }, 
-        async () => {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          resolve(downloadURL);
-        }
-      );
-    });
-  };
-  
-  const addProduct = async (productData: ProductFormValues, toastId?: string, onProgress?: (progress: number) => void): Promise<void> => {
+  const addProduct = async (productData: ProductFormValues): Promise<void> => {
     const newId = productData.id;
     if (!newId) {
        throw new Error("Product ID is required.");
@@ -128,41 +104,25 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     if (docSnap.exists()) {
       throw new Error("A product with this ID already exists.");
     }
-    
-    let imageUrl = 'https://placehold.co/600x400.png';
-    if (productData.image instanceof File) {
-        imageUrl = await uploadImage(productData.image, newId, onProgress);
-    }
-    
-    const { image, ...restOfProductData } = productData;
 
     const newProduct = {
-      ...restOfProductData,
+      ...productData,
       description: 'A great product.', // default description
-      image: imageUrl,
       status: productData.status || 'Available',
     };
     
     await setDoc(docRef, newProduct);
   };
 
-  const updateProduct = async (productData: ProductFormValues, originalId: string, toastId?: string, onProgress?: (progress: number) => void): Promise<void> => {
+  const updateProduct = async (productData: ProductFormValues, originalId: string): Promise<void> => {
       const oldProduct = await getProduct(originalId);
       if (!oldProduct) {
           throw new Error("Original product not found for update.");
       }
-      
-      let imageUrl = oldProduct.image;
-      if (productData.image instanceof File) {
-          imageUrl = await uploadImage(productData.image, originalId, onProgress);
-      }
-      
-      const { image, ...restOfProductData } = productData;
-      
+            
       const updatedProductData = {
         ...oldProduct,
-        ...restOfProductData,
-        image: imageUrl
+        ...productData,
       };
       
       if (productData.id !== originalId) {
@@ -261,7 +221,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     if (products.length === 0) return ['id', 'name', 'category', 'brand', 'color', 'price', 'status'];
     const keys = new Set<string>();
     products.forEach(p => Object.keys(p).forEach(k => keys.add(k)));
-    const fixedOrder = ['image', 'id', 'name', 'category', 'brand', 'color', 'price', 'status'];
+    const fixedOrder = ['id', 'name', 'category', 'brand', 'color', 'price', 'status'];
     const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k) && k !== 'description');
     return [...fixedOrder, ...dynamicKeys];
   }, [products]);
@@ -280,3 +240,5 @@ export function useProducts() {
   }
   return context;
 }
+
+    

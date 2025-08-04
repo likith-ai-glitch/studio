@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, ShoppingBag } from 'lucide-react';
-import Image from 'next/image';
+import { Trash2, ShoppingBag, Package } from 'lucide-react';
 import Link from 'next/link';
 
 export default function CartPage() {
@@ -25,7 +24,9 @@ export default function CartPage() {
           <div className="md:col-span-2 space-y-4">
             {cartItems.map((item) => (
               <Card key={item.id} className="flex items-center p-4 shadow-sm">
-                <Image src={item.image} alt={item.name} width={100} height={100} className="rounded-md object-cover" data-ai-hint={`${item.category.toLowerCase()} ${item.name.split(' ')[0].toLowerCase()}`} />
+                <div className="flex items-center justify-center bg-muted rounded-md w-24 h-24">
+                  <Package className="w-12 h-12 text-muted-foreground" />
+                </div>
                 <div className="ml-4 flex-grow">
                   <h2 className="font-semibold">{item.name}</h2>
                   <p className="text-sm text-muted-foreground">₹{item.price.toFixed(2)}</p>
@@ -87,3 +88,5 @@ export default function CartPage() {
     </div>
   );
 }
+
+    

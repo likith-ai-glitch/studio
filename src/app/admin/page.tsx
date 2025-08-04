@@ -10,7 +10,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -97,7 +96,7 @@ export default function AdminPage() {
     if (products.length === 0) return [];
     const keys = new Set<string>();
     products.forEach(p => Object.keys(p).forEach(k => keys.add(k)));
-    const fixedOrder = ['image', 'id', 'name', 'category', 'brand', 'color', 'price', 'status'];
+    const fixedOrder = ['id', 'name', 'category', 'brand', 'color', 'price', 'status'];
     const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k) && k !== 'description');
     return [...fixedOrder, ...dynamicKeys];
   }, [products]);
@@ -122,8 +121,6 @@ export default function AdminPage() {
     if (sortConfig.key) {
       sortableProducts.sort((a, b) => {
         const key = sortConfig.key as string;
-        // prevent sorting by image
-        if (key === 'image') return 0;
         
         const aValue = a[key as keyof Product] ?? '';
         const bValue = b[key as keyof Product] ?? '';
@@ -198,9 +195,6 @@ export default function AdminPage() {
 
   const renderHeader = (key: string) => {
     const headerText = headerNames[key] || (key.charAt(0).toUpperCase() + key.slice(1));
-    if (key === 'image') {
-        return <TableHead key={key}>{headerText}</TableHead>
-    }
     return (
         <TableHead key={key}>
             <div className="flex items-center gap-2">
@@ -426,9 +420,7 @@ export default function AdminPage() {
                 <TableRow key={product.id}>
                   {productKeys.map(key => (
                      <TableCell key={key} className={key === 'id' ? 'font-mono text-xs' : ''}>
-                       {key === 'image' ? (
-                          <Image src={product.image} alt={product.name} width={40} height={40} className="rounded-md object-cover" />
-                       ) : key === 'id' ? product.id.substring(0,8) + '...' : String(product[key as keyof Product] ?? '')}
+                       {key === 'id' ? product.id.substring(0,8) + '...' : String(product[key as keyof Product] ?? '')}
                      </TableCell>
                   ))}
                   <TableCell>

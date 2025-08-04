@@ -1,12 +1,11 @@
 
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import type { Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Heart, ShoppingCart, EyeOff } from 'lucide-react';
+import { Heart, ShoppingCart, EyeOff, Package } from 'lucide-react';
 import { useCart } from '@/context/cart-context';
 import { useWishlist } from '@/context/wishlist-context';
 import { cn } from '@/lib/utils';
@@ -45,14 +44,9 @@ export function ProductCard({ product }: ProductCardProps) {
       <Link href={`/products/${product.id}`} className="flex flex-col h-full">
         <CardHeader className="p-0">
           <div className="relative">
-            <Image
-              src={product.image}
-              alt={product.name}
-              width={600}
-              height={400}
-              className={cn("object-cover w-full h-48", isUnavailable && "grayscale")}
-              data-ai-hint={`${product.category.toLowerCase()} ${product.name.split(' ')[0].toLowerCase()}`}
-            />
+            <div className={cn("flex items-center justify-center bg-muted w-full h-48", isUnavailable && "grayscale")}>
+                 <Package className="w-24 h-24 text-muted-foreground" />
+            </div>
             {isUnavailable && (
                 <Badge variant="destructive" className="absolute top-2 left-2">Unavailable</Badge>
             )}
@@ -84,3 +78,5 @@ export function ProductCard({ product }: ProductCardProps) {
     </Card>
   );
 }
+
+    

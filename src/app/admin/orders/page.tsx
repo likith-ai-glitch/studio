@@ -10,7 +10,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { format } from 'date-fns';
-import Image from 'next/image';
+import { Package } from 'lucide-react';
 
 export default function OrdersPage() {
   const { orders } = useOrders();
@@ -55,7 +55,9 @@ export default function OrdersPage() {
                         {order.items.map(item => (
                             <li key={item.id} className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <Image src={item.image} alt={item.name} width={40} height={40} className="rounded-md object-cover" />
+                                    <div className="flex items-center justify-center bg-muted rounded-md w-10 h-10">
+                                      <Package className="w-5 h-5 text-muted-foreground" />
+                                    </div>
                                     <div>
                                         <p className="font-medium">{item.name}</p>
                                         <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
@@ -81,3 +83,5 @@ export default function OrdersPage() {
     </div>
   );
 }
+
+    
