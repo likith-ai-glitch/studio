@@ -199,10 +199,10 @@ export default function AdminPage() {
   const renderHeader = (key: string) => {
     const headerText = headerNames[key] || (key.charAt(0).toUpperCase() + key.slice(1));
     if (key === 'image') {
-        return <TableHead>{headerText}</TableHead>
+        return <TableHead key={key}>{headerText}</TableHead>
     }
     return (
-        <TableHead>
+        <TableHead key={key}>
             <div className="flex items-center gap-2">
                 <button className="flex items-center gap-1" onClick={() => requestSort(key)}>
                     {headerText} <ArrowUpDown className="inline-block h-4 w-4" />
