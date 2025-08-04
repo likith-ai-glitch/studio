@@ -131,16 +131,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     
     let imageUrl = 'https://placehold.co/600x400.png';
     if (productData.image instanceof File) {
-        if (toastId) {
-          toast({ id: toastId, title: 'Uploading image...'})
-        }
         imageUrl = await uploadImage(productData.image, newId, onProgress);
     }
     
-    if (toastId) {
-        toast({ id: toastId, title: 'Saving product details...'})
-    }
-
     const { image, ...restOfProductData } = productData;
 
     const newProduct = {
@@ -161,11 +154,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       
       let imageUrl = oldProduct.image;
       if (productData.image instanceof File) {
-          if(toastId) toast({ id: toastId, title: 'Uploading image...'});
           imageUrl = await uploadImage(productData.image, originalId, onProgress);
       }
       
-      if(toastId) toast({ id: toastId, title: 'Saving product details...'});
       const { image, ...restOfProductData } = productData;
       
       const updatedProductData = {
@@ -175,11 +166,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       };
       
       if (productData.id !== originalId) {
-          toast({
-              title: "Update Info",
-              description: "Changing product ID is not allowed. Other fields updated.",
-              variant: "default",
-          });
+          // Silently ignore ID changes, but log it for debugging
+          console.warn("Attempted to change product ID during update, which is not allowed. The original ID will be kept.");
+          updatedProductData.id = originalId;
       }
 
       const docRef = doc(db, 'products', originalId);
@@ -291,3 +280,5 @@ export function useProducts() {
   }
   return context;
 }
+
+    
