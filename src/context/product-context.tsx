@@ -280,5 +280,3 @@ export function useProducts() {
   }
   return context;
 }
-
-    

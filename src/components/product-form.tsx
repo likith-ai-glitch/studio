@@ -81,13 +81,10 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   useEffect(() => {
     reset(defaultValues);
     setImagePreview(initialData?.image || null);
-    setUploadProgress(null); // Reset progress when data changes
   }, [initialData, defaultValues, reset]);
-
 
   const onFormSubmit = async (values: z.infer<typeof formSchema>) => {
     await onSubmit(values, initialData?.id, setUploadProgress);
-    setUploadProgress(null);
   }
 
   const watchedValues = watch();
