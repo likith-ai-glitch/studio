@@ -5,7 +5,7 @@ import Link from 'next/link';
 import type { Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Heart, EyeOff, Package } from 'lucide-react';
+import { Heart, Package } from 'lucide-react';
 import { useWishlist } from '@/context/wishlist-context';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -57,7 +57,6 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
         </CardHeader>
         <CardContent className="flex-grow p-4 pt-0">
-          <p className="text-2xl font-semibold text-primary">₹{(product.price || 0).toFixed(2)}</p>
         </CardContent>
         <CardFooter className="p-4 pt-0">
            <Button className="w-full" disabled={isUnavailable} variant={'secondary'}>

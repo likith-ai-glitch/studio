@@ -13,15 +13,6 @@ export interface Product {
   [key: string]: any;
 }
 
-export interface Price {
-  id: string; // Autonumber (PK)
-  name: string;
-  description: string;
-  baseCurrency: string;
-  amount: number;
-  productId: string;
-}
-
 export interface AppEvent {
   id: string;
   type: 'login' | 'logout' | 'product_added';
@@ -40,7 +31,12 @@ export interface Order {
     city: string;
     zip: string;
   };
-  items: Product[];
+  items: {
+    id: string;
+    name: string;
+    quantity: number;
+    price: number;
+  }[];
   total: number;
   orderDate: Date;
 }

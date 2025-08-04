@@ -23,7 +23,6 @@ const formSchema = z.object({
   mapping2: z.string().optional(),
   mapping3: z.string().optional(),
   status: z.string().optional(),
-  price: z.coerce.number().min(0),
 }).catchall(z.any());
 type ProductFormValues = z.infer<typeof formSchema>;
 

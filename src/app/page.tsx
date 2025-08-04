@@ -5,9 +5,6 @@ import { useState, useMemo, useEffect } from 'react';
 import { useProducts } from '@/context/product-context';
 import { ProductCard } from '@/components/product-card';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
-import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -18,28 +15,12 @@ export default function Home() {
   const { products: allProducts, loading: productsLoading } = useProducts();
   const [searchTerm, setSearchTerm] = useState('');
   
-  const allCategories = useMemo(() => ['All', ...Array.from(new Set(allProducts.map((p) => p.category)))], [allProducts]);
-  const [category, setCategory] = useState('All');
-  
-  const maxPrice = useMemo(() => Math.ceil(Math.max(...allProducts.map((p) => p.price || 0), 100)), [allProducts]);
-
-  const [priceRange, setPriceRange] = useState([maxPrice]);
-
-  useEffect(() => {
-    if(!productsLoading) {
-        setPriceRange([maxPrice]);
-    }
-  }, [maxPrice, productsLoading]);
-
-
   const filteredProducts = useMemo(() => {
     return allProducts.filter((product) => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = category === 'All' || product.category === category;
-      const matchesPrice = (product.price || 0) <= priceRange[0];
-      return matchesSearch && matchesCategory && matchesPrice;
+      return matchesSearch;
     });
-  }, [allProducts, searchTerm, category, priceRange]);
+  }, [allProducts, searchTerm]);
   
   const featuredProducts = useMemo(() => {
     // Basic featured logic: take first 4 available products
@@ -86,37 +67,6 @@ export default function Home() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full"
-              />
-            </div>
-            <div>
-              <Label htmlFor="category-select">Category</Label>
-              <Select value={category} onValueChange={setCategory} disabled={productsLoading}>
-                <SelectTrigger id="category-select" className="w-full">
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {allCategories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Price Range</Label>
-              <div className="flex justify-between items-center text-sm text-muted-foreground">
-                <span>₹0</span>
-                <span>₹{priceRange[0]}</span>
-              </div>
-              <Slider
-                min={0}
-                max={maxPrice}
-                step={1}
-                value={priceRange}
-                onValueChange={setPriceRange}
-                className="mt-2"
-                disabled={productsLoading}
               />
             </div>
           </div>

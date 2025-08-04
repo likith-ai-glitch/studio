@@ -26,7 +26,6 @@ const formSchema = z.object({
   mapping2: z.string().optional(),
   mapping3: z.string().optional(),
   status: z.string().optional(),
-  price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
 }).catchall(z.any());
 
 type ProductFormValues = z.infer<typeof formSchema>;
@@ -53,7 +52,6 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
       mapping2: '',
       mapping3: '',
       status: 'Available',
-      price: 0,
     };
 
     if (!initialData) {
@@ -92,7 +90,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
 
   const formFields = [
     'id', 'name', 'description', 'manufacturer', 'partNumber', 'codeName',
-    'mapping1', 'mapping2', 'mapping3', 'price', 'status'
+    'mapping1', 'mapping2', 'mapping3', 'status'
   ];
 
   return (
@@ -153,14 +151,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                     <FormItem>
                       <FormLabel>{key.charAt(0).toUpperCase() + key.slice(1)}</FormLabel>
                       <FormControl>
-                        {key === 'price' ? (
-                          <div className="relative">
-                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">₹</span>
-                            <Input type="number" {...field} className="pl-7" disabled={isSubmitting} />
-                          </div>
-                        ) : (
-                          <Input {...field} disabled={(key === 'id' && !!initialData) || isSubmitting} />
-                        )}
+                        <Input {...field} disabled={(key === 'id' && !!initialData) || isSubmitting} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

@@ -1,15 +1,15 @@
 
 'use client';
 
-import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import type { Order, Product } from '@/lib/types';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import type { Order } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from 'firebase/firestore';
 
 interface OrderContextType {
   orders: Order[];
-  addOrder: (customer: Omit<Order['customer'], 'id'>, items: Product[], total: number) => void;
+  addOrder: (customer: Omit<Order['customer'], 'id'>, items: Order['items'], total: number) => void;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -36,7 +36,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  const addOrder = async (customer: Omit<Order['customer'], 'id'>, items: Product[], total: number) => {
+  const addOrder = async (customer: Omit<Order['customer'], 'id'>, items: Order['items'], total: number) => {
     try {
         await addDoc(ordersCollectionRef, {
             customer,

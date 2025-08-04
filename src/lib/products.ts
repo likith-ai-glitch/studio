@@ -1,7 +1,7 @@
 
 import type { Product } from './types';
 
-export const products: Product[] = [
+export const products: Omit<Product, 'price'>[] = [
   {
     id: 'prd_001',
     name: 'Acoustic Guitar',
@@ -13,10 +13,6 @@ export const products: Product[] = [
     mapping2: 'style:dreadnought',
     mapping3: '',
     status: 'Available',
-    price: 249.99,
-    category: 'Instruments',
-    color: 'Natural',
-    brand: 'Fender',
   },
   {
     id: 'prd_002',
@@ -29,10 +25,6 @@ export const products: Product[] = [
     mapping2: 'feature:noise-cancelling',
     mapping3: '',
     status: 'Available',
-    price: 199.99,
-    category: 'Electronics',
-    color: 'Black',
-    brand: 'Sony',
   },
   {
     id: 'prd_003',
@@ -45,10 +37,6 @@ export const products: Product[] = [
     mapping2: 'material:bamboo',
     mapping3: '',
     status: 'Unavailable',
-    price: 150.0,
-    category: 'Furniture',
-    color: 'Bamboo',
-    brand: 'IKEA',
   },
   {
     id: 'prd_004',
@@ -61,10 +49,6 @@ export const products: Product[] = [
     mapping2: 'feature:frother',
     mapping3: '',
     status: 'Available',
-    price: 499.5,
-    category: 'Appliances',
-    color: 'Silver',
-    brand: 'Breville',
   },
   {
     id: 'prd_005',
@@ -77,9 +61,5 @@ export const products: Product[] = [
     mapping2: 'material:leather',
     mapping3: '',
     status: 'Available',
-    price: 120.0,
-    category: 'Accessories',
-    color: 'Brown',
-    brand: 'Herschel',
   },
 ];

@@ -20,7 +20,6 @@ const formSchema = z.object({
   mapping2: z.string().optional(),
   mapping3: z.string().optional(),
   status: z.string().optional(),
-  price: z.coerce.number().min(0),
 }).catchall(z.any());
 type ProductFormValues = z.infer<typeof formSchema>;
 
@@ -55,7 +54,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const batch = writeBatch(db);
         initialProducts.forEach((product) => {
           const docRef = doc(db, "products", product.id);
-          batch.set(docRef, product);
+          const { price, ...restOfProduct } = product; // Exclude price
+          batch.set(docRef, restOfProduct);
         });
         await batch.commit();
         console.log("Seeding complete.");
@@ -108,8 +108,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     if (docSnap.exists()) {
       throw new Error("A product with this ID already exists.");
     }
-
-    const { price, category, brand, color, ...restOfData } = productData;
+    
+    const { price, ...restOfData } = productData;
 
     const newProduct = {
       ...restOfData,
@@ -125,7 +125,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
           throw new Error("Original product not found for update.");
       }
       
-      const { price, category, brand, color, ...restOfData } = productData;
+      const { price, ...restOfData } = productData;
 
       const updatedProductData = {
         ...oldProduct,
