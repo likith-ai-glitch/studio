@@ -2,13 +2,11 @@
 'use client';
 
 import Link from 'next/link';
-import { Heart, Store, Wrench, LogIn, LogOut, ShieldCheck, Package } from 'lucide-react';
+import { Store, Wrench, LogIn, LogOut, ShieldCheck, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useWishlist } from '@/context/wishlist-context';
 import { useAuth } from '@/context/auth-context';
 
 export function Header() {
-  const { wishlistCount } = useWishlist();
   const { user, logout, loading } = useAuth();
 
   return (
@@ -44,17 +42,6 @@ export function Header() {
                 </Button>
               </>
             )}
-            <Button variant="ghost" asChild>
-              <Link href="/wishlist" className="relative flex items-center gap-1">
-                <Heart className="h-5 w-5" />
-                <span className="hidden md:inline">Wishlist</span>
-                {wishlistCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                    {wishlistCount}
-                  </span>
-                )}
-              </Link>
-            </Button>
              {!loading && (
               user ? (
                 <Button variant="ghost" onClick={logout} className="flex items-center gap-1">

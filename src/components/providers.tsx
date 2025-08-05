@@ -2,7 +2,6 @@
 'use client';
 
 import { AuthProvider } from '@/context/auth-context';
-import { WishlistProvider } from '@/context/wishlist-context';
 import { ProductProvider } from '@/context/product-context';
 import { EventsProvider } from '@/context/events-context';
 import { OrderProvider } from '@/context/order-context';
@@ -13,11 +12,9 @@ export function Providers({ children }: { children: ReactNode }) {
     <AuthProvider>
       <ProductProvider>
         <OrderProvider>
-          <WishlistProvider>
-              <EventsProvider>
-                {children}
-              </EventsProvider>
-          </WishlistProvider>
+          <EventsProvider>
+            {children}
+          </EventsProvider>
         </OrderProvider>
       </ProductProvider>
     </AuthProvider>

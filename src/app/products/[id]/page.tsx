@@ -4,7 +4,6 @@
 import { useProducts } from '@/context/product-context';
 import type { Product } from '@/lib/types';
 import { notFound } from 'next/navigation';
-import { AddToWishlistButton } from '@/components/add-to-wishlist-button';
 import { AiDescriptionEditor } from '@/components/ai-description-editor';
 import { ProductCard } from '@/components/product-card';
 import { useEffect, useState } from 'react';
@@ -56,9 +55,6 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
           
           <AiDescriptionEditor product={product} />
 
-          <div className="flex items-center gap-4">
-            <AddToWishlistButton product={product} />
-          </div>
         </div>
       </div>
       
