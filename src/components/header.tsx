@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Store, Wrench, LogIn, LogOut, ShieldCheck, Package } from 'lucide-react';
+import { Store, Wrench, LogIn, LogOut, ShieldCheck, Package, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/auth-context';
 
@@ -20,6 +20,12 @@ export function Header() {
             </Link>
           </div>
           <nav className="flex items-center gap-1 sm:gap-4">
+             <Button variant="ghost" asChild>
+              <Link href="/" className="flex items-center gap-1">
+                <Home className="h-5 w-5" />
+                <span className="hidden md:inline">Home</span>
+              </Link>
+            </Button>
             {user && (
               <>
                 <Button variant="ghost" asChild>
