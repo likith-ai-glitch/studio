@@ -3,7 +3,7 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, setDoc, deleteDoc, getDoc, writeBatch, getDocsFromServer, query, deleteField } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, getDoc, writeBatch, getDocs, query, deleteField } from 'firebase/firestore';
 import { products as initialProducts } from '@/lib/products';
 import type { Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -40,58 +40,50 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const productsCollectionRef = collection(db, 'products');
 
-  const initializeDatabase = useCallback(async () => {
-    setLoading(true);
-    try {
-      const q = query(productsCollectionRef);
-      const snapshot = await getDocsFromServer(q);
-      if (snapshot.empty) {
-        console.log("Database is empty. Seeding with initial products...");
-        const batch = writeBatch(db);
-        initialProducts.forEach((product) => {
-          const docRef = doc(db, "products", product.id);
-          const { ...restOfProduct } = product;
-          batch.set(docRef, restOfProduct);
-        });
-        await batch.commit();
-        console.log("Seeding complete.");
-      }
-    } catch (error) {
-      console.error("Error checking or seeding database:", error);
-      toast({
-        title: "Firestore Error",
-        description: "Could not initialize the product database.",
-        variant: "destructive",
-      });
-    }
+  useEffect(() => {
+    const seedDatabase = async () => {
+        const q = query(productsCollectionRef);
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) {
+            console.log("Database is empty. Seeding with initial products...");
+            const batch = writeBatch(db);
+            initialProducts.forEach((product) => {
+                const docRef = doc(db, "products", product.id);
+                const { ...restOfProduct } = product;
+                batch.set(docRef, restOfProduct);
+            });
+            await batch.commit();
+            console.log("Seeding complete.");
+        }
+    };
 
-    const unsubscribe = onSnapshot(productsCollectionRef, (snapshot) => {
-        const productsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Product));
-        setProducts(productsData.sort((a, b) => a.name.localeCompare(b.name)));
+    const subscribeToProducts = () => {
+        const unsubscribe = onSnapshot(productsCollectionRef, (snapshot) => {
+            const productsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Product));
+            setProducts(productsData.sort((a, b) => a.name.localeCompare(b.name)));
+            setLoading(false);
+        }, (error) => {
+            console.error("Error fetching products with snapshot: ", error);
+            toast({
+                title: "Connection Error",
+                description: "Could not connect to Firestore for real-time updates.",
+                variant: "destructive",
+            });
+            setLoading(false);
+        });
+        return unsubscribe;
+    };
+    
+    setLoading(true);
+    seedDatabase().then(() => {
+        const unsubscribe = subscribeToProducts();
+        return () => unsubscribe();
+    }).catch(err => {
+        console.error("Error during initial setup:", err);
         setLoading(false);
-    }, (error) => {
-      console.error("Error fetching products with snapshot: ", error);
-      toast({
-          title: "Connection Error",
-          description: "Could not connect to Firestore for real-time updates.",
-          variant: "destructive",
-      });
-      setLoading(false);
     });
 
-    return unsubscribe;
   }, [toast]);
-
-  useEffect(() => {
-    const unsubscribePromise = initializeDatabase();
-    return () => {
-        unsubscribePromise.then(unsubscribe => {
-            if (unsubscribe) {
-                unsubscribe();
-            }
-        }).catch(err => console.error("Error during unsubscribe cleanup:", err));
-    };
-  }, [initializeDatabase]);
   
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
     const newId = productData.id;
@@ -129,7 +121,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       };
       
       if (productData.id !== originalId) {
-          // Silently ignore ID changes, but log it for debugging
           console.warn("Attempted to change product ID during update, which is not allowed. The original ID will be kept.");
           updatedProductData.id = originalId;
       }
@@ -193,7 +184,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const addColumn = async (columnName: string) => {
     const batch = writeBatch(db);
-    const snapshot = await getDocsFromServer(productsCollectionRef);
+    const snapshot = await getDocs(productsCollectionRef);
     snapshot.forEach(doc => {
       const docRef = doc.ref;
       batch.update(docRef, { [columnName]: '' });
@@ -207,7 +198,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const deleteColumn = async (columnName: string) => {
     const batch = writeBatch(db);
-    const snapshot = await getDocsFromServer(productsCollectionRef);
+    const snapshot = await getDocs(productsCollectionRef);
     snapshot.forEach(document => {
       const docRef = document.ref;
       batch.update(docRef, { [columnName]: deleteField() });
@@ -225,7 +216,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const keys = new Set<string>();
     products.forEach(p => Object.keys(p).forEach(k => keys.add(k)));
     const fixedOrder = ['id', 'name', 'description', 'brand', 'category', 'status'];
-    const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k));
+    const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k) && k !== 'price');
     return [...fixedOrder, ...dynamicKeys];
   }, [products]);
 
