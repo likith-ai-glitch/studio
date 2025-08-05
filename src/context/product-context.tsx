@@ -193,7 +193,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const keys = new Set<string>();
     products.forEach(p => Object.keys(p).forEach(k => keys.add(k)));
     const fixedOrder = ['id', 'name', 'description', 'brand', 'category', 'status'];
-    const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k));
+    const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k)).sort();
     return [...fixedOrder, ...dynamicKeys];
   }, [products]);
 
