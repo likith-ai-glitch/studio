@@ -80,15 +80,11 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
 
   const watchedValues = watch();
 
-  const formFields = [
-    'id', 'name', 'description', 'brand', 'category', 'status'
-  ];
-
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
         
-        {formFields.map((key) => {
+        {productKeys.map((key) => {
             if (key === 'status') {
               return (
                  <FormField
@@ -98,7 +94,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Status</FormLabel>
-                       <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}>
+                       <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={isSubmitting}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a status" />
