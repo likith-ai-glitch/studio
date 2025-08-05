@@ -13,9 +13,10 @@ import { useRouter } from 'next/navigation';
 
 interface ProductCardProps {
   product: Product;
+  hideWishlistButton?: boolean;
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, hideWishlistButton = false }: ProductCardProps) {
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const router = useRouter();
   const isWishlisted = isInWishlist(product.id);
@@ -41,15 +42,17 @@ export function ProductCard({ product }: ProductCardProps) {
             {isUnavailable && (
                 <Badge variant="destructive" className="absolute top-2 left-2">Unavailable</Badge>
             )}
-            <Button
-              size="icon"
-              variant="secondary"
-              className="absolute top-2 right-2 rounded-full h-9 w-9"
-              onClick={handleWishlistClick}
-              aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-            >
-              <Heart className={cn("h-5 w-5", isWishlisted ? 'fill-red-500 text-red-500' : 'text-muted-foreground')} />
-            </Button>
+            {!hideWishlistButton && (
+              <Button
+                size="icon"
+                variant="secondary"
+                className="absolute top-2 right-2 rounded-full h-9 w-9"
+                onClick={handleWishlistClick}
+                aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+              >
+                <Heart className={cn("h-5 w-5", isWishlisted ? 'fill-red-500 text-red-500' : 'text-muted-foreground')} />
+              </Button>
+            )}
           </div>
           <div className="p-4">
             <p className="text-sm text-muted-foreground">{product.brand}</p>
