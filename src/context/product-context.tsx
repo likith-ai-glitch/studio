@@ -41,48 +41,33 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const productsCollectionRef = collection(db, 'products');
 
   useEffect(() => {
-    const seedDatabase = async () => {
-        const q = query(productsCollectionRef);
-        const snapshot = await getDocs(q);
+    const unsubscribe = onSnapshot(productsCollectionRef, async (snapshot) => {
         if (snapshot.empty) {
-            console.log("Database is empty. Seeding with initial products...");
+            console.log("No products found in Firestore. Seeding database...");
             const batch = writeBatch(db);
             initialProducts.forEach((product) => {
                 const docRef = doc(db, "products", product.id);
-                const { ...restOfProduct } = product;
-                batch.set(docRef, restOfProduct);
+                batch.set(docRef, product);
             });
             await batch.commit();
             console.log("Seeding complete.");
-        }
-    };
-
-    const subscribeToProducts = () => {
-        const unsubscribe = onSnapshot(productsCollectionRef, (snapshot) => {
+            // The listener will re-fire with the new data automatically
+        } else {
             const productsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Product));
             setProducts(productsData.sort((a, b) => a.name.localeCompare(b.name)));
-            setLoading(false);
-        }, (error) => {
-            console.error("Error fetching products with snapshot: ", error);
-            toast({
-                title: "Connection Error",
-                description: "Could not connect to Firestore for real-time updates.",
-                variant: "destructive",
-            });
-            setLoading(false);
+        }
+        setLoading(false);
+    }, (error) => {
+        console.error("Error fetching products with snapshot: ", error);
+        toast({
+            title: "Connection Error",
+            description: "Could not connect to Firestore for real-time updates.",
+            variant: "destructive",
         });
-        return unsubscribe;
-    };
-    
-    setLoading(true);
-    seedDatabase().then(() => {
-        const unsubscribe = subscribeToProducts();
-        return () => unsubscribe();
-    }).catch(err => {
-        console.error("Error during initial setup:", err);
         setLoading(false);
     });
 
+    return () => unsubscribe();
   }, [toast]);
   
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
@@ -159,21 +144,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const localProduct = products.find(p => p.id === productId);
     if (localProduct) return localProduct;
 
-    if (loading) {
-       console.log("Still loading products, can't fetch from server yet.");
-       return;
-    };
-
+    // If not found locally, fetch directly from Firestore as a fallback.
     try {
-      console.log(`Product ${productId} not found locally, fetching from Firestore...`);
       const productDoc = doc(db, 'products', productId);
       const docSnap = await getDoc(productDoc);
       if (docSnap.exists()) {
-        console.log("Product found in Firestore.");
-        const productData = { id: docSnap.id, ...docSnap.data() } as Product;
-        return productData;
+        return { id: docSnap.id, ...docSnap.data() } as Product;
       } else {
-        console.log("No such document in Firestore!");
         return undefined;
       }
     } catch (error) {
@@ -216,7 +193,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const keys = new Set<string>();
     products.forEach(p => Object.keys(p).forEach(k => keys.add(k)));
     const fixedOrder = ['id', 'name', 'description', 'brand', 'category', 'status'];
-    const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k) && k !== 'price');
+    const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k));
     return [...fixedOrder, ...dynamicKeys];
   }, [products]);
 

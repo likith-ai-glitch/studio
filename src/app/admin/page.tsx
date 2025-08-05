@@ -82,8 +82,9 @@ export default function AdminPage() {
   const { productKeys } = useProducts();
 
   const deletableColumns = useMemo(() => {
-    // Allow deleting all columns except for 'id'
-    return productKeys.filter(k => k !== 'id');
+    // Allow deleting all columns except for 'id', 'name', 'description', 'brand', 'category', 'status'
+    const coreFields = ['id', 'name', 'description', 'brand', 'category', 'status'];
+    return productKeys.filter(k => !coreFields.includes(k));
   }, [productKeys]);
 
   const sortedAndFilteredProducts = useMemo(() => {
@@ -335,7 +336,7 @@ export default function AdminPage() {
 
             <Dialog open={isDeleteColumnDialogOpen} onOpenChange={setDeleteColumnDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" variant="destructive">
+                <Button size="sm" variant="destructive" disabled={deletableColumns.length === 0}>
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete Column
                 </Button>

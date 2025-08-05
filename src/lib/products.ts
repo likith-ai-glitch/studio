@@ -1,7 +1,7 @@
 
 import type { Product } from './types';
 
-export const products: Omit<Product, 'price'>[] = [
+export const products: Product[] = [
   {
     id: 'prd_001',
     name: 'Acoustic Guitar',
