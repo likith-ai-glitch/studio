@@ -82,8 +82,8 @@ export default function AdminPage() {
   const { productKeys } = useProducts();
 
   const deletableColumns = useMemo(() => {
-    // Allow deleting all columns except for 'id', 'name', 'description', 'brand', 'category', 'status'
-    const coreFields = ['id', 'name', 'description', 'brand', 'category', 'status'];
+    // Allow deleting all columns except for 'id'
+    const coreFields = ['id'];
     return productKeys.filter(k => !coreFields.includes(k));
   }, [productKeys]);
 
