@@ -1,14 +1,14 @@
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useProducts } from '@/context/product-context';
 import { useOrders } from '@/context/order-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns } from 'lucide-react';
 import Link from 'next/link';
 import {
     DropdownMenu,
@@ -49,7 +49,7 @@ AlertDialogTriggerMenuItem.displayName = 'AlertDialogTriggerMenuItem';
 
 
 export default function AdminPage() {
-  const { products, deleteProduct, addColumn, deleteColumn, loading: productsLoading } = useProducts();
+  const { products, deleteProduct, addColumn, deleteColumn, loading: productsLoading, productKeys, setColumnOrder: setContextColumnOrder } = useProducts();
   const { orders } = useOrders();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Product | string | null; direction: 'ascending' | 'descending' }>({ key: 'name', direction: 'ascending' });
@@ -66,6 +66,13 @@ export default function AdminPage() {
   const [columnToRename, setColumnToRename] = useState<string | null>(null);
   const [newHeaderName, setNewHeaderName] = useState('');
   const [headerNames, setHeaderNames] = useState<Record<string, string>>({});
+  
+  const [isReorderDialogOpen, setReorderDialogOpen] = useState(false);
+  const [localColumnOrder, setLocalColumnOrder] = useState(productKeys);
+
+  useEffect(() => {
+    setLocalColumnOrder(productKeys);
+  }, [productKeys]);
 
 
   const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
@@ -79,10 +86,7 @@ export default function AdminPage() {
     return products.filter(p => p.status === 'Unavailable').length;
   }, [products]);
 
-  const { productKeys } = useProducts();
-
   const deletableColumns = useMemo(() => {
-    // Allow deleting all columns except for 'id'
     const coreFields = ['id'];
     return productKeys.filter(k => !coreFields.includes(k));
   }, [productKeys]);
@@ -171,6 +175,22 @@ export default function AdminPage() {
       setColumnToRename(null);
       setNewHeaderName('');
     }
+  };
+  
+  const moveColumn = (index: number, direction: 'up' | 'down') => {
+    const newOrder = [...localColumnOrder];
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex >= 0 && newIndex < newOrder.length) {
+      const temp = newOrder[index];
+      newOrder[index] = newOrder[newIndex];
+      newOrder[newIndex] = temp;
+      setLocalColumnOrder(newOrder);
+    }
+  };
+
+  const handleSaveColumnOrder = () => {
+    setContextColumnOrder(localColumnOrder);
+    setReorderDialogOpen(false);
   };
 
 
@@ -294,12 +314,12 @@ export default function AdminPage() {
       <Card>
         <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <CardTitle>Product Master (prd_master)</CardTitle>
-          <div className="flex items-center gap-4 w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
              <Input
                 placeholder="Filter products..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full md:w-64"
+                className="w-full sm:w-auto md:w-48"
               />
             <Dialog open={isAddColumnDialogOpen} onOpenChange={setAddColumnDialogOpen}>
               <DialogTrigger asChild>
@@ -372,6 +392,43 @@ export default function AdminPage() {
               </DialogContent>
             </Dialog>
 
+            <Dialog open={isReorderDialogOpen} onOpenChange={setReorderDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                  <Columns className="mr-2 h-4 w-4" />
+                  Reorder
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Reorder Columns</DialogTitle>
+                  <DialogDescription>
+                    Click the arrows to change the order of the columns.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-2 max-h-96 overflow-y-auto">
+                  {localColumnOrder.map((key, index) => (
+                    <div key={key} className="flex items-center justify-between p-2 border rounded-md">
+                      <span className="font-medium">{key}</span>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => moveColumn(index, 'up')} disabled={index === 0}>
+                          <ArrowUp className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => moveColumn(index, 'down')} disabled={index === localColumnOrder.length - 1}>
+                          <ArrowDown className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline">Cancel</Button>
+                  </DialogClose>
+                  <Button onClick={handleSaveColumnOrder}>Save Order</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             <Button asChild size="sm">
               <Link href="/admin/products/new">
@@ -450,4 +507,7 @@ export default function AdminPage() {
       
     </div>
   );
-}
+
+    
+
+    

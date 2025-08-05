@@ -1,9 +1,9 @@
 
 'use client';
 
-import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, setDoc, deleteDoc, getDoc, writeBatch, getDocs, query, deleteField } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, getDoc, writeBatch, getDocs, deleteField } from 'firebase/firestore';
 import { products as initialProducts } from '@/lib/products';
 import type { Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -30,12 +30,16 @@ interface ProductContextType {
   getProduct: (productId: string) => Promise<Product | undefined>;
   addColumn: (columnName: string) => Promise<void>;
   deleteColumn: (columnName: string) => Promise<void>;
+  setColumnOrder: (order: string[]) => void;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
+const COLUMN_ORDER_STORAGE_KEY = 'shopstream_column_order';
+
 export function ProductProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
+  const [productKeys, setProductKeys] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const productsCollectionRef = collection(db, 'products');
@@ -55,6 +59,30 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         } else {
             const productsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Product));
             setProducts(productsData.sort((a, b) => a.name.localeCompare(b.name)));
+            
+            const keys = new Set<string>();
+            productsData.forEach(p => Object.keys(p).forEach(k => keys.add(k)));
+            
+            let savedOrder: string[] = [];
+            try {
+              const item = window.localStorage.getItem(COLUMN_ORDER_STORAGE_KEY);
+              savedOrder = item ? JSON.parse(item) : [];
+            } catch (error) {
+              console.warn('Could not parse column order from localStorage', error);
+            }
+
+            const allKeys = Array.from(keys);
+            // Filter savedOrder to only include keys that actually exist
+            const validSavedOrder = savedOrder.filter(k => allKeys.includes(k));
+            const unsavedKeys = allKeys.filter(k => !validSavedOrder.includes(k)).sort();
+            
+            if (validSavedOrder.length > 0) {
+              setProductKeys([...validSavedOrder, ...unsavedKeys]);
+            } else {
+              const fixedOrder = ['id', 'name', 'description', 'brand', 'category', 'price', 'status'];
+              const dynamicKeys = allKeys.filter(k => !fixedOrder.includes(k)).sort();
+              setProductKeys([...fixedOrder.filter(k => allKeys.includes(k)), ...dynamicKeys]);
+            }
         }
         setLoading(false);
     }, (error) => {
@@ -188,17 +216,22 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const productKeys = useMemo(() => {
-    if (products.length === 0) return ['id', 'name', 'description', 'brand', 'category', 'status'];
-    const keys = new Set<string>();
-    products.forEach(p => Object.keys(p).forEach(k => keys.add(k)));
-    const fixedOrder = ['id', 'name', 'description', 'brand', 'category', 'price', 'status'];
-    const dynamicKeys = Array.from(keys).filter(k => !fixedOrder.includes(k)).sort();
-    return [...fixedOrder.filter(k => keys.has(k)), ...dynamicKeys];
-  }, [products]);
+  const setColumnOrder = (order: string[]) => {
+    try {
+      window.localStorage.setItem(COLUMN_ORDER_STORAGE_KEY, JSON.stringify(order));
+      setProductKeys(order); // Update state immediately for instant feedback
+    } catch (error) {
+      console.error('Failed to save column order to localStorage', error);
+      toast({
+        title: 'Error Saving Order',
+        description: 'Could not save your column preference.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   return (
-    <ProductContext.Provider value={{ products, productKeys, loading, addProduct, updateProduct, deleteProduct, getProduct, addColumn, deleteColumn }}>
+    <ProductContext.Provider value={{ products, productKeys, loading, addProduct, updateProduct, deleteProduct, getProduct, addColumn, deleteColumn, setColumnOrder }}>
       {children}
     </ProductContext.Provider>
   );
@@ -211,3 +244,5 @@ export function useProducts() {
   }
   return context;
 }
+
+    
