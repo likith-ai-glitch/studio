@@ -55,11 +55,21 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
     }
     
     const values = productKeys.reduce((acc, key) => {
-      if (initialData[key] !== undefined) {
-        acc[key] = initialData[key];
-      } else {
-         acc[key] = '';
+      let value = initialData[key];
+      if (key === 'startDate' || key === 'lastUpdatedDate') {
+        // Ensure date strings from Firestore are converted to Date objects for the form
+        if (value && typeof value === 'string') {
+          const date = new Date(value);
+          if (!isNaN(date.getTime())) {
+            value = date;
+          } else {
+            value = undefined; // Set to undefined if invalid date string
+          }
+        } else if (!(value instanceof Date)) {
+          value = undefined;
+        }
       }
+      acc[key] = value ?? '';
       return acc;
     }, {} as Record<string, any>);
     
@@ -79,20 +89,25 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   }, [initialData, defaultValues, reset]);
 
   const onFormSubmit = async (values: z.infer<typeof formSchema>) => {
-    const dataWithDates = { ...values };
+    const dataWithDatesFormatted = { ...values };
     productKeys.forEach(key => {
       if (key === 'startDate' || key === 'lastUpdatedDate') {
         if (values[key] instanceof Date) {
-          dataWithDates[key] = format(values[key], 'yyyy-MM-dd');
+          dataWithDatesFormatted[key] = format(values[key], 'yyyy-MM-dd');
+        } else {
+           dataWithDatesFormatted[key] = '';
         }
       }
     });
-    await onSubmit(dataWithDates, initialData?.id);
+    await onSubmit(dataWithDatesFormatted, initialData?.id);
   }
 
   const getLabel = (key: string) => {
     return headerNames[key] || (key.charAt(0).toUpperCase() + key.slice(1));
   }
+  
+  const isValidDate = (d: any): d is Date => d instanceof Date && !isNaN(d.getTime());
+
 
   return (
     <Form {...form}>
@@ -164,8 +179,8 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                               )}
                               disabled={isSubmitting}
                             >
-                              {field.value && new Date(field.value).toString() !== 'Invalid Date' ? (
-                                format(new Date(field.value), "PPP")
+                              {isValidDate(field.value) ? (
+                                format(field.value, "PPP")
                               ) : (
                                 <span>Pick a date</span>
                               )}
@@ -176,7 +191,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
                             mode="single"
-                            selected={field.value ? new Date(field.value) : undefined}
+                            selected={isValidDate(field.value) ? field.value : undefined}
                             onSelect={field.onChange}
                             disabled={(date) =>
                               date > new Date() || date < new Date("1900-01-01")
@@ -200,7 +215,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                     <FormItem>
                       <FormLabel>{label}</FormLabel>
                       <FormControl>
-                        <Input {...field} disabled={(key === 'id' && !!initialData) || isSubmitting} />
+                        <Input {...field} disabled={(key === 'id' && !!initialData) || isSubmitting} value={field.value ?? ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
