@@ -164,7 +164,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                               )}
                               disabled={isSubmitting}
                             >
-                              {field.value ? (
+                              {field.value && new Date(field.value).toString() !== 'Invalid Date' ? (
                                 format(new Date(field.value), "PPP")
                               ) : (
                                 <span>Pick a date</span>
