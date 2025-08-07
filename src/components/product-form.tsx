@@ -1,19 +1,23 @@
 
 'use client';
 
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import type { Product } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useProducts } from '@/context/product-context';
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CalendarIcon } from 'lucide-react';
 import { Textarea } from './ui/textarea';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const formSchema = z.object({
   id: z.string().min(3, { message: 'Product ID must be at least 3 characters.' }),
@@ -68,17 +72,23 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
     defaultValues,
   });
   
-  const { control, handleSubmit, watch, reset } = form;
+  const { control, handleSubmit, reset } = form;
 
   useEffect(() => {
     reset(defaultValues);
   }, [initialData, defaultValues, reset]);
 
   const onFormSubmit = async (values: z.infer<typeof formSchema>) => {
-    await onSubmit(values, initialData?.id);
+    const dataWithDates = { ...values };
+    productKeys.forEach(key => {
+      if (key === 'startDate' || key === 'lastUpdatedDate') {
+        if (values[key] instanceof Date) {
+          dataWithDates[key] = format(values[key], 'yyyy-MM-dd');
+        }
+      }
+    });
+    await onSubmit(dataWithDates, initialData?.id);
   }
-
-  const watchedValues = watch();
 
   const getLabel = (key: string) => {
     return headerNames[key] || (key.charAt(0).toUpperCase() + key.slice(1));
@@ -89,6 +99,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
       <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
         
         {productKeys.map((key) => {
+            const label = getLabel(key);
             if (key === 'status') {
               return (
                  <FormField
@@ -97,7 +108,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                   name="status"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{getLabel(key)}</FormLabel>
+                      <FormLabel>{label}</FormLabel>
                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={isSubmitting}>
                         <FormControl>
                           <SelectTrigger>
@@ -123,10 +134,57 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{getLabel(key)}</FormLabel>
+                      <FormLabel>{label}</FormLabel>
                       <FormControl>
                         <Textarea {...field} disabled={isSubmitting} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )
+            }
+             if (key === 'startDate' || key === 'lastUpdatedDate') {
+              return (
+                <FormField
+                  key={key}
+                  control={control}
+                  name={key}
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>{label}</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                              disabled={isSubmitting}
+                            >
+                              {field.value ? (
+                                format(new Date(field.value), "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value ? new Date(field.value) : undefined}
+                            onSelect={field.onChange}
+                            disabled={(date) =>
+                              date > new Date() || date < new Date("1900-01-01")
+                            }
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -140,7 +198,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                   name={key}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{getLabel(key)}</FormLabel>
+                      <FormLabel>{label}</FormLabel>
                       <FormControl>
                         <Input {...field} disabled={(key === 'id' && !!initialData) || isSubmitting} />
                       </FormControl>
