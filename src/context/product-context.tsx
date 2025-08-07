@@ -48,17 +48,23 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onSnapshot(productsCollectionRef, async (snapshot) => {
         if (snapshot.empty) {
             console.log("No products found in Firestore. Seeding database...");
+            setLoading(true);
             const batch = writeBatch(db);
             initialProducts.forEach((product) => {
                 const docRef = doc(db, "products", product.id);
                 batch.set(docRef, product);
             });
-            await batch.commit();
-            console.log("Seeding complete.");
-            // The listener will re-fire with the new data automatically
+            try {
+              await batch.commit();
+              console.log("Seeding complete.");
+              // The listener will automatically pick up the new data.
+            } catch (error) {
+              console.error("Error seeding database: ", error);
+              setLoading(false);
+            }
         } else {
             const productsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Product));
-            setProducts(productsData.sort((a, b) => a.name.localeCompare(b.name)));
+            setProducts(productsData);
             
             const keys = new Set<string>();
             productsData.forEach(p => Object.keys(p).forEach(k => keys.add(k)));
@@ -79,12 +85,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             if (validSavedOrder.length > 0) {
               setProductKeys([...validSavedOrder, ...unsavedKeys]);
             } else {
-              const fixedOrder = ['id', 'name', 'description', 'brand', 'category', 'price', 'status'];
+              const fixedOrder = ['id', 'name', 'description', 'brand', 'category', 'status'];
               const dynamicKeys = allKeys.filter(k => !fixedOrder.includes(k)).sort();
               setProductKeys([...fixedOrder.filter(k => allKeys.includes(k)), ...dynamicKeys]);
             }
+            setLoading(false);
         }
-        setLoading(false);
     }, (error) => {
         console.error("Error fetching products with snapshot: ", error);
         toast({
@@ -244,5 +250,3 @@ export function useProducts() {
   }
   return context;
 }
-
-    
