@@ -29,7 +29,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         return {
           ...data,
           id: doc.id,
-          orderDate: data.orderDate.toDate(),
+          orderDate: data.orderDate ? data.orderDate.toDate() : new Date(),
           status: data.status || 'Pending', // Default status
         } as Order;
       });
