@@ -59,6 +59,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const safelyParseJSON = (key: string, defaultValue: any) => {
       try {
+        if (typeof window === 'undefined') return defaultValue;
         const item = window.localStorage.getItem(key);
         if (item) {
           return JSON.parse(item);
@@ -66,7 +67,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         return defaultValue;
       } catch (error) {
         console.warn(`Could not parse ${key} from localStorage`, error);
-        window.localStorage.removeItem(key);
+        if (typeof window !== 'undefined') {
+          window.localStorage.removeItem(key);
+        }
         return defaultValue;
       }
     };
@@ -82,11 +85,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             initialProducts.forEach((product) => {
                 const docRef = doc(db, "products", product.productId);
                 const { ...productData} = product;
-                const productWithDates = {
-                    ...productData,
-                    startDate: product.startDate ? Timestamp.fromDate(new Date(product.startDate)) : null,
-                    lastUpdatedDate: product.lastUpdatedDate ? Timestamp.fromDate(new Date(product.lastUpdatedDate)) : null,
-                };
+                const productWithDates: Record<string, any> = { ...productData };
+                 Object.keys(productWithDates).forEach(key => {
+                    if (key === 'startDate' || key === 'lastUpdatedDate') {
+                        productWithDates[key] = productWithDates[key] ? Timestamp.fromDate(new Date(productWithDates[key])) : null;
+                    }
+                });
                 batch.set(docRef, productWithDates);
             });
             try {
@@ -172,19 +176,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     if (!productId) {
       throw new Error("productId is missing, cannot update product.");
     }
-    
-    const cleanData: Record<string, any> = { ...restOfData };
-    
-    Object.keys(cleanData).forEach(key => {
-        if (cleanData[key] instanceof Date) {
-            cleanData[key] = Timestamp.fromDate(cleanData[key]);
-        } else if (cleanData[key] === null || cleanData[key] === undefined || cleanData[key] === '') {
-            cleanData[key] = deleteField();
-        }
-    });
 
     if (originalProductId && originalProductId !== productId) {
-        // ID has changed, so create a new document and delete the old one
+        // ID has changed: create new, delete old
         const newDocRef = doc(db, 'products', productId);
         const oldDocRef = doc(db, 'products', originalProductId);
 
@@ -192,18 +186,46 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         if (newDocSnap.exists()) {
           throw new Error(`Product with new ID "${productId}" already exists.`);
         }
+        
+        // Prepare clean data for the new document, excluding empty/null fields.
+        const newProductData: Record<string, any> = {};
+        Object.keys(restOfData).forEach(key => {
+            const value = (restOfData as any)[key];
+            if (value !== null && value !== undefined && value !== '') {
+                 if (value instanceof Date) {
+                    newProductData[key] = Timestamp.fromDate(value);
+                } else {
+                    newProductData[key] = value;
+                }
+            }
+        });
 
         const batch = writeBatch(db);
-        batch.set(newDocRef, { ...cleanData, productId: productId });
+        batch.set(newDocRef, newProductData);
         batch.delete(oldDocRef);
         await batch.commit();
 
     } else {
-       // ID has not changed, just update the existing document
+       // ID has not changed: standard update with merge
        const docRef = doc(db, 'products', productId);
-       await setDoc(docRef, cleanData, { merge: true });
+       const dataToUpdate: Record<string, any> = {};
+
+       Object.keys(restOfData).forEach(key => {
+            const value = (restOfData as any)[key];
+            if (value instanceof Date) {
+                dataToUpdate[key] = Timestamp.fromDate(value);
+            } else if (value === null || value === undefined || value === '') {
+                // Use deleteField to remove the field from the document
+                dataToUpdate[key] = deleteField();
+            } else {
+                dataToUpdate[key] = value;
+            }
+        });
+
+       await setDoc(docRef, dataToUpdate, { merge: true });
     }
   };
+
 
   const deleteProduct = async (productId: string) => {
     const productToDelete = products.find(p => p.productId === productId);
@@ -289,8 +311,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const setColumnOrder = (order: string[]) => {
     try {
-      window.localStorage.setItem(COLUMN_ORDER_STORAGE_KEY, JSON.stringify(order));
-      setProductKeys(order);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(COLUMN_ORDER_STORAGE_KEY, JSON.stringify(order));
+        setProductKeys(order);
+      }
     } catch (error) {
       console.error('Failed to save column order to localStorage', error);
       toast({
@@ -308,7 +332,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       };
       setHeaderNames(newHeaders);
       try {
-        window.localStorage.setItem(HEADER_NAMES_STORAGE_KEY, JSON.stringify(newHeaders));
+         if (typeof window !== 'undefined') {
+            window.localStorage.setItem(HEADER_NAMES_STORAGE_KEY, JSON.stringify(newHeaders));
+         }
       } catch (error) {
         console.error('Failed to save header names to localStorage', error);
          toast({
@@ -321,8 +347,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   
   const setHomePageOrder = (order: string[]) => {
     try {
-      window.localStorage.setItem(HOME_PAGE_FIELD_ORDER_STORAGE_KEY, JSON.stringify(order));
-      setHomePageFieldOrder(order);
+       if (typeof window !== 'undefined') {
+          window.localStorage.setItem(HOME_PAGE_FIELD_ORDER_STORAGE_KEY, JSON.stringify(order));
+          setHomePageFieldOrder(order);
+       }
     } catch (error) {
       console.error('Failed to save home page field order to localStorage', error);
     }
@@ -335,7 +363,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     };
     setHomePageVisibleFields(newVisibility);
     try {
-      window.localStorage.setItem(HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY, JSON.stringify(newVisibility));
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY, JSON.stringify(newVisibility));
+      }
     } catch (error) {
       console.error('Failed to save home page visibility to localStorage', error);
     }
