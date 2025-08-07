@@ -99,13 +99,18 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             const validSavedOrder = savedOrder.filter(k => allKeys.includes(k));
             const unsavedKeys = allKeys.filter(k => !validSavedOrder.includes(k)).sort();
             
+            const fixedOrder = ['id', 'name', 'description', 'brand', 'category', 'status', 'startDate', 'lastUpdatedDate'];
+            const orderedKeys = fixedOrder.filter(k => allKeys.includes(k));
+            const dynamicKeys = allKeys.filter(k => !fixedOrder.includes(k)).sort();
+            const finalKeys = [...orderedKeys, ...dynamicKeys];
+            
             if (validSavedOrder.length > 0) {
-              setProductKeys([...validSavedOrder, ...unsavedKeys]);
+                const finalSavedOrder = validSavedOrder.concat(allKeys.filter(k => !validSavedOrder.includes(k)));
+                setProductKeys(finalSavedOrder);
             } else {
-              const fixedOrder = ['id', 'name', 'description', 'brand', 'category', 'status', 'startDate', 'lastUpdatedDate'];
-              const dynamicKeys = allKeys.filter(k => !fixedOrder.includes(k)).sort();
-              setProductKeys([...fixedOrder.filter(k => allKeys.includes(k)), ...dynamicKeys]);
+                 setProductKeys(finalKeys);
             }
+
             setLoading(false);
         }
     }, (error) => {
@@ -170,9 +175,14 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       
       if (updatedProductData.startDate instanceof Date) {
         updatedProductData.startDate = Timestamp.fromDate(updatedProductData.startDate);
+      } else if (updatedProductData.startDate === null || updatedProductData.startDate === '') {
+        updatedProductData.startDate = null;
       }
+
       if (updatedProductData.lastUpdatedDate instanceof Date) {
         updatedProductData.lastUpdatedDate = Timestamp.fromDate(updatedProductData.lastUpdatedDate);
+      } else if (updatedProductData.lastUpdatedDate === null || updatedProductData.lastUpdatedDate === '') {
+        updatedProductData.lastUpdatedDate = null;
       }
 
       const docRef = doc(db, 'products', originalId);

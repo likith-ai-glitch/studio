@@ -28,8 +28,8 @@ const formSchema = z.object({
   brand: z.string().min(2, { message: 'Brand must be at least 2 characters.' }),
   category: z.string().min(2, { message: 'Category must be at least 2 characters.' }),
   status: z.string().optional(),
-  startDate: z.date().optional(),
-  lastUpdatedDate: z.date().optional(),
+  startDate: z.date().optional().nullable(),
+  lastUpdatedDate: z.date().optional().nullable(),
 }).catchall(z.any());
 
 type ProductFormValues = z.infer<typeof formSchema>;
