@@ -86,8 +86,8 @@ export function ProductCard({ product }: ProductCardProps) {
           ))}
         </CardContent>
         <CardFooter className="p-4 pt-0 mt-auto flex gap-2">
-           <Button asChild className="w-full" disabled={isUnavailable} variant={'secondary'}>
-             <Link href={`/products/${product.id}`}>View Product</Link>
+           <Button className="w-full" disabled={isUnavailable} variant={'secondary'}>
+             View Product
            </Button>
            <Button className="w-full" disabled={isUnavailable} onClick={handleBuyNow}>
             Buy Now
