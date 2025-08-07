@@ -41,8 +41,6 @@ import type { Product } from '@/lib/types';
 import type { DropdownMenuItemProps } from '@radix-ui/react-dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-const HEADER_NAMES_STORAGE_KEY = 'shopstream_header_names';
-
 const AlertDialogTriggerMenuItem = React.forwardRef<HTMLDivElement, DropdownMenuItemProps>(
   (props, ref) => <DropdownMenuItem {...props} ref={ref} onSelect={(e) => e.preventDefault()} />
 );
@@ -50,7 +48,7 @@ AlertDialogTriggerMenuItem.displayName = 'AlertDialogTriggerMenuItem';
 
 
 export default function AdminPage() {
-  const { products, deleteProduct, addColumn, deleteColumn, loading: productsLoading, productKeys, setColumnOrder: setContextColumnOrder } = useProducts();
+  const { products, deleteProduct, addColumn, deleteColumn, loading: productsLoading, productKeys, setColumnOrder, headerNames, renameColumn } = useProducts();
   const { orders } = useOrders();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Product | string | null; direction: 'ascending' | 'descending' }>({ key: 'name', direction: 'ascending' });
@@ -66,15 +64,6 @@ export default function AdminPage() {
 
   const [columnToRename, setColumnToRename] = useState<string | null>(null);
   const [newHeaderName, setNewHeaderName] = useState('');
-  const [headerNames, setHeaderNames] = useState<Record<string, string>>(() => {
-    try {
-      const savedHeaders = window.localStorage.getItem(HEADER_NAMES_STORAGE_KEY);
-      return savedHeaders ? JSON.parse(savedHeaders) : {};
-    } catch (error) {
-      console.warn('Could not parse header names from localStorage', error);
-      return {};
-    }
-  });
   
   const [isReorderDialogOpen, setReorderDialogOpen] = useState(false);
   const [localColumnOrder, setLocalColumnOrder] = useState(productKeys);
@@ -177,16 +166,7 @@ export default function AdminPage() {
 
   const handleRenameColumn = () => {
     if (columnToRename && newHeaderName.trim()) {
-      const newHeaders = {
-        ...headerNames,
-        [columnToRename]: newHeaderName.trim(),
-      };
-      setHeaderNames(newHeaders);
-      try {
-        window.localStorage.setItem(HEADER_NAMES_STORAGE_KEY, JSON.stringify(newHeaders));
-      } catch (error) {
-        console.error('Failed to save header names to localStorage', error);
-      }
+      renameColumn(columnToRename, newHeaderName.trim());
       setColumnToRename(null);
       setNewHeaderName('');
     }

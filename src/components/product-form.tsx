@@ -34,7 +34,7 @@ interface ProductFormProps {
 
 export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductFormProps) {
   const router = useRouter();
-  const { productKeys } = useProducts();
+  const { productKeys, headerNames } = useProducts();
 
   const defaultValues = useMemo(() => {
     const baseValues: Record<string, any> = {
@@ -80,6 +80,10 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
 
   const watchedValues = watch();
 
+  const getLabel = (key: string) => {
+    return headerNames[key] || (key.charAt(0).toUpperCase() + key.slice(1));
+  }
+
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
@@ -93,7 +97,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                   name="status"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Status</FormLabel>
+                      <FormLabel>{getLabel(key)}</FormLabel>
                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={isSubmitting}>
                         <FormControl>
                           <SelectTrigger>
@@ -119,7 +123,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Description</FormLabel>
+                      <FormLabel>{getLabel(key)}</FormLabel>
                       <FormControl>
                         <Textarea {...field} disabled={isSubmitting} />
                       </FormControl>
@@ -136,7 +140,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                   name={key}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{key.charAt(0).toUpperCase() + key.slice(1)}</FormLabel>
+                      <FormLabel>{getLabel(key)}</FormLabel>
                       <FormControl>
                         <Input {...field} disabled={(key === 'id' && !!initialData) || isSubmitting} />
                       </FormControl>

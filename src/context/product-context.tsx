@@ -23,6 +23,7 @@ type ProductFormValues = z.infer<typeof formSchema>;
 interface ProductContextType {
   products: Product[];
   productKeys: string[];
+  headerNames: Record<string, string>;
   loading: boolean;
   addProduct: (productData: ProductFormValues) => Promise<void>;
   updateProduct: (productData: ProductFormValues, originalId: string) => Promise<void>;
@@ -31,20 +32,32 @@ interface ProductContextType {
   addColumn: (columnName: string) => Promise<void>;
   deleteColumn: (columnName: string) => Promise<void>;
   setColumnOrder: (order: string[]) => void;
+  renameColumn: (columnKey: string, newName: string) => void;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
 const COLUMN_ORDER_STORAGE_KEY = 'shopstream_column_order';
+const HEADER_NAMES_STORAGE_KEY = 'shopstream_header_names';
 
 export function ProductProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [productKeys, setProductKeys] = useState<string[]>([]);
+  const [headerNames, setHeaderNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const productsCollectionRef = collection(db, 'products');
 
   useEffect(() => {
+    let savedHeaders: Record<string, string> = {};
+    try {
+        const item = window.localStorage.getItem(HEADER_NAMES_STORAGE_KEY);
+        savedHeaders = item ? JSON.parse(item) : {};
+        setHeaderNames(savedHeaders);
+    } catch (error) {
+        console.warn('Could not parse header names from localStorage', error);
+    }
+
     const unsubscribe = onSnapshot(productsCollectionRef, async (snapshot) => {
         if (snapshot.empty) {
             console.log("No products found in Firestore. Seeding database...");
@@ -57,7 +70,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             try {
               await batch.commit();
               console.log("Seeding complete.");
-              // The listener will automatically pick up the new data.
             } catch (error) {
               console.error("Error seeding database: ", error);
               setLoading(false);
@@ -78,7 +90,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             }
 
             const allKeys = Array.from(keys);
-            // Filter savedOrder to only include keys that actually exist
             const validSavedOrder = savedOrder.filter(k => allKeys.includes(k));
             const unsavedKeys = allKeys.filter(k => !validSavedOrder.includes(k)).sort();
             
@@ -178,7 +189,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const localProduct = products.find(p => p.id === productId);
     if (localProduct) return localProduct;
 
-    // If not found locally, fetch directly from Firestore as a fallback.
     try {
       const productDoc = doc(db, 'products', productId);
       const docSnap = await getDoc(productDoc);
@@ -225,7 +235,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const setColumnOrder = (order: string[]) => {
     try {
       window.localStorage.setItem(COLUMN_ORDER_STORAGE_KEY, JSON.stringify(order));
-      setProductKeys(order); // Update state immediately for instant feedback
+      setProductKeys(order);
     } catch (error) {
       console.error('Failed to save column order to localStorage', error);
       toast({
@@ -236,8 +246,26 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const renameColumn = (columnKey: string, newName: string) => {
+      const newHeaders = {
+        ...headerNames,
+        [columnKey]: newName,
+      };
+      setHeaderNames(newHeaders);
+      try {
+        window.localStorage.setItem(HEADER_NAMES_STORAGE_KEY, JSON.stringify(newHeaders));
+      } catch (error) {
+        console.error('Failed to save header names to localStorage', error);
+         toast({
+            title: 'Error Saving Name',
+            description: 'Could not save your column name preference.',
+            variant: 'destructive',
+        });
+      }
+  }
+
   return (
-    <ProductContext.Provider value={{ products, productKeys, loading, addProduct, updateProduct, deleteProduct, getProduct, addColumn, deleteColumn, setColumnOrder }}>
+    <ProductContext.Provider value={{ products, productKeys, headerNames, loading, addProduct, updateProduct, deleteProduct, getProduct, addColumn, deleteColumn, setColumnOrder, renameColumn }}>
       {children}
     </ProductContext.Provider>
   );
