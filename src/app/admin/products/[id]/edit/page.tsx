@@ -13,7 +13,8 @@ import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
-  id: z.string().min(3),
+  partId: z.string().optional(),
+  productId: z.string().min(3),
   name: z.string().min(2),
   brand: z.string().min(2),
   category: z.string().min(2),
@@ -62,8 +63,8 @@ export default function EditProductPage() {
     return notFound();
   }
 
-  const handleSubmit = async (data: ProductFormValues, originalId?: string) => {
-    if (!originalId) return;
+  const handleSubmit = async (data: ProductFormValues) => {
+    if (!product.partId) return;
     setIsSubmitting(true);
     
     const { id: toastId } = toast({
@@ -72,7 +73,7 @@ export default function EditProductPage() {
     });
 
     try {
-      await updateProduct(data, originalId);
+      await updateProduct(data, product.partId);
       toast({
         id: toastId,
         title: 'Product Updated',

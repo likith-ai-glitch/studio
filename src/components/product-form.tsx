@@ -21,7 +21,8 @@ import { Timestamp } from 'firebase/firestore';
 
 
 const formSchema = z.object({
-  id: z.string().min(3, { message: 'Product ID must be at least 3 characters.' }),
+  partId: z.string().optional(),
+  productId: z.string().min(3, { message: 'Product ID must be at least 3 characters.' }),
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   brand: z.string().min(2, { message: 'Brand must be at least 2 characters.' }),
   category: z.string().min(2, { message: 'Category must be at least 2 characters.' }),
@@ -34,7 +35,7 @@ type ProductFormValues = z.infer<typeof formSchema>;
 
 interface ProductFormProps {
   initialData?: Product | null;
-  onSubmit: (data: ProductFormValues, originalId?: string) => Promise<void>;
+  onSubmit: (data: ProductFormValues) => Promise<void>;
   isSubmitting?: boolean;
 }
 
@@ -70,17 +71,20 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   }, [initialData, defaultValues, reset]);
 
   const onFormSubmit = async (values: ProductFormValues) => {
-    await onSubmit(values, initialData?.id);
+    await onSubmit(values);
   }
 
   const getLabel = (key: string) => {
-    return headerNames[key] || (key.charAt(0).toUpperCase() + key.slice(1));
+     const customLabel = headerNames[key] || (key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'));
+     if (key === 'productId') return 'Product ID';
+     if (key === 'partId') return 'Part ID';
+     return customLabel;
   }
   
   const isValueValidDate = (value: any): value is Date =>
     value instanceof Date && !isNaN(value.getTime());
 
-  const filteredKeys = productKeys.filter(key => key !== 'description');
+  const filteredKeys = productKeys.filter(key => key !== 'partId');
 
   return (
     <Form {...form}>
@@ -173,7 +177,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                     <FormItem>
                       <FormLabel>{label}</FormLabel>
                       <FormControl>
-                        <Input {...field} disabled={key === 'id' && !!initialData} value={field.value ?? ''} />
+                        <Input {...field} value={field.value ?? ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

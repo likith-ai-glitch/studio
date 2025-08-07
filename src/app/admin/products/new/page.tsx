@@ -10,7 +10,7 @@ import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
-  id: z.string().min(3),
+  productId: z.string().min(3),
   name: z.string().min(2),
   brand: z.string().min(2),
   category: z.string().min(2),
