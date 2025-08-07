@@ -36,7 +36,7 @@ export function ProductCard({ product }: ProductCardProps) {
     addItemToCart({
         id: product.productId,
         name: product.name,
-        price: product.price || 99.99, // Fallback price
+        price: Number(product.price) || 99.99, // Fallback price
         quantity: 1,
     });
 
