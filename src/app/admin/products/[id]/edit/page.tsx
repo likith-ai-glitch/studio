@@ -62,7 +62,7 @@ export default function EditProductPage() {
     return notFound();
   }
 
-  const handleSubmit = async (data: ProductFormValues) => {
+  const handleSubmit = async (data: ProductFormValues, originalProductId?: string) => {
     setIsSubmitting(true);
     
     const { id: toastId } = toast({
@@ -71,7 +71,7 @@ export default function EditProductPage() {
     });
 
     try {
-      await updateProduct(data);
+      await updateProduct(data, originalProductId);
       toast({
         id: toastId,
         title: 'Product Updated',
@@ -104,5 +104,3 @@ export default function EditProductPage() {
     </div>
   );
 }
-
-    

@@ -34,7 +34,7 @@ type ProductFormValues = z.infer<typeof formSchema>;
 
 interface ProductFormProps {
   initialData?: Product | null;
-  onSubmit: (data: ProductFormValues) => Promise<void>;
+  onSubmit: (data: ProductFormValues, originalProductId?: string) => Promise<void>;
   isSubmitting?: boolean;
 }
 
@@ -70,7 +70,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   }, [initialData, defaultValues, reset]);
 
   const onFormSubmit = async (values: ProductFormValues) => {
-    await onSubmit(values);
+    await onSubmit(values, initialData?.productId);
   }
 
   const getLabel = (key: string) => {
@@ -82,7 +82,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   const isValueValidDate = (value: any): value is Date =>
     value instanceof Date && !isNaN(value.getTime());
 
-  const filteredKeys = productKeys.filter(key => key !== 'partId');
+  const filteredKeys = productKeys.filter(key => key !== 'id');
 
   return (
     <Form {...form}>
@@ -175,7 +175,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                     <FormItem>
                       <FormLabel>{label}</FormLabel>
                       <FormControl>
-                        <Input {...field} value={field.value ?? ''} disabled={key === 'productId' && !!initialData} />
+                        <Input {...field} value={field.value ?? ''} disabled={isSubmitting} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -197,5 +197,3 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
     </Form>
   );
 }
-
-    

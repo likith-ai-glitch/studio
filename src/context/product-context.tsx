@@ -25,7 +25,7 @@ interface ProductContextType {
   headerNames: Record<string, string>;
   loading: boolean;
   addProduct: (productData: ProductFormValues) => Promise<void>;
-  updateProduct: (productData: ProductFormValues) => Promise<void>;
+  updateProduct: (productData: ProductFormValues, originalProductId?: string) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
   getProduct: (productId: string) => Promise<Product | undefined>;
   addColumn: (columnName: string) => Promise<void>;
@@ -166,14 +166,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     await setDoc(docRef, newProduct);
   };
 
-  const updateProduct = async (productData: ProductFormValues): Promise<void> => {
+  const updateProduct = async (productData: ProductFormValues, originalProductId?: string): Promise<void> => {
     const { productId, ...restOfData } = productData;
 
     if (!productId) {
-        throw new Error("productId is missing, cannot update product.");
+      throw new Error("productId is missing, cannot update product.");
     }
-
-    const docRef = doc(db, 'products', productId);
+    
     const cleanData: Record<string, any> = { ...restOfData };
     
     Object.keys(cleanData).forEach(key => {
@@ -183,8 +182,27 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             cleanData[key] = deleteField();
         }
     });
-    
-    await setDoc(docRef, cleanData, { merge: true });
+
+    if (originalProductId && originalProductId !== productId) {
+        // ID has changed, so create a new document and delete the old one
+        const newDocRef = doc(db, 'products', productId);
+        const oldDocRef = doc(db, 'products', originalProductId);
+
+        const newDocSnap = await getDoc(newDocRef);
+        if (newDocSnap.exists()) {
+          throw new Error(`Product with new ID "${productId}" already exists.`);
+        }
+
+        const batch = writeBatch(db);
+        batch.set(newDocRef, { ...cleanData, productId: productId });
+        batch.delete(oldDocRef);
+        await batch.commit();
+
+    } else {
+       // ID has not changed, just update the existing document
+       const docRef = doc(db, 'products', productId);
+       await setDoc(docRef, cleanData, { merge: true });
+    }
   };
 
   const deleteProduct = async (productId: string) => {
@@ -355,5 +373,3 @@ export function useProducts() {
   }
   return context;
 }
-
-    
