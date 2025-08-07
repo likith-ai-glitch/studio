@@ -57,19 +57,18 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const productsCollectionRef = collection(db, 'products');
 
   useEffect(() => {
-    try {
-        const item = window.localStorage.getItem(HEADER_NAMES_STORAGE_KEY);
-        setHeaderNames(item ? JSON.parse(item) : {});
-    } catch (error) {
-        console.warn('Could not parse header names from localStorage', error);
-    }
+    const safelyParseJSON = (key: string, defaultValue: any) => {
+      try {
+        const item = window.localStorage.getItem(key);
+        return item ? JSON.parse(item) : defaultValue;
+      } catch (error) {
+        console.warn(`Could not parse ${key} from localStorage`, error);
+        return defaultValue;
+      }
+    };
     
-    try {
-      const item = window.localStorage.getItem(HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY);
-      setHomePageVisibleFields(item ? JSON.parse(item) : { category: true }); // Default 'category' to visible
-    } catch (error) {
-      console.warn('Could not parse home page visible fields from localStorage', error);
-    }
+    setHeaderNames(safelyParseJSON(HEADER_NAMES_STORAGE_KEY, {}));
+    setHomePageVisibleFields(safelyParseJSON(HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY, { category: true }));
 
     const unsubscribe = onSnapshot(productsCollectionRef, async (snapshot) => {
         if (snapshot.empty && initialProducts.length > 0) {
@@ -105,31 +104,17 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             const fixedOrder = ['id', 'name', 'brand', 'category', 'status', 'startDate', 'lastUpdatedDate'];
             
             // For admin table column order
-            try {
-              const item = window.localStorage.getItem(COLUMN_ORDER_STORAGE_KEY);
-              const savedOrder = item ? JSON.parse(item) : [];
-              const validSavedOrder = savedOrder.filter((k: string) => allKeys.has(k));
-              const newKeys = Array.from(allKeys).filter(k => !validSavedOrder.includes(k));
-              setProductKeys([...validSavedOrder, ...newKeys]);
-            } catch (error) {
-              console.warn('Could not parse column order from localStorage', error);
-              const dynamicKeys = Array.from(allKeys).filter(k => !fixedOrder.includes(k)).sort();
-              setProductKeys([...fixedOrder.filter(k => allKeys.has(k)), ...dynamicKeys]);
-            }
+            const savedOrder = safelyParseJSON(COLUMN_ORDER_STORAGE_KEY, []);
+            const validSavedOrder = savedOrder.filter((k: string) => allKeys.has(k));
+            const newKeys = Array.from(allKeys).filter(k => !validSavedOrder.includes(k));
+            setProductKeys([...validSavedOrder, ...newKeys]);
             
             // For home page field order
-            try {
-              const item = window.localStorage.getItem(HOME_PAGE_FIELD_ORDER_STORAGE_KEY);
-              const homeSavedOrder = item ? JSON.parse(item) : [];
-              const homeConfigurableFields = Array.from(allKeys).filter(k => !['id', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'].includes(k));
-              const validHomeSavedOrder = homeSavedOrder.filter((k: string) => homeConfigurableFields.includes(k));
-              const newHomeKeys = homeConfigurableFields.filter(k => !validHomeSavedOrder.includes(k));
-              setHomePageFieldOrder([...validHomeSavedOrder, ...newHomeKeys]);
-            } catch (error) {
-               console.warn('Could not parse home page field order from localStorage', error);
-               const homeConfigurableFields = Array.from(allKeys).filter(k => !['id', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'].includes(k));
-               setHomePageFieldOrder(homeConfigurableFields);
-            }
+            const homeSavedOrder = safelyParseJSON(HOME_PAGE_FIELD_ORDER_STORAGE_KEY, []);
+            const homeConfigurableFields = Array.from(allKeys).filter(k => !['id', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'].includes(k));
+            const validHomeSavedOrder = homeSavedOrder.filter((k: string) => homeConfigurableFields.includes(k));
+            const newHomeKeys = homeConfigurableFields.filter(k => !validHomeSavedOrder.includes(k));
+            setHomePageFieldOrder([...validHomeSavedOrder, ...newHomeKeys]);
 
 
             setLoading(false);

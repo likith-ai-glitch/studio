@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import { Loader2, Package } from 'lucide-react';
 
 export default function ProductDetailPage({ params }: { params: { id: string } }) {
-  const { products, getProduct, loading } = useProducts();
+  const { products, getProduct, loading, homePageFieldOrder, homePageVisibleFields, headerNames } = useProducts();
   const [product, setProduct] = useState<Product | undefined | null>(null);
 
   useEffect(() => {
@@ -39,6 +39,13 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
   }
   
   const relatedProducts = products.filter(p => p.id !== product.id && p.category === product.category).slice(0, 3);
+  
+  const productDetails = homePageFieldOrder
+    .filter(key => homePageVisibleFields[key] && product[key] && !['id', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'].includes(key) )
+    .map(key => ({
+      label: headerNames[key] || key.charAt(0).toUpperCase() + key.slice(1),
+      value: product[key],
+    }));
 
   return (
     <div className="space-y-12">
@@ -52,8 +59,13 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
             <h1 className="text-4xl font-bold font-headline mt-1">{product.name}</h1>
           </div>
           
-           <div className="space-y-2">
-            <p className="text-muted-foreground leading-relaxed">More details about this product will be shown here.</p>
+           <div className="space-y-4">
+             {productDetails.map(detail => (
+                <div key={detail.label} className="text-lg">
+                  <span className="font-semibold">{detail.label}: </span>
+                  <span className="text-muted-foreground">{String(detail.value)}</span>
+                </div>
+              ))}
           </div>
 
         </div>
