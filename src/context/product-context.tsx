@@ -33,29 +33,43 @@ interface ProductContextType {
   deleteColumn: (columnName: string) => Promise<void>;
   setColumnOrder: (order: string[]) => void;
   renameColumn: (columnKey: string, newName: string) => void;
+  homePageFieldOrder: string[];
+  setHomePageFieldOrder: (order: string[]) => void;
+  homePageVisibleFields: Record<string, boolean>;
+  toggleHomePageFieldVisibility: (key: string) => void;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
 const COLUMN_ORDER_STORAGE_KEY = 'shopstream_column_order';
 const HEADER_NAMES_STORAGE_KEY = 'shopstream_header_names';
+const HOME_PAGE_FIELD_ORDER_STORAGE_KEY = 'shopstream_homepage_field_order';
+const HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY = 'shopstream_homepage_visible_fields';
+
 
 export function ProductProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [productKeys, setProductKeys] = useState<string[]>([]);
   const [headerNames, setHeaderNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [homePageFieldOrder, setHomePageFieldOrder] = useState<string[]>([]);
+  const [homePageVisibleFields, setHomePageVisibleFields] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
   const productsCollectionRef = collection(db, 'products');
 
   useEffect(() => {
-    let savedHeaders: Record<string, string> = {};
     try {
         const item = window.localStorage.getItem(HEADER_NAMES_STORAGE_KEY);
-        savedHeaders = item ? JSON.parse(item) : {};
-        setHeaderNames(savedHeaders);
+        setHeaderNames(item ? JSON.parse(item) : {});
     } catch (error) {
         console.warn('Could not parse header names from localStorage', error);
+    }
+    
+    try {
+      const item = window.localStorage.getItem(HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY);
+      setHomePageVisibleFields(item ? JSON.parse(item) : { category: true }); // Default 'category' to visible
+    } catch (error) {
+      console.warn('Could not parse home page visible fields from localStorage', error);
     }
 
     const unsubscribe = onSnapshot(productsCollectionRef, async (snapshot) => {
@@ -65,51 +79,59 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             const batch = writeBatch(db);
             initialProducts.forEach((product) => {
                 const docRef = doc(db, "products", product.id);
-                batch.set(docRef, product);
+                const productWithDates = {
+                    ...product,
+                    startDate: product.startDate ? Timestamp.fromDate(new Date(product.startDate)) : null,
+                    lastUpdatedDate: product.lastUpdatedDate ? Timestamp.fromDate(new Date(product.lastUpdatedDate)) : null,
+                };
+                batch.set(docRef, productWithDates);
             });
             try {
               await batch.commit();
-              console.log("Seeding complete.");
-              // The onSnapshot listener will be re-triggered with the new data
             } catch (error) {
               console.error("Error seeding database: ", error);
-              setLoading(false);
+            } finally {
+               setLoading(false);
             }
         } else {
             const productsData = snapshot.docs.map(doc => {
               const data = doc.data();
-              const product: Product = { ...data, id: doc.id } as Product;
-              // Timestamps are handled in the form component now
-              return product;
+              return { ...data, id: doc.id } as Product;
             });
             setProducts(productsData);
             
-            const keys = new Set<string>();
-            productsData.forEach(p => Object.keys(p).forEach(k => keys.add(k)));
+            const allKeys = new Set<string>();
+            productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
+
+            const fixedOrder = ['id', 'name', 'description', 'brand', 'category', 'status', 'startDate', 'lastUpdatedDate'];
             
-            let savedOrder: string[] = [];
+            // For admin table column order
             try {
               const item = window.localStorage.getItem(COLUMN_ORDER_STORAGE_KEY);
-              savedOrder = item ? JSON.parse(item) : [];
+              const savedOrder = item ? JSON.parse(item) : [];
+              const validSavedOrder = savedOrder.filter((k: string) => allKeys.has(k));
+              const newKeys = Array.from(allKeys).filter(k => !validSavedOrder.includes(k));
+              setProductKeys([...validSavedOrder, ...newKeys]);
             } catch (error) {
               console.warn('Could not parse column order from localStorage', error);
+              const dynamicKeys = Array.from(allKeys).filter(k => !fixedOrder.includes(k)).sort();
+              setProductKeys([...fixedOrder.filter(k => allKeys.has(k)), ...dynamicKeys]);
+            }
+            
+            // For home page field order
+            try {
+              const item = window.localStorage.getItem(HOME_PAGE_FIELD_ORDER_STORAGE_KEY);
+              const homeSavedOrder = item ? JSON.parse(item) : [];
+              const homeConfigurableFields = Array.from(allKeys).filter(k => !['id', 'name', 'brand', 'description', 'status', 'startDate', 'lastUpdatedDate'].includes(k));
+              const validHomeSavedOrder = homeSavedOrder.filter((k: string) => homeConfigurableFields.includes(k));
+              const newHomeKeys = homeConfigurableFields.filter(k => !validHomeSavedOrder.includes(k));
+              setHomePageFieldOrder([...validHomeSavedOrder, ...newHomeKeys]);
+            } catch (error) {
+               console.warn('Could not parse home page field order from localStorage', error);
+               const homeConfigurableFields = Array.from(allKeys).filter(k => !['id', 'name', 'brand', 'description', 'status', 'startDate', 'lastUpdatedDate'].includes(k));
+               setHomePageFieldOrder(homeConfigurableFields);
             }
 
-            const allKeys = Array.from(keys);
-            const validSavedOrder = savedOrder.filter(k => allKeys.includes(k));
-            
-            const fixedOrder = ['id', 'name', 'description', 'brand', 'category', 'status', 'startDate', 'lastUpdatedDate'];
-            const dynamicKeys = allKeys.filter(k => !fixedOrder.includes(k)).sort();
-            
-            const baseKeys = fixedOrder.filter(k => allKeys.includes(k));
-            const finalKeys = [...baseKeys, ...dynamicKeys];
-            
-            if (validSavedOrder.length > 0) {
-                const finalSavedOrder = validSavedOrder.concat(allKeys.filter(k => !validSavedOrder.includes(k)));
-                setProductKeys(finalSavedOrder);
-            } else {
-                 setProductKeys(finalKeys);
-            }
 
             setLoading(false);
         }
@@ -176,7 +198,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         if (updatedProductData[key] instanceof Date) {
             updatedProductData[key] = Timestamp.fromDate(updatedProductData[key]);
         } else if (updatedProductData[key] === null || updatedProductData[key] === '') {
-            updatedProductData[key] = null;
+            updatedProductData[key] = deleteField();
         }
       });
 
@@ -261,10 +283,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const setColumnOrder = (order: string[]) => {
     try {
-      const allKeys = [...productKeys];
-      const newOrder = order.concat(allKeys.filter(k => !order.includes(k)));
-      window.localStorage.setItem(COLUMN_ORDER_STORAGE_KEY, JSON.stringify(newOrder));
-      setProductKeys(newOrder);
+      window.localStorage.setItem(COLUMN_ORDER_STORAGE_KEY, JSON.stringify(order));
+      setProductKeys(order);
     } catch (error) {
       console.error('Failed to save column order to localStorage', error);
       toast({
@@ -292,9 +312,49 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         });
       }
   }
+  
+  const setHomePageOrder = (order: string[]) => {
+    try {
+      window.localStorage.setItem(HOME_PAGE_FIELD_ORDER_STORAGE_KEY, JSON.stringify(order));
+      setHomePageFieldOrder(order);
+    } catch (error) {
+      console.error('Failed to save home page field order to localStorage', error);
+    }
+  };
+
+  const toggleHomePageVisibility = (key: string) => {
+    const newVisibility = {
+      ...homePageVisibleFields,
+      [key]: !homePageVisibleFields[key],
+    };
+    setHomePageVisibleFields(newVisibility);
+    try {
+      window.localStorage.setItem(HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY, JSON.stringify(newVisibility));
+    } catch (error) {
+      console.error('Failed to save home page visibility to localStorage', error);
+    }
+  };
+
 
   return (
-    <ProductContext.Provider value={{ products, productKeys, headerNames, loading, addProduct, updateProduct, deleteProduct, getProduct, addColumn, deleteColumn, setColumnOrder, renameColumn }}>
+    <ProductContext.Provider value={{ 
+        products, 
+        productKeys, 
+        headerNames, 
+        loading, 
+        addProduct, 
+        updateProduct, 
+        deleteProduct, 
+        getProduct, 
+        addColumn, 
+        deleteColumn, 
+        setColumnOrder, 
+        renameColumn,
+        homePageFieldOrder,
+        setHomePageFieldOrder: setHomePageOrder,
+        homePageVisibleFields,
+        toggleHomePageFieldVisibility: toggleHomePageVisibility,
+    }}>
       {children}
     </ProductContext.Provider>
   );
@@ -307,3 +367,5 @@ export function useProducts() {
   }
   return context;
 }
+
+    

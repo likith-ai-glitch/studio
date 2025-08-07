@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings } from 'lucide-react';
 import Link from 'next/link';
 import {
     DropdownMenu,
@@ -40,6 +40,8 @@ import {
 import type { Product } from '@/lib/types';
 import type { DropdownMenuItemProps } from '@radix-ui/react-dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 const AlertDialogTriggerMenuItem = React.forwardRef<HTMLDivElement, DropdownMenuItemProps>(
   (props, ref) => <DropdownMenuItem {...props} ref={ref} onSelect={(e) => e.preventDefault()} />
@@ -48,7 +50,21 @@ AlertDialogTriggerMenuItem.displayName = 'AlertDialogTriggerMenuItem';
 
 
 export default function AdminPage() {
-  const { products, deleteProduct, addColumn, deleteColumn, loading: productsLoading, productKeys, setColumnOrder, headerNames, renameColumn } = useProducts();
+  const { 
+    products, 
+    deleteProduct, 
+    addColumn, 
+    deleteColumn, 
+    loading: productsLoading, 
+    productKeys, 
+    setColumnOrder: setContextColumnOrder, 
+    headerNames, 
+    renameColumn,
+    homePageFieldOrder,
+    setHomePageFieldOrder,
+    homePageVisibleFields,
+    toggleHomePageFieldVisibility,
+  } = useProducts();
   const { orders } = useOrders();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Product | string | null; direction: 'ascending' | 'descending' }>({ key: 'name', direction: 'ascending' });
@@ -68,9 +84,16 @@ export default function AdminPage() {
   const [isReorderDialogOpen, setReorderDialogOpen] = useState(false);
   const [localColumnOrder, setLocalColumnOrder] = useState(productKeys);
 
+  const [isHomePageSettingsOpen, setIsHomePageSettingsOpen] = useState(false);
+  const [localHomePageOrder, setLocalHomePageOrder] = useState(homePageFieldOrder);
+
   useEffect(() => {
     setLocalColumnOrder(productKeys);
   }, [productKeys]);
+
+  useEffect(() => {
+    setLocalHomePageOrder(homePageFieldOrder);
+  }, [homePageFieldOrder]);
 
 
   const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
@@ -88,6 +111,12 @@ export default function AdminPage() {
     const coreFields = ['id'];
     return productKeys.filter(k => !coreFields.includes(k));
   }, [productKeys]);
+  
+  const homePageConfigurableFields = useMemo(() => {
+    const coreFields = ['id', 'name', 'brand', 'description', 'status', 'startDate', 'lastUpdatedDate'];
+    return productKeys.filter(k => !coreFields.includes(k));
+  }, [productKeys]);
+
 
   const sortedAndFilteredProducts = useMemo(() => {
     let sortableProducts = [...products];
@@ -186,6 +215,22 @@ export default function AdminPage() {
   const handleSaveColumnOrder = () => {
     setContextColumnOrder(localColumnOrder);
     setReorderDialogOpen(false);
+  };
+  
+  const moveHomePageField = (index: number, direction: 'up' | 'down') => {
+    const newOrder = [...localHomePageOrder];
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex >= 0 && newIndex < newOrder.length) {
+      const temp = newOrder[index];
+      newOrder[index] = newOrder[newIndex];
+      newOrder[newIndex] = temp;
+      setLocalHomePageOrder(newOrder);
+    }
+  };
+
+  const handleSaveHomePageOrder = () => {
+    setHomePageFieldOrder(localHomePageOrder);
+    setIsHomePageSettingsOpen(false);
   };
 
 
@@ -424,6 +469,66 @@ export default function AdminPage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+            
+            <Dialog open={isHomePageSettingsOpen} onOpenChange={setIsHomePageSettingsOpen}>
+              <DialogTrigger asChild>
+                 <Button size="sm" variant="outline">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Home Page View
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Customize Home Page View</DialogTitle>
+                  <DialogDescription>
+                    Choose which product fields to display on the home page cards and in what order.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-2 gap-8 py-4">
+                    <div className="space-y-4">
+                        <h4 className="font-semibold">Visible Fields</h4>
+                        <div className="space-y-2">
+                           {homePageConfigurableFields.map((key) => (
+                                <div key={key} className="flex items-center space-x-2">
+                                <Checkbox
+                                    id={`visibility-${key}`}
+                                    checked={homePageVisibleFields[key]}
+                                    onCheckedChange={() => toggleHomePageFieldVisibility(key)}
+                                />
+                                <Label htmlFor={`visibility-${key}`} className="font-normal">
+                                    {headerNames[key] || key}
+                                </Label>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="space-y-4">
+                         <h4 className="font-semibold">Field Order</h4>
+                         <div className="space-y-2 max-h-64 overflow-y-auto">
+                            {localHomePageOrder.map((key, index) => (
+                                <div key={key} className="flex items-center justify-between p-2 border rounded-md">
+                                <span className="font-medium">{headerNames[key] || key}</span>
+                                <div className="flex gap-1">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => moveHomePageField(index, 'up')} disabled={index === 0}>
+                                    <ArrowUp className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => moveHomePageField(index, 'down')} disabled={index === localHomePageOrder.length - 1}>
+                                    <ArrowDown className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline">Cancel</Button>
+                  </DialogClose>
+                  <Button onClick={handleSaveHomePageOrder}>Save Settings</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             <Button asChild size="sm">
               <Link href="/admin/products/new">
@@ -503,3 +608,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    

@@ -8,25 +8,21 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { useRouter } from 'next/navigation';
 import { useProducts } from '@/context/product-context';
 
 interface ProductCardProps {
   product: Product;
-  hideWishlistButton?: boolean;
 }
 
-export function ProductCard({ product, hideWishlistButton = false }: ProductCardProps) {
-  const router = useRouter();
-  const { headerNames } = useProducts();
+export function ProductCard({ product }: ProductCardProps) {
+  const { headerNames, homePageFieldOrder, homePageVisibleFields } = useProducts();
   const isUnavailable = product.status === 'Unavailable';
 
-  const hiddenFields = ['id', 'name', 'brand', 'description', 'status', 'startDate', 'lastUpdatedDate'];
-  const productDetails = Object.entries(product)
-    .filter(([key, value]) => !hiddenFields.includes(key) && value)
-    .map(([key, value]) => ({
+  const productDetails = homePageFieldOrder
+    .filter(key => homePageVisibleFields[key] && product[key])
+    .map(key => ({
       label: headerNames[key] || key.charAt(0).toUpperCase() + key.slice(1),
-      value: value,
+      value: product[key],
     }));
 
   return (
@@ -63,3 +59,5 @@ export function ProductCard({ product, hideWishlistButton = false }: ProductCard
     </Card>
   );
 }
+
+    
