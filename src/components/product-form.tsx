@@ -15,7 +15,6 @@ import { useRouter } from 'next/navigation';
 import { useProducts } from '@/context/product-context';
 import { useMemo, useEffect } from 'react';
 import { Loader2, CalendarIcon } from 'lucide-react';
-import { Textarea } from './ui/textarea';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Timestamp } from 'firebase/firestore';
