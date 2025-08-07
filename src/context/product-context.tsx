@@ -178,7 +178,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         if (cleanData[key] instanceof Date) {
             cleanData[key] = Timestamp.fromDate(cleanData[key]);
         } else if (cleanData[key] === null || cleanData[key] === undefined || cleanData[key] === '') {
-            cleanData[key] = deleteField();
+            // Keep the field to allow clearing it, don't delete. Firestore handles nulls.
         }
     });
     

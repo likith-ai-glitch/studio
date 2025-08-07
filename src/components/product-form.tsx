@@ -46,7 +46,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   const defaultValues = useMemo(() => {
     const baseValues: Record<string, any> = {};
     productKeys.forEach(key => {
-        let value = initialData?.[key];
+        let value = initialData?.[key as keyof Product];
         if (value instanceof Timestamp) {
             value = value.toDate();
         }
@@ -54,6 +54,8 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
     });
     if (!initialData) {
         baseValues['status'] = 'Available';
+    } else {
+        baseValues['partId'] = initialData.partId;
     }
     return baseValues;
   }, [initialData, productKeys]);
