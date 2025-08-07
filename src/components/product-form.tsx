@@ -71,7 +71,11 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   }, [initialData, defaultValues, reset]);
 
   const onFormSubmit = async (values: ProductFormValues) => {
-    await onSubmit(values);
+    const submissionData = { ...values };
+    if (initialData?.partId) {
+      submissionData.partId = initialData.partId;
+    }
+    await onSubmit(submissionData);
   }
 
   const getLabel = (key: string) => {

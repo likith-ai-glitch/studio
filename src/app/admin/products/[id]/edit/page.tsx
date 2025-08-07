@@ -63,7 +63,6 @@ export default function EditProductPage() {
   }
 
   const handleSubmit = async (data: ProductFormValues) => {
-    if (!product.partId) return;
     setIsSubmitting(true);
     
     const { id: toastId } = toast({
@@ -72,13 +71,12 @@ export default function EditProductPage() {
     });
 
     try {
-      await updateProduct(data, product.partId);
+      await updateProduct(data);
       toast({
         id: toastId,
         title: 'Product Updated',
         description: `${data.name} has been successfully updated.`,
       });
-      // If the partId changed, the route will be different
       router.push(`/admin`);
     } catch (error) {
         console.error(error);

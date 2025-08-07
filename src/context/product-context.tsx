@@ -26,7 +26,7 @@ interface ProductContextType {
   headerNames: Record<string, string>;
   loading: boolean;
   addProduct: (productData: ProductFormValues) => Promise<void>;
-  updateProduct: (productData: ProductFormValues, partId: string) => Promise<void>;
+  updateProduct: (productData: ProductFormValues) => Promise<void>;
   deleteProduct: (partId: string) => Promise<void>;
   getProduct: (partId: string) => Promise<Product | undefined>;
   addColumn: (columnName: string) => Promise<void>;
@@ -164,45 +164,25 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     await setDoc(newDocRef, newProduct);
   };
 
-  const updateProduct = async (productData: ProductFormValues, currentPartId: string): Promise<void> => {
-    const { partId: formPartId, ...restOfData } = productData;
-    const newPartId = formPartId?.trim();
+  const updateProduct = async (productData: ProductFormValues): Promise<void> => {
+    const { partId, ...restOfData } = productData;
 
-    // Check if the partId has been changed in the form
-    if (newPartId && newPartId !== currentPartId) {
-        // ID has changed. Create a new doc and delete the old one in a batch.
-        const productProperties: Record<string, any> = { ...restOfData };
-        
-        Object.keys(productProperties).forEach(key => {
-            if (productProperties[key] instanceof Date) {
-                productProperties[key] = Timestamp.fromDate(productProperties[key] as Date);
-            }
-        });
-        
-        const batch = writeBatch(db);
-        const newDocRef = doc(db, 'products', newPartId);
-        batch.set(newDocRef, productProperties);
-        
-        const oldDocRef = doc(db, 'products', currentPartId);
-        batch.delete(oldDocRef);
-        
-        await batch.commit();
-
-    } else {
-        // Standard update, partId has not changed.
-        const docRef = doc(db, 'products', currentPartId);
-        const cleanData: Record<string, any> = { ...restOfData };
-        
-        Object.keys(cleanData).forEach(key => {
-            if (cleanData[key] instanceof Date) {
-                cleanData[key] = Timestamp.fromDate(cleanData[key]);
-            } else if (cleanData[key] === null || cleanData[key] === undefined || cleanData[key] === '') {
-                cleanData[key] = deleteField();
-            }
-        });
-        
-        await setDoc(docRef, cleanData, { merge: true });
+    if (!partId) {
+        throw new Error("partId is missing, cannot update product.");
     }
+
+    const docRef = doc(db, 'products', partId);
+    const cleanData: Record<string, any> = { ...restOfData };
+    
+    Object.keys(cleanData).forEach(key => {
+        if (cleanData[key] instanceof Date) {
+            cleanData[key] = Timestamp.fromDate(cleanData[key]);
+        } else if (cleanData[key] === null || cleanData[key] === undefined || cleanData[key] === '') {
+            cleanData[key] = deleteField();
+        }
+    });
+    
+    await setDoc(docRef, cleanData, { merge: true });
   };
 
   const deleteProduct = async (partId: string) => {
