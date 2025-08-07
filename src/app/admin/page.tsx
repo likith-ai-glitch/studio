@@ -114,7 +114,7 @@ export default function AdminPage() {
   
   const homePageConfigurableFields = useMemo(() => {
     const coreFields = ['id', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'];
-    return productKeys.filter(k => !coreFields.includes(k));
+    return productKeys.filter(k => !coreFields.includes(k) && k !== 'description');
   }, [productKeys]);
 
 
@@ -492,7 +492,7 @@ export default function AdminPage() {
                                 <div key={key} className="flex items-center space-x-2">
                                 <Checkbox
                                     id={`visibility-${key}`}
-                                    checked={homePageVisibleFields[key]}
+                                    checked={!!homePageVisibleFields[key]}
                                     onCheckedChange={() => toggleHomePageFieldVisibility(key)}
                                 />
                                 <Label htmlFor={`visibility-${key}`} className="font-normal">
@@ -594,17 +594,4 @@ export default function AdminPage() {
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
                 This action cannot be undone. This will permanently delete the product.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      
-    </div>
-  );
-}
+              </d
