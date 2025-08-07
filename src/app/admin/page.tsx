@@ -41,6 +41,7 @@ import type { Product } from '@/lib/types';
 import type { DropdownMenuItemProps } from '@radix-ui/react-dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+const HEADER_NAMES_STORAGE_KEY = 'shopstream_header_names';
 
 const AlertDialogTriggerMenuItem = React.forwardRef<HTMLDivElement, DropdownMenuItemProps>(
   (props, ref) => <DropdownMenuItem {...props} ref={ref} onSelect={(e) => e.preventDefault()} />
@@ -65,7 +66,15 @@ export default function AdminPage() {
 
   const [columnToRename, setColumnToRename] = useState<string | null>(null);
   const [newHeaderName, setNewHeaderName] = useState('');
-  const [headerNames, setHeaderNames] = useState<Record<string, string>>({});
+  const [headerNames, setHeaderNames] = useState<Record<string, string>>(() => {
+    try {
+      const savedHeaders = window.localStorage.getItem(HEADER_NAMES_STORAGE_KEY);
+      return savedHeaders ? JSON.parse(savedHeaders) : {};
+    } catch (error) {
+      console.warn('Could not parse header names from localStorage', error);
+      return {};
+    }
+  });
   
   const [isReorderDialogOpen, setReorderDialogOpen] = useState(false);
   const [localColumnOrder, setLocalColumnOrder] = useState(productKeys);
@@ -168,10 +177,16 @@ export default function AdminPage() {
 
   const handleRenameColumn = () => {
     if (columnToRename && newHeaderName.trim()) {
-      setHeaderNames(prev => ({
-        ...prev,
+      const newHeaders = {
+        ...headerNames,
         [columnToRename]: newHeaderName.trim(),
-      }));
+      };
+      setHeaderNames(newHeaders);
+      try {
+        window.localStorage.setItem(HEADER_NAMES_STORAGE_KEY, JSON.stringify(newHeaders));
+      } catch (error) {
+        console.error('Failed to save header names to localStorage', error);
+      }
       setColumnToRename(null);
       setNewHeaderName('');
     }
@@ -375,7 +390,7 @@ export default function AdminPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {deletableColumns.map(col => (
-                        <SelectItem key={col} value={col}>{col}</SelectItem>
+                        <SelectItem key={col} value={col}>{headerNames[col] || col}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -409,7 +424,7 @@ export default function AdminPage() {
                 <div className="py-4 space-y-2 max-h-96 overflow-y-auto">
                   {localColumnOrder.map((key, index) => (
                     <div key={key} className="flex items-center justify-between p-2 border rounded-md">
-                      <span className="font-medium">{key}</span>
+                      <span className="font-medium">{headerNames[key] || key}</span>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => moveColumn(index, 'up')} disabled={index === 0}>
                           <ArrowUp className="h-4 w-4" />
@@ -507,7 +522,4 @@ export default function AdminPage() {
       
     </div>
   );
-
-    
-
-    
+}
