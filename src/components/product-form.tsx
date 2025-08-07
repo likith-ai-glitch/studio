@@ -80,11 +80,13 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   const isValueValidDate = (value: any): value is Date =>
     value instanceof Date && !isNaN(value.getTime());
 
+  const filteredKeys = productKeys.filter(key => key !== 'description');
+
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
         
-        {productKeys.map((key) => {
+        {filteredKeys.map((key) => {
             const label = getLabel(key);
             
             if (key === 'startDate' || key === 'lastUpdatedDate') {
