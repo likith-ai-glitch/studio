@@ -60,7 +60,7 @@ export function ProductCard({ product }: ProductCardProps) {
       price: product.price || 99.99, // Fallback price
     };
     
-    addOrder(customer, [orderItem], orderItem.price);
+    addOrder(customer, [orderItem], Number(orderItem.price));
 
     toast({
         title: "Order Placed!",
