@@ -9,18 +9,8 @@ import { Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useProducts } from '@/context/product-context';
-import { useOrders } from '@/context/order-context';
 import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { AddressForm, type AddressFormValues } from './address-form';
+import { useCart } from '@/context/cart-context';
 
 
 interface ProductCardProps {
@@ -29,9 +19,8 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const { headerNames, homePageFieldOrder, homePageVisibleFields } = useProducts();
-  const { addOrder } = useOrders();
   const { toast } = useToast();
-  const [isAddressDialogOpen, setAddressDialogOpen] = useState(false);
+  const { addItemToCart, setIsCartOpen } = useCart();
   const isUnavailable = product.status === 'Unavailable';
 
   const productDetails = homePageFieldOrder
@@ -41,33 +30,21 @@ export function ProductCard({ product }: ProductCardProps) {
       value: product[key],
     }));
     
-  const handlePlaceOrder = (addressData: AddressFormValues) => {
+  const handleAddToCart = () => {
     if (isUnavailable) return;
     
-    const customer = {
-      name: addressData.name,
-      email: addressData.email,
-      phone: addressData.phone,
-      address: addressData.address,
-      city: addressData.city,
-      zip: addressData.zip,
-    };
-
-    const orderItem = {
-      id: product.productId,
-      name: product.name,
-      quantity: 1,
-      price: product.price || 99.99, // Fallback price
-    };
-    
-    const total = Number(orderItem.price) * orderItem.quantity;
-    addOrder(customer, [orderItem], total);
+    addItemToCart({
+        id: product.productId,
+        name: product.name,
+        price: product.price || 99.99, // Fallback price
+        quantity: 1,
+    });
 
     toast({
-        title: "Order Placed!",
-        description: `${product.name} has been added to your orders.`
+        title: "Added to cart",
+        description: `${product.name} has been added to your cart.`
     });
-    setAddressDialogOpen(false);
+    setIsCartOpen(true);
   }
 
   return (
@@ -97,22 +74,9 @@ export function ProductCard({ product }: ProductCardProps) {
             </CardContent>
         </Link>
         <CardFooter className="p-4 pt-0 mt-auto flex gap-2">
-            <Dialog open={isAddressDialogOpen} onOpenChange={setAddressDialogOpen}>
-                <DialogTrigger asChild>
-                    <Button className="w-full" disabled={isUnavailable}>
-                        Buy Now
-                    </Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Shipping Address</DialogTitle>
-                        <DialogDescription>
-                            Please provide your shipping details to complete the order for {product.name}.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <AddressForm onSubmit={handlePlaceOrder} />
-                </DialogContent>
-            </Dialog>
+           <Button className="w-full" disabled={isUnavailable} onClick={handleAddToCart}>
+                Buy Now
+            </Button>
         </CardFooter>
     </Card>
   );

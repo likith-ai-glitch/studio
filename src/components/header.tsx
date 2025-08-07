@@ -2,12 +2,17 @@
 'use client';
 
 import Link from 'next/link';
-import { Store, Wrench, LogIn, LogOut, ShieldCheck, Package, Home } from 'lucide-react';
+import { Store, Wrench, LogIn, LogOut, ShieldCheck, Package, Home, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/auth-context';
+import { useCart } from '@/context/cart-context';
+import { Badge } from '@/components/ui/badge';
 
 export function Header() {
   const { user, logout, loading } = useAuth();
+  const { cart, setIsCartOpen } = useCart();
+  
+  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <header className="bg-card shadow-md sticky top-0 z-40">
@@ -19,7 +24,7 @@ export function Header() {
               <span>Shopstream</span>
             </Link>
           </div>
-          <nav className="flex items-center gap-1 sm:gap-4">
+          <nav className="flex items-center gap-1 sm:gap-2">
              <Button variant="ghost" asChild>
               <Link href="/" className="flex items-center gap-1">
                 <Home className="h-5 w-5" />
@@ -63,6 +68,13 @@ export function Header() {
                 </Button>
               )
             )}
+             <Button variant="ghost" className="relative flex items-center gap-1" onClick={() => setIsCartOpen(true)}>
+                <ShoppingCart className="h-5 w-5" />
+                <span className="hidden md:inline">Cart</span>
+                {totalItems > 0 && (
+                    <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-1" variant="destructive">{totalItems}</Badge>
+                )}
+            </Button>
           </nav>
         </div>
       </div>
