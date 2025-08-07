@@ -13,7 +13,6 @@ import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
-  partId: z.string().min(1, { message: 'Part ID cannot be empty.' }),
   productId: z.string().min(3),
   name: z.string().min(2),
   brand: z.string().min(2),

@@ -61,14 +61,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const safelyParseJSON = (key: string, defaultValue: any) => {
       try {
         const item = window.localStorage.getItem(key);
-        // Added a check to ensure the item is not null or undefined before parsing.
         if (item) {
           return JSON.parse(item);
         }
         return defaultValue;
       } catch (error) {
         console.warn(`Could not parse ${key} from localStorage`, error);
-        window.localStorage.removeItem(key); // Clear corrupted data
+        window.localStorage.removeItem(key);
         return defaultValue;
       }
     };
@@ -101,7 +100,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         } else {
             const productsData = snapshot.docs.map(doc => {
               const data = doc.data();
-              // Ensure Timestamps are converted to Dates
               const productWithDates: Record<string, any> = {};
               for (const key in data) {
                 if (data[key] instanceof Timestamp) {
@@ -118,6 +116,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
 
             const fixedOrder = ['partId', 'productId', 'name', 'brand', 'category', 'status', 'startDate', 'lastUpdatedDate'];
+            const deletableCoreFields = ['name', 'brand', 'category', 'status', 'productId'];
             
             const savedOrder = safelyParseJSON(COLUMN_ORDER_STORAGE_KEY, []);
             const validSavedOrder = savedOrder.filter((k: string) => allKeys.has(k));
@@ -148,7 +147,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   }, [toast]);
   
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
-    // Let firestore generate the ID
     const newDocRef = doc(collection(db, "products"));
     const { partId, ...newProductData } = productData;
 
@@ -168,21 +166,21 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const updateProduct = async (productData: ProductFormValues, currentPartId: string): Promise<void> => {
     const { partId: formPartId, ...restOfData } = productData;
+    const newPartId = formPartId?.trim();
 
-    if (formPartId && formPartId !== currentPartId) {
+    if (newPartId && newPartId !== currentPartId) {
         // ID has changed, so we create a new doc and delete the old one.
-        const { partId, ...productProperties } = productData;
-        const newProduct: Record<string, any> = { ...productProperties };
-
-        Object.keys(newProduct).forEach(key => {
-            if (newProduct[key] instanceof Date) {
-                newProduct[key] = Timestamp.fromDate(newProduct[key] as Date);
+        const productProperties: Record<string, any> = { ...restOfData };
+        
+        Object.keys(productProperties).forEach(key => {
+            if (productProperties[key] instanceof Date) {
+                productProperties[key] = Timestamp.fromDate(productProperties[key] as Date);
             }
         });
         
         const batch = writeBatch(db);
-        const newDocRef = doc(db, 'products', formPartId);
-        batch.set(newDocRef, newProduct);
+        const newDocRef = doc(db, 'products', newPartId);
+        batch.set(newDocRef, productProperties);
         
         const oldDocRef = doc(db, 'products', currentPartId);
         batch.delete(oldDocRef);
@@ -241,7 +239,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       const docSnap = await getDoc(productDoc);
       if (docSnap.exists()) {
         const data = docSnap.data();
-        // Convert Timestamps to Dates before returning
         const productDataWithDates: Record<string, any> = {};
          for (const key in data) {
             if (data[key] instanceof Timestamp) {
