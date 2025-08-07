@@ -17,6 +17,8 @@ export interface AppEvent {
   details?: Record<string, any>;
 }
 
+export type OrderStatus = 'Pending' | 'Accepted' | 'Denied';
+
 export interface Order {
   id: string;
   customer: {
@@ -35,4 +37,5 @@ export interface Order {
   }[];
   total: number;
   orderDate: Date;
+  status: OrderStatus;
 }
