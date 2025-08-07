@@ -4,7 +4,6 @@
 import { useProducts } from '@/context/product-context';
 import type { Product } from '@/lib/types';
 import { notFound } from 'next/navigation';
-import { AiDescriptionEditor } from '@/components/ai-description-editor';
 import { ProductCard } from '@/components/product-card';
 import { useEffect, useState } from 'react';
 import { Loader2, Package } from 'lucide-react';
@@ -53,7 +52,9 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
             <h1 className="text-4xl font-bold font-headline mt-1">{product.name}</h1>
           </div>
           
-          <AiDescriptionEditor product={product} />
+           <div className="space-y-2">
+            <p className="text-muted-foreground leading-relaxed">More details about this product will be shown here.</p>
+          </div>
 
         </div>
       </div>

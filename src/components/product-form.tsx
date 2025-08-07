@@ -24,7 +24,6 @@ import { Timestamp } from 'firebase/firestore';
 const formSchema = z.object({
   id: z.string().min(3, { message: 'Product ID must be at least 3 characters.' }),
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
-  description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   brand: z.string().min(2, { message: 'Brand must be at least 2 characters.' }),
   category: z.string().min(2, { message: 'Category must be at least 2 characters.' }),
   status: z.string().optional(),
@@ -157,24 +156,6 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                           <SelectItem value="Unavailable">Unavailable</SelectItem>
                         </SelectContent>
                       </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )
-            }
-             if (key === 'description') {
-              return (
-                <FormField
-                  key={key}
-                  control={control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{label}</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} disabled={isSubmitting} />
-                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

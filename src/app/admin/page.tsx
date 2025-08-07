@@ -113,7 +113,7 @@ export default function AdminPage() {
   }, [productKeys]);
   
   const homePageConfigurableFields = useMemo(() => {
-    const coreFields = ['id', 'name', 'brand', 'description', 'status', 'startDate', 'lastUpdatedDate'];
+    const coreFields = ['id', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'];
     return productKeys.filter(k => !coreFields.includes(k));
   }, [productKeys]);
 
@@ -293,7 +293,7 @@ export default function AdminPage() {
             <IndianRupee className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{totalRevenue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">₹{Number(totalRevenue).toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">
               Total revenue from all sales
             </p>

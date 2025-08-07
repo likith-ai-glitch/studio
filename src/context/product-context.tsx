@@ -12,7 +12,6 @@ import { z } from 'zod';
 const formSchema = z.object({
   id: z.string().min(3),
   name: z.string().min(2),
-  description: z.string().min(10),
   brand: z.string().min(2),
   category: z.string().min(2),
   status: z.string().optional(),
@@ -103,7 +102,11 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             const allKeys = new Set<string>();
             productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
 
-            const fixedOrder = ['id', 'name', 'description', 'brand', 'category', 'status', 'startDate', 'lastUpdatedDate'];
+            if (allKeys.has('description')) {
+                allKeys.delete('description');
+            }
+
+            const fixedOrder = ['id', 'name', 'brand', 'category', 'status', 'startDate', 'lastUpdatedDate'];
             
             // For admin table column order
             try {
@@ -122,13 +125,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             try {
               const item = window.localStorage.getItem(HOME_PAGE_FIELD_ORDER_STORAGE_KEY);
               const homeSavedOrder = item ? JSON.parse(item) : [];
-              const homeConfigurableFields = Array.from(allKeys).filter(k => !['id', 'name', 'brand', 'description', 'status', 'startDate', 'lastUpdatedDate'].includes(k));
+              const homeConfigurableFields = Array.from(allKeys).filter(k => !['id', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'].includes(k));
               const validHomeSavedOrder = homeSavedOrder.filter((k: string) => homeConfigurableFields.includes(k));
               const newHomeKeys = homeConfigurableFields.filter(k => !validHomeSavedOrder.includes(k));
               setHomePageFieldOrder([...validHomeSavedOrder, ...newHomeKeys]);
             } catch (error) {
                console.warn('Could not parse home page field order from localStorage', error);
-               const homeConfigurableFields = Array.from(allKeys).filter(k => !['id', 'name', 'brand', 'description', 'status', 'startDate', 'lastUpdatedDate'].includes(k));
+               const homeConfigurableFields = Array.from(allKeys).filter(k => !['id', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'].includes(k));
                setHomePageFieldOrder(homeConfigurableFields);
             }
 
@@ -367,5 +370,3 @@ export function useProducts() {
   }
   return context;
 }
-
-    
