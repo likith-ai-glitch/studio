@@ -41,7 +41,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
   const relatedProducts = products.filter(p => p.productId !== product.productId && p.category === product.category).slice(0, 3);
   
   const productDetails = homePageFieldOrder
-    .filter(key => homePageVisibleFields[key] && product[key] && !['productId', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'].includes(key) )
+    .filter(key => homePageVisibleFields[key] && product[key] && !['productId', 'name', 'brand'].includes(key) )
     .map(key => ({
       label: headerNames[key] || key.charAt(0).toUpperCase() + key.slice(1),
       value: product[key],
@@ -55,8 +55,8 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
         </div>
         <div className="flex flex-col justify-center space-y-6">
           <div>
-            <p className="text-sm font-medium text-muted-foreground">{product.brand}</p>
-            <h1 className="text-4xl font-bold font-headline mt-1">{product.name}</h1>
+            {homePageVisibleFields.brand && <p className="text-sm font-medium text-muted-foreground">{product.brand}</p>}
+            {homePageVisibleFields.name && <h1 className="text-4xl font-bold font-headline mt-1">{product.name}</h1>}
             <p className="text-sm font-mono text-muted-foreground mt-2">Product ID: {product.productId}</p>
           </div>
           
@@ -83,5 +83,3 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
     </div>
   );
 }
-
-    

@@ -106,7 +106,6 @@ export default function AdminPage() {
   }, [productKeys]);
   
   const homePageConfigurableFields = useMemo(() => {
-    // Only productId is not configurable on the home page view.
     return productKeys.filter(k => k !== 'productId');
   }, [productKeys]);
 

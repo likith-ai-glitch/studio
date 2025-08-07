@@ -83,8 +83,8 @@ export function ProductCard({ product }: ProductCardProps) {
                 )}
             </div>
             <div className="p-4">
-                <p className="text-sm text-muted-foreground">{product.brand}</p>
-                <CardTitle className="text-lg font-headline mt-1 line-clamp-2">{product.name}</CardTitle>
+                 {homePageVisibleFields.brand && <p className="text-sm text-muted-foreground">{product.brand}</p>}
+                 {homePageVisibleFields.name && <CardTitle className="text-lg font-headline mt-1 line-clamp-2">{product.name}</CardTitle>}
             </div>
             </CardHeader>
             <CardContent className="flex-grow p-4 pt-0 space-y-2">
@@ -117,5 +117,3 @@ export function ProductCard({ product }: ProductCardProps) {
     </Card>
   );
 }
-
-    

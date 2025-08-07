@@ -75,7 +75,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     };
     
     setHeaderNames(safelyParseJSON(HEADER_NAMES_STORAGE_KEY, {}));
-    setHomePageVisibleFields(safelyParseJSON(HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY, { category: true, price: true }));
+    setHomePageVisibleFields(safelyParseJSON(HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY, { name: true, brand: true, category: true, price: true }));
 
     const unsubscribe = onSnapshot(productsCollectionRef, async (snapshot) => {
         if (snapshot.empty && initialProducts.length > 0) {
@@ -127,9 +127,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             setProductKeys([...new Set(finalKeys)]);
             
             const homeSavedOrder = safelyParseJSON(HOME_PAGE_FIELD_ORDER_STORAGE_KEY, []);
-            const homeConfigurableFields = Array.from(allKeys).filter(k => !['productId', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'].includes(k));
-            const validHomeSavedOrder = homeSavedOrder.filter((k: string) => homeConfigurableFields.includes(k));
-            const newHomeKeys = homeConfigurableFields.filter(k => !validHomeSavedOrder.includes(k));
+            const allConfigurableHomePageFields = Array.from(allKeys).filter(k => k !== 'productId');
+            const validHomeSavedOrder = homeSavedOrder.filter((k: string) => allConfigurableHomePageFields.includes(k));
+            const newHomeKeys = allConfigurableHomePageFields.filter(k => !validHomeSavedOrder.includes(k));
             setHomePageFieldOrder([...validHomeSavedOrder, ...newHomeKeys]);
 
 
@@ -178,7 +178,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
 
     if (originalProductId && originalProductId !== productId) {
-        // ID has changed: create new, delete old
         const newDocRef = doc(db, 'products', productId);
         const oldDocRef = doc(db, 'products', originalProductId);
 
@@ -187,10 +186,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
           throw new Error(`Product with new ID "${productId}" already exists.`);
         }
         
-        // Prepare clean data for the new document, excluding empty/null fields.
         const newProductData: Record<string, any> = {};
-        Object.keys(restOfData).forEach(key => {
-            const value = (restOfData as any)[key];
+        Object.entries(restOfData).forEach(([key, value]) => {
             if (value !== null && value !== undefined && value !== '') {
                  if (value instanceof Date) {
                     newProductData[key] = Timestamp.fromDate(value);
@@ -206,7 +203,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         await batch.commit();
 
     } else {
-       // ID has not changed: standard update with merge
        const docRef = doc(db, 'products', productId);
        const dataToUpdate: Record<string, any> = {};
 
@@ -215,7 +211,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             if (value instanceof Date) {
                 dataToUpdate[key] = Timestamp.fromDate(value);
             } else if (value === null || value === undefined || value === '') {
-                // Use deleteField to remove the field from the document
                 dataToUpdate[key] = deleteField();
             } else {
                 dataToUpdate[key] = value;
