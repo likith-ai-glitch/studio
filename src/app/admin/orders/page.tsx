@@ -27,6 +27,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useState } from 'react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export default function OrdersPage() {
   const { orders, updateOrderStatus, deleteOrder } = useOrders();
@@ -75,32 +76,42 @@ export default function OrdersPage() {
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pt-4 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div>
                             <h4 className="font-semibold mb-2">Shipping Details</h4>
-                            <address className="not-italic text-muted-foreground">
+                            <address className="not-italic text-muted-foreground text-sm">
+                                {order.customer.name}<br />
+                                {order.customer.email}<br />
+                                {order.customer.phone}<br />
                                 {order.customer.address}<br />
                                 {order.customer.city}, {order.customer.zip}
                             </address>
                         </div>
-                        <div>
-                            <h4 className="font-semibold mb-2">Ordered Items</h4>
-                            <ul className="space-y-2">
-                            {order.items.map(item => (
-                                <li key={item.id} className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex items-center justify-center bg-muted rounded-md w-10 h-10">
-                                          <Package className="w-5 h-5 text-muted-foreground" />
-                                        </div>
-                                        <div>
-                                            <p className="font-medium">{item.name}</p>
-                                            <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
-                                        </div>
-                                    </div>
-                                    <p className="text-muted-foreground">₹{(Number(item.price) * item.quantity).toFixed(2)}</p>
-                                </li>
-                            ))}
-                            </ul>
+                        <div className="space-y-4">
+                            <h4 className="font-semibold">Ordered Items</h4>
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Product</TableHead>
+                                  <TableHead className="text-center">Qty</TableHead>
+                                  <TableHead className="text-right">Unit Price</TableHead>
+                                  <TableHead className="text-right">Total</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {order.items.map(item => (
+                                  <TableRow key={item.id}>
+                                    <TableCell>
+                                      <div className="font-medium">{item.name}</div>
+                                      <div className="text-xs text-muted-foreground font-mono">{item.id}</div>
+                                    </TableCell>
+                                    <TableCell className="text-center">{item.quantity}</TableCell>
+                                    <TableCell className="text-right">₹{Number(item.price).toFixed(2)}</TableCell>
+                                    <TableCell className="text-right">₹{(Number(item.price) * item.quantity).toFixed(2)}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
                         </div>
                     </div>
                     <div className="flex justify-end gap-2 pt-4 border-t">
