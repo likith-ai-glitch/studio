@@ -102,13 +102,12 @@ export default function AdminPage() {
   }, [products]);
 
   const deletableColumns = useMemo(() => {
-    const coreFields = ['productId'];
-    return productKeys.filter(k => !coreFields.includes(k));
+    return productKeys.filter(k => k !== 'productId');
   }, [productKeys]);
   
   const homePageConfigurableFields = useMemo(() => {
-    const coreFields = ['productId', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'];
-    return productKeys.filter(k => !coreFields.includes(k));
+    // Only productId is not configurable on the home page view.
+    return productKeys.filter(k => k !== 'productId');
   }, [productKeys]);
 
 
