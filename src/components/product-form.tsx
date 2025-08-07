@@ -13,7 +13,7 @@ import { Calendar } from '@/components/ui/calendar';
 import type { Product } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useProducts } from '@/context/product-context';
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { Loader2, CalendarIcon } from 'lucide-react';
 import { Textarea } from './ui/textarea';
 import { format } from 'date-fns';
@@ -48,10 +48,8 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
     const baseValues: Record<string, any> = {};
     productKeys.forEach(key => {
         let value = initialData?.[key];
-        if (key === 'startDate' || key === 'lastUpdatedDate') {
-          if (value instanceof Timestamp) {
+        if (value instanceof Timestamp) {
             value = value.toDate();
-          }
         }
         baseValues[key] = value ?? '';
     });
@@ -90,51 +88,8 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
         
         {productKeys.map((key) => {
             const label = getLabel(key);
-            if (key === 'status') {
-              return (
-                 <FormField
-                  key={key}
-                  control={control}
-                  name="status"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{label}</FormLabel>
-                       <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={isSubmitting}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a status" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Available">Available</SelectItem>
-                          <SelectItem value="Unavailable">Unavailable</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )
-            }
-             if (key === 'description') {
-              return (
-                <FormField
-                  key={key}
-                  control={control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{label}</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} disabled={isSubmitting} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )
-            }
-             if (key === 'startDate' || key === 'lastUpdatedDate') {
+            
+            if (key === 'startDate' || key === 'lastUpdatedDate') {
               return (
                 <FormField
                   key={key}
@@ -181,6 +136,52 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                 />
               )
             }
+            
+            if (key === 'status') {
+              return (
+                 <FormField
+                  key={key}
+                  control={control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{label}</FormLabel>
+                       <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={isSubmitting}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Available">Available</SelectItem>
+                          <SelectItem value="Unavailable">Unavailable</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )
+            }
+             if (key === 'description') {
+              return (
+                <FormField
+                  key={key}
+                  control={control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{label}</FormLabel>
+                      <FormControl>
+                        <Textarea {...field} disabled={isSubmitting} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )
+            }
+            
             return (
                 <FormField
                   key={key}

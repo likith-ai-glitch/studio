@@ -79,12 +79,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             const productsData = snapshot.docs.map(doc => {
               const data = doc.data();
               const product: Product = { ...data, id: doc.id } as Product;
-              // Ensure timestamps are converted to Dates for client-side use
-              Object.keys(product).forEach(key => {
-                if (product[key] instanceof Timestamp) {
-                    product[key] = (product[key] as Timestamp).toDate();
-                }
-              });
+              // Timestamps are handled in the form component now
               return product;
             });
             setProducts(productsData);
@@ -220,11 +215,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       if (docSnap.exists()) {
         const data = docSnap.data();
         const product: Product = { id: docSnap.id, ...data } as Product;
-        Object.keys(product).forEach(key => {
-            if (product[key] instanceof Timestamp) {
-                product[key] = (product[key] as Timestamp).toDate();
-            }
-        });
+        // No need to convert timestamps here, it will be handled by the component that needs it
         return product;
       } else {
         return undefined;
