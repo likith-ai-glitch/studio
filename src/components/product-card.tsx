@@ -38,6 +38,8 @@ export function ProductCard({ product }: ProductCardProps) {
         name: product.name,
         price: Number(product.price) || 99.99, // Fallback price
         quantity: 1,
+        brand: product.brand,
+        category: product.category,
     });
 
     toast({

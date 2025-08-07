@@ -31,6 +31,8 @@ export interface Order {
   items: {
     id: string;
     name: string;
+    brand: string;
+    category: string;
     quantity: number;
     price: number;
   }[];
@@ -38,5 +40,3 @@ export interface Order {
   orderDate: Date;
   status: OrderStatus;
 }
-
-    

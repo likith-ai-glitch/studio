@@ -103,7 +103,11 @@ export default function OrdersPage() {
                                   <TableRow key={item.id}>
                                     <TableCell>
                                       <div className="font-medium">{item.name}</div>
-                                      <div className="text-xs text-muted-foreground font-mono">{item.id}</div>
+                                      <div className="text-xs text-muted-foreground">
+                                        <p>ID: {item.id}</p>
+                                        <p>Brand: {item.brand}</p>
+                                        <p>Category: {item.category}</p>
+                                      </div>
                                     </TableCell>
                                     <TableCell className="text-center">{item.quantity}</TableCell>
                                     <TableCell className="text-right">₹{Number(item.price).toFixed(2)}</TableCell>
