@@ -102,10 +102,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             const allKeys = new Set<string>();
             productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
 
-            if (allKeys.has('description')) {
-                allKeys.delete('description');
-            }
-
             const fixedOrder = ['id', 'name', 'brand', 'category', 'status', 'startDate', 'lastUpdatedDate'];
             
             // For admin table column order
@@ -180,33 +176,40 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
 
   const updateProduct = async (productData: ProductFormValues, originalId: string): Promise<void> => {
-      const oldProduct = await getProduct(originalId);
-      if (!oldProduct) {
-          throw new Error("Original product not found for update.");
-      }
-      
-      const { ...restOfData } = productData;
+    const newId = productData.id;
 
-      const updatedProductData: Record<string, any> = {
-        ...oldProduct,
-        ...restOfData,
-      };
-      
-      if (productData.id !== originalId) {
-          console.warn("Attempted to change product ID during update, which is not allowed. The original ID will be kept.");
-          updatedProductData.id = originalId;
-      }
-      
-      Object.keys(updatedProductData).forEach(key => {
-        if (updatedProductData[key] instanceof Date) {
-            updatedProductData[key] = Timestamp.fromDate(updatedProductData[key]);
-        } else if (updatedProductData[key] === null || updatedProductData[key] === '') {
-            updatedProductData[key] = deleteField();
+    const { ...restOfData } = productData;
+    const cleanData: Record<string, any> = { ...restOfData };
+    
+    Object.keys(cleanData).forEach(key => {
+        if (cleanData[key] instanceof Date) {
+            cleanData[key] = Timestamp.fromDate(cleanData[key]);
+        } else if (cleanData[key] === null || cleanData[key] === undefined || cleanData[key] === '') {
+            // Use deleteField() for values that should be removed
+            cleanData[key] = deleteField();
         }
-      });
+    });
 
-      const docRef = doc(db, 'products', originalId);
-      await setDoc(docRef, updatedProductData, { merge: true });
+    // Handle ID change: create new, delete old
+    if (newId !== originalId) {
+        const newDocRef = doc(db, 'products', newId);
+        const newDocSnap = await getDoc(newDocRef);
+        if (newDocSnap.exists()) {
+            throw new Error(`A product with the new ID "${newId}" already exists.`);
+        }
+
+        const oldDocRef = doc(db, 'products', originalId);
+
+        const batch = writeBatch(db);
+        batch.set(newDocRef, cleanData); // Create new doc
+        batch.delete(oldDocRef); // Delete old doc
+        await batch.commit();
+
+    } else {
+        // Standard update, no ID change
+        const docRef = doc(db, 'products', originalId);
+        await setDoc(docRef, cleanData, { merge: true });
+    }
   };
 
   const deleteProduct = async (productId: string) => {

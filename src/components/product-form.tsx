@@ -172,7 +172,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                     <FormItem>
                       <FormLabel>{label}</FormLabel>
                       <FormControl>
-                        <Input {...field} disabled={(key === 'id' && !!initialData) || isSubmitting} value={field.value ?? ''} />
+                        <Input {...field} disabled={isSubmitting} value={field.value ?? ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
