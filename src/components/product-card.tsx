@@ -35,7 +35,7 @@ export function ProductCard({ product }: ProductCardProps) {
   const isUnavailable = product.status === 'Unavailable';
 
   const productDetails = homePageFieldOrder
-    .filter(key => homePageVisibleFields[key] && product[key] && !['id', 'name', 'brand', 'description', 'status'].includes(key) )
+    .filter(key => homePageVisibleFields[key] && product[key] && !['id', 'name', 'brand', 'description', 'status', 'startDate', 'lastUpdatedDate'].includes(key) )
     .map(key => ({
       label: headerNames[key] || key.charAt(0).toUpperCase() + key.slice(1),
       value: product[key],
@@ -116,4 +116,3 @@ export function ProductCard({ product }: ProductCardProps) {
     </Card>
   );
 }
-
