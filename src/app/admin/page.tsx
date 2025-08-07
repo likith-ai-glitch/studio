@@ -273,333 +273,335 @@ export default function AdminPage() {
 };
 
   return (
-    <div className="space-y-8">
-      <header className="flex justify-between items-center">
-        <h1 className="text-4xl font-bold font-headline">Dashboard</h1>
-      </header>
+    <AlertDialog>
+      <div className="space-y-8">
+        <header className="flex justify-between items-center">
+          <h1 className="text-4xl font-bold font-headline">Dashboard</h1>
+        </header>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Total Revenue
+              </CardTitle>
+              <IndianRupee className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">₹{totalRevenue.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground">
+                Total revenue from all sales
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Sales
+              </CardTitle>
+              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">+{totalSales}</div>
+              <p className="text-xs text-muted-foreground">
+                Total number of orders placed
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Products</CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{products.length}</div>
+              <p className="text-xs text-muted-foreground">
+                Total number of products in store
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Available</CardTitle>
+              <PackageCheck className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{availableProducts}</div>
+              <p className="text-xs text-muted-foreground">
+                Products marked as available
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Unavailable</CardTitle>
+              <PackageX className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{unavailableProducts}</div>
+              <p className="text-xs text-muted-foreground">
+                Products marked as unavailable
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Revenue
-            </CardTitle>
-            <IndianRupee className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <CardTitle>Product Master (prd_master)</CardTitle>
+            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+              <Input
+                  placeholder="Filter products..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full sm:w-auto md:w-48"
+                />
+              <Dialog open={isAddColumnDialogOpen} onOpenChange={setAddColumnDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline">
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Add Column
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Column</DialogTitle>
+                    <DialogDescription>
+                      Enter a name for the new column. This will be added to all existing products.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-4">
+                    <Input 
+                      placeholder="e.g. SKU, Stock, etc."
+                      value={newColumnName}
+                      onChange={(e) => setNewColumnName(e.target.value)}
+                    />
+                  </div>
+                  <DialogFooter>
+                      <DialogClose asChild>
+                          <Button variant="outline" disabled={isAddingColumn}>Cancel</Button>
+                      </DialogClose>
+                      <Button onClick={handleAddColumn} disabled={isAddingColumn}>
+                          {isAddingColumn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Add Column
+                      </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={isDeleteColumnDialogOpen} onOpenChange={setDeleteColumnDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="destructive" disabled={deletableColumns.length === 0}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Column
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Delete Column</DialogTitle>
+                    <DialogDescription>
+                      Select the column you want to permanently delete from all products. This action cannot be undone.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-4">
+                    <Select value={columnToDelete} onValueChange={setColumnToDelete}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a column to delete" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {deletableColumns.map(col => (
+                          <SelectItem key={col} value={col}>{headerNames[col] || col}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button variant="outline" disabled={isDeletingColumn}>Cancel</Button>
+                    </DialogClose>
+                    <Button onClick={handleDeleteColumn} disabled={isDeletingColumn || !columnToDelete} variant="destructive">
+                      {isDeletingColumn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Delete Column
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={isReorderDialogOpen} onOpenChange={setReorderDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline">
+                    <Columns className="mr-2 h-4 w-4" />
+                    Reorder
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Reorder Columns</DialogTitle>
+                    <DialogDescription>
+                      Click the arrows to change the order of the columns.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-4 space-y-2 max-h-96 overflow-y-auto">
+                    {localColumnOrder.map((key, index) => (
+                      <div key={key} className="flex items-center justify-between p-2 border rounded-md">
+                        <span className="font-medium">{headerNames[key] || key}</span>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => moveColumn(index, 'up')} disabled={index === 0}>
+                            <ArrowUp className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => moveColumn(index, 'down')} disabled={index === localColumnOrder.length - 1}>
+                            <ArrowDown className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button variant="outline">Cancel</Button>
+                    </DialogClose>
+                    <Button onClick={handleSaveColumnOrder}>Save Order</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              
+              <Dialog open={isHomePageSettingsOpen} onOpenChange={setIsHomePageSettingsOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Home Page View
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Customize Home Page View</DialogTitle>
+                    <DialogDescription>
+                      Choose which product fields to display on the home page cards and in what order.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid grid-cols-2 gap-8 py-4">
+                      <div className="space-y-4">
+                          <h4 className="font-semibold">Visible Fields</h4>
+                          <div className="space-y-2">
+                            {homePageConfigurableFields.map((key) => (
+                                  <div key={key} className="flex items-center space-x-2">
+                                  <Checkbox
+                                      id={`visibility-${key}`}
+                                      checked={!!homePageVisibleFields[key]}
+                                      onCheckedChange={() => toggleHomePageFieldVisibility(key)}
+                                  />
+                                  <Label htmlFor={`visibility-${key}`} className="font-normal">
+                                      {headerNames[key] || key}
+                                  </Label>
+                                  </div>
+                              ))}
+                          </div>
+                      </div>
+                      <div className="space-y-4">
+                          <h4 className="font-semibold">Field Order</h4>
+                          <div className="space-y-2 max-h-64 overflow-y-auto">
+                              {localHomePageOrder.map((key, index) => (
+                                  <div key={key} className="flex items-center justify-between p-2 border rounded-md">
+                                  <span className="font-medium">{headerNames[key] || key}</span>
+                                  <div className="flex gap-1">
+                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => moveHomePageField(index, 'up')} disabled={index === 0}>
+                                      <ArrowUp className="h-4 w-4" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => moveHomePageField(index, 'down')} disabled={index === localHomePageOrder.length - 1}>
+                                      <ArrowDown className="h-4 w-4" />
+                                      </Button>
+                                  </div>
+                                  </div>
+                              ))}
+                          </div>
+                      </div>
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button variant="outline">Cancel</Button>
+                    </DialogClose>
+                    <Button onClick={handleSaveHomePageOrder}>Save Settings</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              <Button asChild size="sm">
+                <Link href="/admin/products/new">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Product
+                </Link>
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{totalRevenue.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">
-              Total revenue from all sales
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Sales
-            </CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">+{totalSales}</div>
-            <p className="text-xs text-muted-foreground">
-              Total number of orders placed
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Products</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{products.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Total number of products in store
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Available</CardTitle>
-            <PackageCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{availableProducts}</div>
-            <p className="text-xs text-muted-foreground">
-              Products marked as available
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Unavailable</CardTitle>
-            <PackageX className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{unavailableProducts}</div>
-            <p className="text-xs text-muted-foreground">
-               Products marked as unavailable
-            </p>
+              {productsLoading ? (
+                  <div className="flex justify-center items-center h-48">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+              ) : (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {productKeys.map(key => renderHeader(key))}
+                        <TableHead>
+                          <span className="sr-only">Actions</span>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sortedAndFilteredProducts.map((product) => (
+                        <TableRow key={product.id}>
+                          {productKeys.map(key => (
+                            <TableCell key={key} className={key === 'id' ? 'font-mono text-xs' : ''}>
+                              {key === 'id' ? product.id.substring(0,8) + '...' : String(product[key as keyof Product] ?? '')}
+                            </TableCell>
+                          ))}
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                  <span className="sr-only">Toggle menu</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/admin/products/${product.id}/edit`}>Edit</Link>
+                                </DropdownMenuItem>
+                                <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem className="text-destructive" onSelect={(e) => {e.preventDefault(); setDeleteTarget(product.id.toString());}}>
+                                    Delete
+                                  </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  
+                  <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently delete the product.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setDeleteTarget(null)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                            Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                  </AlertDialogContent>
+                </>
+              )}
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <CardTitle>Product Master (prd_master)</CardTitle>
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-             <Input
-                placeholder="Filter products..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full sm:w-auto md:w-48"
-              />
-            <Dialog open={isAddColumnDialogOpen} onOpenChange={setAddColumnDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="outline">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Column
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add New Column</DialogTitle>
-                  <DialogDescription>
-                    Enter a name for the new column. This will be added to all existing products.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="py-4">
-                  <Input 
-                    placeholder="e.g. SKU, Stock, etc."
-                    value={newColumnName}
-                    onChange={(e) => setNewColumnName(e.target.value)}
-                  />
-                </div>
-                <DialogFooter>
-                    <DialogClose asChild>
-                        <Button variant="outline" disabled={isAddingColumn}>Cancel</Button>
-                    </DialogClose>
-                    <Button onClick={handleAddColumn} disabled={isAddingColumn}>
-                        {isAddingColumn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Add Column
-                    </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-
-            <Dialog open={isDeleteColumnDialogOpen} onOpenChange={setDeleteColumnDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="destructive" disabled={deletableColumns.length === 0}>
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Column
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Delete Column</DialogTitle>
-                  <DialogDescription>
-                    Select the column you want to permanently delete from all products. This action cannot be undone.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="py-4">
-                  <Select value={columnToDelete} onValueChange={setColumnToDelete}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a column to delete" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {deletableColumns.map(col => (
-                        <SelectItem key={col} value={col}>{headerNames[col] || col}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button variant="outline" disabled={isDeletingColumn}>Cancel</Button>
-                  </DialogClose>
-                  <Button onClick={handleDeleteColumn} disabled={isDeletingColumn || !columnToDelete} variant="destructive">
-                    {isDeletingColumn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Delete Column
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-
-            <Dialog open={isReorderDialogOpen} onOpenChange={setReorderDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="outline">
-                  <Columns className="mr-2 h-4 w-4" />
-                  Reorder
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Reorder Columns</DialogTitle>
-                  <DialogDescription>
-                    Click the arrows to change the order of the columns.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="py-4 space-y-2 max-h-96 overflow-y-auto">
-                  {localColumnOrder.map((key, index) => (
-                    <div key={key} className="flex items-center justify-between p-2 border rounded-md">
-                      <span className="font-medium">{headerNames[key] || key}</span>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => moveColumn(index, 'up')} disabled={index === 0}>
-                          <ArrowUp className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => moveColumn(index, 'down')} disabled={index === localColumnOrder.length - 1}>
-                          <ArrowDown className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button variant="outline">Cancel</Button>
-                  </DialogClose>
-                  <Button onClick={handleSaveColumnOrder}>Save Order</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            
-            <Dialog open={isHomePageSettingsOpen} onOpenChange={setIsHomePageSettingsOpen}>
-              <DialogTrigger asChild>
-                 <Button size="sm" variant="outline">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Home Page View
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Customize Home Page View</DialogTitle>
-                  <DialogDescription>
-                    Choose which product fields to display on the home page cards and in what order.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid grid-cols-2 gap-8 py-4">
-                    <div className="space-y-4">
-                        <h4 className="font-semibold">Visible Fields</h4>
-                        <div className="space-y-2">
-                           {homePageConfigurableFields.map((key) => (
-                                <div key={key} className="flex items-center space-x-2">
-                                <Checkbox
-                                    id={`visibility-${key}`}
-                                    checked={!!homePageVisibleFields[key]}
-                                    onCheckedChange={() => toggleHomePageFieldVisibility(key)}
-                                />
-                                <Label htmlFor={`visibility-${key}`} className="font-normal">
-                                    {headerNames[key] || key}
-                                </Label>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="space-y-4">
-                         <h4 className="font-semibold">Field Order</h4>
-                         <div className="space-y-2 max-h-64 overflow-y-auto">
-                            {localHomePageOrder.map((key, index) => (
-                                <div key={key} className="flex items-center justify-between p-2 border rounded-md">
-                                <span className="font-medium">{headerNames[key] || key}</span>
-                                <div className="flex gap-1">
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => moveHomePageField(index, 'up')} disabled={index === 0}>
-                                    <ArrowUp className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => moveHomePageField(index, 'down')} disabled={index === localHomePageOrder.length - 1}>
-                                    <ArrowDown className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button variant="outline">Cancel</Button>
-                  </DialogClose>
-                  <Button onClick={handleSaveHomePageOrder}>Save Settings</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-
-            <Button asChild size="sm">
-              <Link href="/admin/products/new">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add Product
-              </Link>
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-            {productsLoading ? (
-                 <div className="flex justify-center items-center h-48">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                 </div>
-            ) : (
-              <AlertDialog>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {productKeys.map(key => renderHeader(key))}
-                      <TableHead>
-                        <span className="sr-only">Actions</span>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sortedAndFilteredProducts.map((product) => (
-                      <TableRow key={product.id}>
-                        {productKeys.map(key => (
-                           <TableCell key={key} className={key === 'id' ? 'font-mono text-xs' : ''}>
-                             {key === 'id' ? product.id.substring(0,8) + '...' : String(product[key as keyof Product] ?? '')}
-                           </TableCell>
-                        ))}
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button aria-haspopup="true" size="icon" variant="ghost">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Toggle menu</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem asChild>
-                                 <Link href={`/admin/products/${product.id}/edit`}>Edit</Link>
-                              </DropdownMenuItem>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem className="text-destructive" onSelect={(e) => {e.preventDefault(); setDeleteTarget(product.id.toString());}}>
-                                  Delete
-                                </DropdownMenuItem>
-                              </AlertDialogTrigger>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the product.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel onClick={() => setDeleteTarget(null)}>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
-                          Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-            )}
-        </CardContent>
-      </Card>
-    </div>
+    </AlertDialog>
   );
 }
