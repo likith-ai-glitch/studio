@@ -168,8 +168,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const { partId: formPartId, ...restOfData } = productData;
     const newPartId = formPartId?.trim();
 
+    // Check if the partId has been changed in the form
     if (newPartId && newPartId !== currentPartId) {
-        // ID has changed, so we create a new doc and delete the old one.
+        // ID has changed. Create a new doc and delete the old one in a batch.
         const productProperties: Record<string, any> = { ...restOfData };
         
         Object.keys(productProperties).forEach(key => {
@@ -188,7 +189,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         await batch.commit();
 
     } else {
-        // Standard update, partId has not changed
+        // Standard update, partId has not changed.
+        const docRef = doc(db, 'products', currentPartId);
         const cleanData: Record<string, any> = { ...restOfData };
         
         Object.keys(cleanData).forEach(key => {
@@ -199,7 +201,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             }
         });
         
-        const docRef = doc(db, 'products', currentPartId);
         await setDoc(docRef, cleanData, { merge: true });
     }
   };
