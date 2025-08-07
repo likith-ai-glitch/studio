@@ -97,12 +97,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
             const allKeys = Array.from(keys);
             const validSavedOrder = savedOrder.filter(k => allKeys.includes(k));
-            const unsavedKeys = allKeys.filter(k => !validSavedOrder.includes(k)).sort();
             
             const fixedOrder = ['id', 'name', 'description', 'brand', 'category', 'status', 'startDate', 'lastUpdatedDate'];
-            const orderedKeys = fixedOrder.filter(k => allKeys.includes(k));
             const dynamicKeys = allKeys.filter(k => !fixedOrder.includes(k)).sort();
-            const finalKeys = [...orderedKeys, ...dynamicKeys];
+            
+            const baseKeys = fixedOrder.filter(k => allKeys.includes(k));
+            const finalKeys = [...baseKeys, ...dynamicKeys];
             
             if (validSavedOrder.length > 0) {
                 const finalSavedOrder = validSavedOrder.concat(allKeys.filter(k => !validSavedOrder.includes(k)));
@@ -145,12 +145,11 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       status: productData.status || 'Available',
     };
 
-    if (newProduct.startDate instanceof Date) {
-      newProduct.startDate = Timestamp.fromDate(newProduct.startDate);
-    }
-    if (newProduct.lastUpdatedDate instanceof Date) {
-      newProduct.lastUpdatedDate = Timestamp.fromDate(newProduct.lastUpdatedDate);
-    }
+    Object.keys(newProduct).forEach(key => {
+        if (newProduct[key] instanceof Date) {
+            newProduct[key] = Timestamp.fromDate(newProduct[key]);
+        }
+    });
     
     await setDoc(docRef, newProduct);
   };
@@ -173,17 +172,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
           updatedProductData.id = originalId;
       }
       
-      if (updatedProductData.startDate instanceof Date) {
-        updatedProductData.startDate = Timestamp.fromDate(updatedProductData.startDate);
-      } else if (updatedProductData.startDate === null || updatedProductData.startDate === '') {
-        updatedProductData.startDate = null;
-      }
-
-      if (updatedProductData.lastUpdatedDate instanceof Date) {
-        updatedProductData.lastUpdatedDate = Timestamp.fromDate(updatedProductData.lastUpdatedDate);
-      } else if (updatedProductData.lastUpdatedDate === null || updatedProductData.lastUpdatedDate === '') {
-        updatedProductData.lastUpdatedDate = null;
-      }
+      Object.keys(updatedProductData).forEach(key => {
+        if (updatedProductData[key] instanceof Date) {
+            updatedProductData[key] = Timestamp.fromDate(updatedProductData[key]);
+        } else if (updatedProductData[key] === null || updatedProductData[key] === '') {
+            updatedProductData[key] = null;
+        }
+      });
 
       const docRef = doc(db, 'products', originalId);
       await setDoc(docRef, updatedProductData, { merge: true });
@@ -225,7 +220,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       if (docSnap.exists()) {
         const data = docSnap.data();
         const product: Product = { id: docSnap.id, ...data } as Product;
-        // No need to convert timestamps here, it will be handled by the component that needs it
         return product;
       } else {
         return undefined;
