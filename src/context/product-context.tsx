@@ -78,7 +78,14 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         } else {
             const productsData = snapshot.docs.map(doc => {
               const data = doc.data();
-              return { ...data, id: doc.id } as Product
+              const product: Product = { ...data, id: doc.id } as Product;
+              // Ensure timestamps are converted to Dates for client-side use
+              Object.keys(product).forEach(key => {
+                if (product[key] instanceof Timestamp) {
+                    product[key] = (product[key] as Timestamp).toDate();
+                }
+              });
+              return product;
             });
             setProducts(productsData);
             
@@ -212,7 +219,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       const docSnap = await getDoc(productDoc);
       if (docSnap.exists()) {
         const data = docSnap.data();
-        return { id: docSnap.id, ...data } as Product;
+        const product: Product = { id: docSnap.id, ...data } as Product;
+        Object.keys(product).forEach(key => {
+            if (product[key] instanceof Timestamp) {
+                product[key] = (product[key] as Timestamp).toDate();
+            }
+        });
+        return product;
       } else {
         return undefined;
       }

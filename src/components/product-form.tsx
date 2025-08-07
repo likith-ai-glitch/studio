@@ -48,8 +48,10 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
     const baseValues: Record<string, any> = {};
     productKeys.forEach(key => {
         let value = initialData?.[key];
-        if (value instanceof Timestamp) {
+        if (key === 'startDate' || key === 'lastUpdatedDate') {
+          if (value instanceof Timestamp) {
             value = value.toDate();
+          }
         }
         baseValues[key] = value ?? '';
     });
