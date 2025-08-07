@@ -61,15 +61,20 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const safelyParseJSON = (key: string, defaultValue: any) => {
       try {
         const item = window.localStorage.getItem(key);
-        return item ? JSON.parse(item) : defaultValue;
+        // Added a check to ensure the item is not null or undefined before parsing.
+        if (item) {
+          return JSON.parse(item);
+        }
+        return defaultValue;
       } catch (error) {
         console.warn(`Could not parse ${key} from localStorage`, error);
+        window.localStorage.removeItem(key); // Clear corrupted data
         return defaultValue;
       }
     };
     
     setHeaderNames(safelyParseJSON(HEADER_NAMES_STORAGE_KEY, {}));
-    setHomePageVisibleFields(safelyParseJSON(HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY, { category: true }));
+    setHomePageVisibleFields(safelyParseJSON(HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY, { category: true, price: true }));
 
     const unsubscribe = onSnapshot(productsCollectionRef, async (snapshot) => {
         if (snapshot.empty && initialProducts.length > 0) {
@@ -95,7 +100,16 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         } else {
             const productsData = snapshot.docs.map(doc => {
               const data = doc.data();
-              return { ...data, partId: doc.id } as Product;
+              // Ensure Timestamps are converted to Dates
+              const productWithDates: Record<string, any> = {};
+              for (const key in data) {
+                if (data[key] instanceof Timestamp) {
+                  productWithDates[key] = data[key].toDate();
+                } else {
+                  productWithDates[key] = data[key];
+                }
+              }
+              return { ...productWithDates, partId: doc.id } as Product;
             });
             setProducts(productsData);
             
@@ -104,13 +118,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
             const fixedOrder = ['partId', 'productId', 'name', 'brand', 'category', 'status', 'startDate', 'lastUpdatedDate'];
             
-            // For admin table column order
             const savedOrder = safelyParseJSON(COLUMN_ORDER_STORAGE_KEY, []);
             const validSavedOrder = savedOrder.filter((k: string) => allKeys.has(k));
-            const newKeys = Array.from(allKeys).filter(k => !validSavedOrder.includes(k));
-            setProductKeys([...validSavedOrder, ...newKeys]);
+            const newKeys = Array.from(allKeys).filter(k => !validSavedOrder.includes(k) && !fixedOrder.includes(k));
+            const finalKeys = [...fixedOrder.filter(k => allKeys.has(k)), ...validSavedOrder.filter(k => !fixedOrder.includes(k)), ...newKeys];
+            setProductKeys([...new Set(finalKeys)]);
             
-            // For home page field order
             const homeSavedOrder = safelyParseJSON(HOME_PAGE_FIELD_ORDER_STORAGE_KEY, []);
             const homeConfigurableFields = Array.from(allKeys).filter(k => !['partId', 'productId', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'].includes(k));
             const validHomeSavedOrder = homeSavedOrder.filter((k: string) => homeConfigurableFields.includes(k));
@@ -134,12 +147,14 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   }, [toast]);
   
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
-    const { partId, ...restOfData } = productData;
-
     const newProduct: Record<string, any> = {
-      ...restOfData,
+      ...productData,
       status: productData.status || 'Available',
     };
+    
+    // Let firestore generate the ID, then update the doc with it.
+    const newDocRef = doc(collection(db, "products"));
+    newProduct.partId = newDocRef.id;
 
     Object.keys(newProduct).forEach(key => {
         if (newProduct[key] instanceof Date) {
@@ -147,24 +162,44 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         }
     });
     
-    const docRef = await addDoc(productsCollectionRef, newProduct);
-    await setDoc(docRef, { partId: docRef.id }, { merge: true });
+    await setDoc(newDocRef, newProduct);
   };
 
-  const updateProduct = async (productData: ProductFormValues, partId: string): Promise<void> => {
+  const updateProduct = async (productData: ProductFormValues, currentPartId: string): Promise<void> => {
     const { partId: formPartId, ...restOfData } = productData;
-    const cleanData: Record<string, any> = { ...restOfData };
-    
-    Object.keys(cleanData).forEach(key => {
-        if (cleanData[key] instanceof Date) {
-            cleanData[key] = Timestamp.fromDate(cleanData[key]);
-        } else if (cleanData[key] === null || cleanData[key] === undefined || cleanData[key] === '') {
-            cleanData[key] = deleteField();
-        }
-    });
-    
-    const docRef = doc(db, 'products', partId);
-    await setDoc(docRef, cleanData, { merge: true });
+
+    if (formPartId && formPartId !== currentPartId) {
+        // ID has changed, so we create a new doc and delete the old one.
+        const newProduct = { ...productData };
+
+        Object.keys(newProduct).forEach(key => {
+            if (newProduct[key] instanceof Date) {
+                newProduct[key] = Timestamp.fromDate(newProduct[key] as Date);
+            }
+        });
+        
+        const batch = writeBatch(db);
+        const newDocRef = doc(db, 'products', newProduct.partId!);
+        batch.set(newDocRef, newProduct);
+        const oldDocRef = doc(db, 'products', currentPartId);
+        batch.delete(oldDocRef);
+        await batch.commit();
+
+    } else {
+        // Standard update
+        const cleanData: Record<string, any> = { ...restOfData };
+        
+        Object.keys(cleanData).forEach(key => {
+            if (cleanData[key] instanceof Date) {
+                cleanData[key] = Timestamp.fromDate(cleanData[key]);
+            } else if (cleanData[key] === null || cleanData[key] === undefined || cleanData[key] === '') {
+                cleanData[key] = deleteField();
+            }
+        });
+        
+        const docRef = doc(db, 'products', currentPartId);
+        await setDoc(docRef, cleanData, { merge: true });
+    }
   };
 
   const deleteProduct = async (partId: string) => {
@@ -203,6 +238,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       if (docSnap.exists()) {
         const data = docSnap.data();
         const product: Product = { partId: docSnap.id, ...data } as Product;
+        // Convert Timestamps to Dates
+        for (const key in product) {
+            if (product[key] instanceof Timestamp) {
+                product[key] = product[key].toDate();
+            }
+        }
         return product;
       } else {
         return undefined;
