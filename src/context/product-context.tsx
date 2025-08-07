@@ -3,7 +3,7 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, setDoc, deleteDoc, getDoc, writeBatch, getDocs, deleteField } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, getDoc, writeBatch, getDocs, deleteField, Timestamp } from 'firebase/firestore';
 import { products as initialProducts } from '@/lib/products';
 import type { Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -75,7 +75,17 @@ export function ProductProvider({ children }: { children: ReactNode }) {
               setLoading(false);
             }
         } else {
-            const productsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Product));
+            const productsData = snapshot.docs.map(doc => {
+              const data = doc.data();
+              // Convert Firestore Timestamps to JS Date objects
+              if (data.startDate && data.startDate instanceof Timestamp) {
+                data.startDate = data.startDate.toDate();
+              }
+              if (data.lastUpdatedDate && data.lastUpdatedDate instanceof Timestamp) {
+                data.lastUpdatedDate = data.lastUpdatedDate.toDate();
+              }
+              return { ...data, id: doc.id } as Product
+            });
             setProducts(productsData);
             
             const keys = new Set<string>();
@@ -96,7 +106,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             if (validSavedOrder.length > 0) {
               setProductKeys([...validSavedOrder, ...unsavedKeys]);
             } else {
-              const fixedOrder = ['id', 'name', 'description', 'brand', 'category', 'status'];
+              const fixedOrder = ['id', 'name', 'description', 'brand', 'category', 'status', 'startDate', 'lastUpdatedDate'];
               const dynamicKeys = allKeys.filter(k => !fixedOrder.includes(k)).sort();
               setProductKeys([...fixedOrder.filter(k => allKeys.includes(k)), ...dynamicKeys]);
             }
@@ -193,7 +203,14 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       const productDoc = doc(db, 'products', productId);
       const docSnap = await getDoc(productDoc);
       if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as Product;
+        const data = docSnap.data();
+        if (data.startDate && data.startDate instanceof Timestamp) {
+            data.startDate = data.startDate.toDate();
+        }
+        if (data.lastUpdatedDate && data.lastUpdatedDate instanceof Timestamp) {
+            data.lastUpdatedDate = data.lastUpdatedDate.toDate();
+        }
+        return { id: docSnap.id, ...data } as Product;
       } else {
         return undefined;
       }

@@ -26,6 +26,8 @@ const formSchema = z.object({
   brand: z.string().min(2, { message: 'Brand must be at least 2 characters.' }),
   category: z.string().min(2, { message: 'Category must be at least 2 characters.' }),
   status: z.string().optional(),
+  startDate: z.date().optional(),
+  lastUpdatedDate: z.date().optional(),
 }).catchall(z.any());
 
 type ProductFormValues = z.infer<typeof formSchema>;
@@ -41,35 +43,17 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   const { productKeys, headerNames } = useProducts();
 
   const defaultValues = useMemo(() => {
-    const baseValues: Record<string, any> = {
-      id: '',
-      name: '',
-      description: '',
-      brand: '',
-      category: '',
-      status: 'Available',
-    };
-
     if (!initialData) {
-      return baseValues;
+       const baseValues: Record<string, any> = {};
+       productKeys.forEach(key => {
+         baseValues[key] = '';
+       });
+       baseValues['status'] = 'Available';
+       return baseValues;
     }
     
     const values = productKeys.reduce((acc, key) => {
-      let value = initialData[key];
-      if (key === 'startDate' || key === 'lastUpdatedDate') {
-        // Ensure date strings from Firestore are converted to Date objects for the form
-        if (value && typeof value === 'string') {
-          const date = new Date(value);
-          if (!isNaN(date.getTime())) {
-            value = date;
-          } else {
-            value = undefined; // Set to undefined if invalid date string
-          }
-        } else if (!(value instanceof Date)) {
-          value = undefined;
-        }
-      }
-      acc[key] = value ?? '';
+      acc[key] = initialData[key] ?? '';
       return acc;
     }, {} as Record<string, any>);
     
@@ -77,7 +61,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   }, [initialData, productKeys]);
 
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<ProductFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues,
   });
@@ -88,18 +72,19 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
     reset(defaultValues);
   }, [initialData, defaultValues, reset]);
 
-  const onFormSubmit = async (values: z.infer<typeof formSchema>) => {
-    const dataWithDatesFormatted = { ...values };
+  const onFormSubmit = async (values: ProductFormValues) => {
+    const dataWithDatesFormatted: Record<string, any> = { ...values };
     productKeys.forEach(key => {
       if (key === 'startDate' || key === 'lastUpdatedDate') {
-        if (values[key] instanceof Date) {
-          dataWithDatesFormatted[key] = format(values[key], 'yyyy-MM-dd');
+        const dateValue = values[key];
+        if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
+          dataWithDatesFormatted[key] = format(dateValue, 'yyyy-MM-dd');
         } else {
            dataWithDatesFormatted[key] = '';
         }
       }
     });
-    await onSubmit(dataWithDatesFormatted, initialData?.id);
+    await onSubmit(dataWithDatesFormatted as ProductFormValues, initialData?.id);
   }
 
   const getLabel = (key: string) => {
