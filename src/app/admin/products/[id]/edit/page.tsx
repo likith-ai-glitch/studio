@@ -13,7 +13,7 @@ import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
-  partId: z.string().optional(),
+  partId: z.string().min(1, { message: 'Part ID cannot be empty.' }),
   productId: z.string().min(3),
   name: z.string().min(2),
   brand: z.string().min(2),
@@ -79,7 +79,8 @@ export default function EditProductPage() {
         title: 'Product Updated',
         description: `${data.name} has been successfully updated.`,
       });
-      router.push('/admin');
+      // If the partId changed, the route will be different
+      router.push(`/admin`);
     } catch (error) {
         console.error(error);
         toast({

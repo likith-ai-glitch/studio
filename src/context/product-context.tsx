@@ -83,8 +83,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             const batch = writeBatch(db);
             initialProducts.forEach((product) => {
                 const docRef = doc(db, "products", product.partId);
+                const {partId, ...productData} = product;
                 const productWithDates = {
-                    ...product,
+                    ...productData,
                     startDate: product.startDate ? Timestamp.fromDate(new Date(product.startDate)) : null,
                     lastUpdatedDate: product.lastUpdatedDate ? Timestamp.fromDate(new Date(product.lastUpdatedDate)) : null,
                 };
@@ -147,15 +148,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   }, [toast]);
   
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
+    // Let firestore generate the ID
+    const newDocRef = doc(collection(db, "products"));
+    const { partId, ...newProductData } = productData;
+
     const newProduct: Record<string, any> = {
-      ...productData,
+      ...newProductData,
       status: productData.status || 'Available',
     };
     
-    // Let firestore generate the ID, then update the doc with it.
-    const newDocRef = doc(collection(db, "products"));
-    newProduct.partId = newDocRef.id;
-
     Object.keys(newProduct).forEach(key => {
         if (newProduct[key] instanceof Date) {
             newProduct[key] = Timestamp.fromDate(newProduct[key]);
@@ -170,7 +171,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
     if (formPartId && formPartId !== currentPartId) {
         // ID has changed, so we create a new doc and delete the old one.
-        const newProduct = { ...productData };
+        const { partId, ...productProperties } = productData;
+        const newProduct: Record<string, any> = { ...productProperties };
 
         Object.keys(newProduct).forEach(key => {
             if (newProduct[key] instanceof Date) {
@@ -179,14 +181,16 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         });
         
         const batch = writeBatch(db);
-        const newDocRef = doc(db, 'products', newProduct.partId!);
+        const newDocRef = doc(db, 'products', formPartId);
         batch.set(newDocRef, newProduct);
+        
         const oldDocRef = doc(db, 'products', currentPartId);
         batch.delete(oldDocRef);
+        
         await batch.commit();
 
     } else {
-        // Standard update
+        // Standard update, partId has not changed
         const cleanData: Record<string, any> = { ...restOfData };
         
         Object.keys(cleanData).forEach(key => {
@@ -237,14 +241,16 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       const docSnap = await getDoc(productDoc);
       if (docSnap.exists()) {
         const data = docSnap.data();
-        const product: Product = { partId: docSnap.id, ...data } as Product;
-        // Convert Timestamps to Dates
-        for (const key in product) {
-            if (product[key] instanceof Timestamp) {
-                product[key] = product[key].toDate();
+        // Convert Timestamps to Dates before returning
+        const productDataWithDates: Record<string, any> = {};
+         for (const key in data) {
+            if (data[key] instanceof Timestamp) {
+                productDataWithDates[key] = data[key].toDate();
+            } else {
+                productDataWithDates[key] = data[key];
             }
         }
-        return product;
+        return { partId: docSnap.id, ...productDataWithDates } as Product;
       } else {
         return undefined;
       }
