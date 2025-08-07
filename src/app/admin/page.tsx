@@ -114,7 +114,7 @@ export default function AdminPage() {
   
   const homePageConfigurableFields = useMemo(() => {
     const coreFields = ['id', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'];
-    return productKeys.filter(k => !coreFields.includes(k) && k !== 'description');
+    return productKeys.filter(k => !coreFields.includes(k));
   }, [productKeys]);
 
 
@@ -594,4 +594,16 @@ export default function AdminPage() {
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
                 This action cannot be undone. This will permanently delete the product.
-              </d
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setDeleteTarget(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                  Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
