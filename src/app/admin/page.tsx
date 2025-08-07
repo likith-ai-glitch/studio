@@ -96,7 +96,7 @@ export default function AdminPage() {
   }, [homePageFieldOrder]);
 
 
-  const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
+  const totalRevenue = orders.reduce((sum, order) => sum + Number(order.total), 0);
   const totalSales = orders.length;
 
   const availableProducts = useMemo(() => {
@@ -608,5 +608,7 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    
 
     
