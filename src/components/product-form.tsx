@@ -21,7 +21,6 @@ import { Timestamp } from 'firebase/firestore';
 
 
 const formSchema = z.object({
-  partId: z.string().optional(),
   productId: z.string().min(3, { message: 'Product ID must be at least 3 characters.' }),
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   brand: z.string().min(2, { message: 'Brand must be at least 2 characters.' }),
@@ -54,8 +53,6 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
     });
     if (!initialData) {
         baseValues['status'] = 'Available';
-    } else {
-        baseValues['partId'] = initialData.partId;
     }
     return baseValues;
   }, [initialData, productKeys]);
@@ -73,17 +70,12 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   }, [initialData, defaultValues, reset]);
 
   const onFormSubmit = async (values: ProductFormValues) => {
-    const submissionData = { ...values };
-    if (initialData?.partId) {
-      submissionData.partId = initialData.partId;
-    }
-    await onSubmit(submissionData);
+    await onSubmit(values);
   }
 
   const getLabel = (key: string) => {
      const customLabel = headerNames[key] || (key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'));
      if (key === 'productId') return 'Product ID';
-     if (key === 'partId') return 'Part ID';
      return customLabel;
   }
   
@@ -183,7 +175,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                     <FormItem>
                       <FormLabel>{label}</FormLabel>
                       <FormControl>
-                        <Input {...field} value={field.value ?? ''} />
+                        <Input {...field} value={field.value ?? ''} disabled={key === 'productId' && !!initialData} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -205,3 +197,5 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
     </Form>
   );
 }
+
+    

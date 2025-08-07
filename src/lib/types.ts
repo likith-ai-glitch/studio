@@ -1,6 +1,5 @@
 
 export interface Product {
-  partId: string;
   productId: string;
   name: string;
   brand: string;
@@ -39,3 +38,5 @@ export interface Order {
   orderDate: Date;
   status: OrderStatus;
 }
+
+    

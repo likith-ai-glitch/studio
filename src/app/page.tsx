@@ -52,7 +52,7 @@ export default function Home() {
         <section className="space-y-6">
            <h2 className="text-3xl font-bold font-headline text-center">Featured Products</h2>
            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-             {featuredProducts.map(p => <ProductCard key={p.partId} product={p as Product} />)}
+             {featuredProducts.map(p => <ProductCard key={p.productId} product={p as Product} />)}
            </div>
         </section>
       )}
@@ -80,7 +80,7 @@ export default function Home() {
           ) : filteredProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProducts.map((product) => (
-                <ProductCard key={product.partId} product={product as Product} />
+                <ProductCard key={product.productId} product={product as Product} />
               ))}
             </div>
           ) : (
@@ -94,3 +94,5 @@ export default function Home() {
     </div>
   );
 }
+
+    

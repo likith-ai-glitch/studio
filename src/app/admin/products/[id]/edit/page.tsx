@@ -78,12 +78,12 @@ export default function EditProductPage() {
         description: `${data.name} has been successfully updated.`,
       });
       router.push(`/admin`);
-    } catch (error) {
+    } catch (error: any) {
         console.error(error);
         toast({
           id: toastId,
           title: 'Error',
-          description: 'Failed to update product.',
+          description: error.message || 'Failed to update product.',
           variant: 'destructive',
         });
     } finally {
@@ -104,3 +104,5 @@ export default function EditProductPage() {
     </div>
   );
 }
+
+    

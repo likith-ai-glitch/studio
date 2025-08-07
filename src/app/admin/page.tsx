@@ -26,7 +26,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   Dialog,
@@ -102,12 +101,12 @@ export default function AdminPage() {
   }, [products]);
 
   const deletableColumns = useMemo(() => {
-    const coreFields = ['partId'];
+    const coreFields = ['productId'];
     return productKeys.filter(k => !coreFields.includes(k));
   }, [productKeys]);
   
   const homePageConfigurableFields = useMemo(() => {
-    const coreFields = ['partId', 'productId', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'];
+    const coreFields = ['productId', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'];
     return productKeys.filter(k => !coreFields.includes(k));
   }, [productKeys]);
 
@@ -550,10 +549,10 @@ export default function AdminPage() {
                   </TableHeader>
                   <TableBody>
                     {sortedAndFilteredProducts.map((product) => (
-                      <TableRow key={product.partId}>
+                      <TableRow key={product.productId}>
                         {productKeys.map(key => (
-                          <TableCell key={key} className={key === 'partId' ? 'font-mono text-xs' : ''}>
-                            {key === 'partId' ? product.partId.substring(0,8) + '...' : String(product[key as keyof Product] ?? '')}
+                          <TableCell key={key} className={key === 'productId' ? 'font-mono text-xs' : ''}>
+                            {String(product[key as keyof Product] ?? '')}
                           </TableCell>
                         ))}
                         <TableCell>
@@ -567,10 +566,10 @@ export default function AdminPage() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
                               <DropdownMenuItem asChild>
-                                <Link href={`/admin/products/${product.partId}/edit`}>Edit</Link>
+                                <Link href={`/admin/products/${product.productId}/edit`}>Edit</Link>
                               </DropdownMenuItem>
                               <AlertDialogTrigger asChild>
-                                <DropdownMenuItem className="text-destructive" onSelect={(e) => {e.preventDefault(); setDeleteTarget(product.partId);}}>
+                                <DropdownMenuItem className="text-destructive" onSelect={(e) => {e.preventDefault(); setDeleteTarget(product.productId);}}>
                                   Delete
                                 </DropdownMenuItem>
                               </AlertDialogTrigger>
@@ -603,3 +602,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    

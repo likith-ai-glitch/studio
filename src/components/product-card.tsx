@@ -35,7 +35,7 @@ export function ProductCard({ product }: ProductCardProps) {
   const isUnavailable = product.status === 'Unavailable';
 
   const productDetails = homePageFieldOrder
-    .filter(key => homePageVisibleFields[key] && product[key] && !['partId', 'productId', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'].includes(key) )
+    .filter(key => homePageVisibleFields[key] && product[key] && !['productId', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'].includes(key) )
     .map(key => ({
       label: headerNames[key] || key.charAt(0).toUpperCase() + key.slice(1),
       value: product[key],
@@ -54,7 +54,7 @@ export function ProductCard({ product }: ProductCardProps) {
     };
 
     const orderItem = {
-      id: product.partId,
+      id: product.productId,
       name: product.name,
       quantity: 1,
       price: product.price || 99.99, // Fallback price
@@ -72,7 +72,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Card className="flex flex-col h-full overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-        <Link href={`/products/${product.partId}`} className="flex flex-col flex-grow bg-card rounded-lg">
+        <Link href={`/products/${product.productId}`} className="flex flex-col flex-grow bg-card rounded-lg">
             <CardHeader className="p-0">
             <div className="relative">
                 <div className={cn("flex items-center justify-center bg-muted w-full h-48", isUnavailable && "grayscale")}>
@@ -117,3 +117,5 @@ export function ProductCard({ product }: ProductCardProps) {
     </Card>
   );
 }
+
+    

@@ -17,7 +17,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
         const p = await getProduct(params.id);
         setProduct(p);
     }
-    const foundProduct = products.find((p) => p.partId === params.id);
+    const foundProduct = products.find((p) => p.productId === params.id);
     if(foundProduct){
         setProduct(foundProduct);
     } else {
@@ -38,10 +38,10 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
     notFound();
   }
   
-  const relatedProducts = products.filter(p => p.partId !== product.partId && p.category === product.category).slice(0, 3);
+  const relatedProducts = products.filter(p => p.productId !== product.productId && p.category === product.category).slice(0, 3);
   
   const productDetails = homePageFieldOrder
-    .filter(key => homePageVisibleFields[key] && product[key] && !['partId', 'productId', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'].includes(key) )
+    .filter(key => homePageVisibleFields[key] && product[key] && !['productId', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'].includes(key) )
     .map(key => ({
       label: headerNames[key] || key.charAt(0).toUpperCase() + key.slice(1),
       value: product[key],
@@ -76,10 +76,12 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
         <div className="space-y-6">
            <h2 className="text-3xl font-bold font-headline text-center">Related Products</h2>
            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-             {relatedProducts.map(p => <ProductCard key={p.partId} product={p} />)}
+             {relatedProducts.map(p => <ProductCard key={p.productId} product={p} />)}
            </div>
         </div>
       )}
     </div>
   );
 }
+
+    

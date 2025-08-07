@@ -10,7 +10,6 @@ import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 
 const formSchema = z.object({
-  partId: z.string().optional(),
   productId: z.string().min(3),
   name: z.string().min(2),
   brand: z.string().min(2),
@@ -27,8 +26,8 @@ interface ProductContextType {
   loading: boolean;
   addProduct: (productData: ProductFormValues) => Promise<void>;
   updateProduct: (productData: ProductFormValues) => Promise<void>;
-  deleteProduct: (partId: string) => Promise<void>;
-  getProduct: (partId: string) => Promise<Product | undefined>;
+  deleteProduct: (productId: string) => Promise<void>;
+  getProduct: (productId: string) => Promise<Product | undefined>;
   addColumn: (columnName: string) => Promise<void>;
   deleteColumn: (columnName: string) => Promise<void>;
   setColumnOrder: (order: string[]) => void;
@@ -81,8 +80,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             setLoading(true);
             const batch = writeBatch(db);
             initialProducts.forEach((product) => {
-                const docRef = doc(db, "products", product.partId);
-                const {partId, ...productData} = product;
+                const docRef = doc(db, "products", product.productId);
+                const { ...productData} = product;
                 const productWithDates = {
                     ...productData,
                     startDate: product.startDate ? Timestamp.fromDate(new Date(product.startDate)) : null,
@@ -108,15 +107,14 @@ export function ProductProvider({ children }: { children: ReactNode }) {
                   productWithDates[key] = data[key];
                 }
               }
-              return { ...productWithDates, partId: doc.id } as Product;
+              return { ...productWithDates, productId: doc.id } as Product;
             });
             setProducts(productsData);
             
             const allKeys = new Set<string>();
             productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
 
-            const fixedOrder = ['partId', 'productId', 'name', 'brand', 'category', 'status', 'startDate', 'lastUpdatedDate'];
-            const deletableCoreFields = ['name', 'brand', 'category', 'status', 'productId'];
+            const fixedOrder = ['productId', 'name', 'brand', 'category', 'status', 'startDate', 'lastUpdatedDate'];
             
             const savedOrder = safelyParseJSON(COLUMN_ORDER_STORAGE_KEY, []);
             const validSavedOrder = savedOrder.filter((k: string) => allKeys.has(k));
@@ -125,7 +123,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             setProductKeys([...new Set(finalKeys)]);
             
             const homeSavedOrder = safelyParseJSON(HOME_PAGE_FIELD_ORDER_STORAGE_KEY, []);
-            const homeConfigurableFields = Array.from(allKeys).filter(k => !['partId', 'productId', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'].includes(k));
+            const homeConfigurableFields = Array.from(allKeys).filter(k => !['productId', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'].includes(k));
             const validHomeSavedOrder = homeSavedOrder.filter((k: string) => homeConfigurableFields.includes(k));
             const newHomeKeys = homeConfigurableFields.filter(k => !validHomeSavedOrder.includes(k));
             setHomePageFieldOrder([...validHomeSavedOrder, ...newHomeKeys]);
@@ -147,11 +145,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   }, [toast]);
   
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
-    const newDocRef = doc(collection(db, "products"));
-    const { partId, ...newProductData } = productData;
+    const docRef = doc(db, "products", productData.productId);
+    
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      throw new Error(`Product with ID "${productData.productId}" already exists.`);
+    }
 
     const newProduct: Record<string, any> = {
-      ...newProductData,
+      ...productData,
       status: productData.status || 'Available',
     };
     
@@ -161,38 +163,38 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         }
     });
     
-    await setDoc(newDocRef, newProduct);
+    await setDoc(docRef, newProduct);
   };
 
   const updateProduct = async (productData: ProductFormValues): Promise<void> => {
-    const { partId, ...restOfData } = productData;
+    const { productId, ...restOfData } = productData;
 
-    if (!partId) {
-        throw new Error("partId is missing, cannot update product.");
+    if (!productId) {
+        throw new Error("productId is missing, cannot update product.");
     }
 
-    const docRef = doc(db, 'products', partId);
+    const docRef = doc(db, 'products', productId);
     const cleanData: Record<string, any> = { ...restOfData };
     
     Object.keys(cleanData).forEach(key => {
         if (cleanData[key] instanceof Date) {
             cleanData[key] = Timestamp.fromDate(cleanData[key]);
         } else if (cleanData[key] === null || cleanData[key] === undefined || cleanData[key] === '') {
-            // Keep the field to allow clearing it, don't delete. Firestore handles nulls.
+            cleanData[key] = deleteField();
         }
     });
     
     await setDoc(docRef, cleanData, { merge: true });
   };
 
-  const deleteProduct = async (partId: string) => {
-    const productToDelete = products.find(p => p.partId === partId);
+  const deleteProduct = async (productId: string) => {
+    const productToDelete = products.find(p => p.productId === productId);
     if (!productToDelete) return;
     
     const originalProducts = products;
-    setProducts(prev => prev.filter(p => p.partId !== partId));
+    setProducts(prev => prev.filter(p => p.productId !== productId));
     
-    const productDocRef = doc(db, 'products', partId);
+    const productDocRef = doc(db, 'products', productId);
     try {
       await deleteDoc(productDocRef);
       toast({
@@ -211,12 +213,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const getProduct = async (partId: string): Promise<Product | undefined> => {
-    const localProduct = products.find(p => p.partId === partId);
+  const getProduct = async (productId: string): Promise<Product | undefined> => {
+    const localProduct = products.find(p => p.productId === productId);
     if (localProduct) return localProduct;
 
     try {
-      const productDoc = doc(db, 'products', partId);
+      const productDoc = doc(db, 'products', productId);
       const docSnap = await getDoc(productDoc);
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -228,7 +230,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
                 productDataWithDates[key] = data[key];
             }
         }
-        return { partId: docSnap.id, ...productDataWithDates } as Product;
+        return { productId: docSnap.id, ...productDataWithDates } as Product;
       } else {
         return undefined;
       }
@@ -353,3 +355,5 @@ export function useProducts() {
   }
   return context;
 }
+
+    
