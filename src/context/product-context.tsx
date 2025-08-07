@@ -59,7 +59,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
 
     const unsubscribe = onSnapshot(productsCollectionRef, async (snapshot) => {
-        if (snapshot.empty) {
+        if (snapshot.empty && initialProducts.length > 0) {
             console.log("No products found in Firestore. Seeding database...");
             setLoading(true);
             const batch = writeBatch(db);
@@ -70,6 +70,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             try {
               await batch.commit();
               console.log("Seeding complete.");
+              // The onSnapshot listener will be re-triggered with the new data
             } catch (error) {
               console.error("Error seeding database: ", error);
               setLoading(false);
@@ -77,13 +78,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         } else {
             const productsData = snapshot.docs.map(doc => {
               const data = doc.data();
-              // Convert Firestore Timestamps to JS Date objects
-              if (data.startDate && data.startDate instanceof Timestamp) {
-                data.startDate = data.startDate.toDate();
-              }
-              if (data.lastUpdatedDate && data.lastUpdatedDate instanceof Timestamp) {
-                data.lastUpdatedDate = data.lastUpdatedDate.toDate();
-              }
               return { ...data, id: doc.id } as Product
             });
             setProducts(productsData);
@@ -139,10 +133,17 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     
     const { ...restOfData } = productData;
 
-    const newProduct = {
+    const newProduct: Record<string, any> = {
       ...restOfData,
       status: productData.status || 'Available',
     };
+
+    if (newProduct.startDate instanceof Date) {
+      newProduct.startDate = Timestamp.fromDate(newProduct.startDate);
+    }
+    if (newProduct.lastUpdatedDate instanceof Date) {
+      newProduct.lastUpdatedDate = Timestamp.fromDate(newProduct.lastUpdatedDate);
+    }
     
     await setDoc(docRef, newProduct);
   };
@@ -155,7 +156,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       
       const { ...restOfData } = productData;
 
-      const updatedProductData = {
+      const updatedProductData: Record<string, any> = {
         ...oldProduct,
         ...restOfData,
       };
@@ -163,6 +164,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       if (productData.id !== originalId) {
           console.warn("Attempted to change product ID during update, which is not allowed. The original ID will be kept.");
           updatedProductData.id = originalId;
+      }
+      
+      if (updatedProductData.startDate instanceof Date) {
+        updatedProductData.startDate = Timestamp.fromDate(updatedProductData.startDate);
+      }
+      if (updatedProductData.lastUpdatedDate instanceof Date) {
+        updatedProductData.lastUpdatedDate = Timestamp.fromDate(updatedProductData.lastUpdatedDate);
       }
 
       const docRef = doc(db, 'products', originalId);
@@ -204,12 +212,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       const docSnap = await getDoc(productDoc);
       if (docSnap.exists()) {
         const data = docSnap.data();
-        if (data.startDate && data.startDate instanceof Timestamp) {
-            data.startDate = data.startDate.toDate();
-        }
-        if (data.lastUpdatedDate && data.lastUpdatedDate instanceof Timestamp) {
-            data.lastUpdatedDate = data.lastUpdatedDate.toDate();
-        }
         return { id: docSnap.id, ...data } as Product;
       } else {
         return undefined;
@@ -251,8 +253,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const setColumnOrder = (order: string[]) => {
     try {
-      window.localStorage.setItem(COLUMN_ORDER_STORAGE_KEY, JSON.stringify(order));
-      setProductKeys(order);
+      const allKeys = [...productKeys];
+      const newOrder = order.concat(allKeys.filter(k => !order.includes(k)));
+      window.localStorage.setItem(COLUMN_ORDER_STORAGE_KEY, JSON.stringify(newOrder));
+      setProductKeys(newOrder);
     } catch (error) {
       console.error('Failed to save column order to localStorage', error);
       toast({

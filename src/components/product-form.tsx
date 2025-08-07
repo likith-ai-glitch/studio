@@ -18,6 +18,8 @@ import { Loader2, CalendarIcon } from 'lucide-react';
 import { Textarea } from './ui/textarea';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Timestamp } from 'firebase/firestore';
+
 
 const formSchema = z.object({
   id: z.string().min(3, { message: 'Product ID must be at least 3 characters.' }),
@@ -43,21 +45,18 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   const { productKeys, headerNames } = useProducts();
 
   const defaultValues = useMemo(() => {
+    const baseValues: Record<string, any> = {};
+    productKeys.forEach(key => {
+        let value = initialData?.[key];
+        if (value instanceof Timestamp) {
+            value = value.toDate();
+        }
+        baseValues[key] = value ?? '';
+    });
     if (!initialData) {
-       const baseValues: Record<string, any> = {};
-       productKeys.forEach(key => {
-         baseValues[key] = '';
-       });
-       baseValues['status'] = 'Available';
-       return baseValues;
+        baseValues['status'] = 'Available';
     }
-    
-    const values = productKeys.reduce((acc, key) => {
-      acc[key] = initialData[key] ?? '';
-      return acc;
-    }, {} as Record<string, any>);
-    
-    return values;
+    return baseValues;
   }, [initialData, productKeys]);
 
 
@@ -73,26 +72,15 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   }, [initialData, defaultValues, reset]);
 
   const onFormSubmit = async (values: ProductFormValues) => {
-    const dataWithDatesFormatted: Record<string, any> = { ...values };
-    productKeys.forEach(key => {
-      if (key === 'startDate' || key === 'lastUpdatedDate') {
-        const dateValue = values[key];
-        if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
-          dataWithDatesFormatted[key] = format(dateValue, 'yyyy-MM-dd');
-        } else {
-           dataWithDatesFormatted[key] = '';
-        }
-      }
-    });
-    await onSubmit(dataWithDatesFormatted as ProductFormValues, initialData?.id);
+    await onSubmit(values, initialData?.id);
   }
 
   const getLabel = (key: string) => {
     return headerNames[key] || (key.charAt(0).toUpperCase() + key.slice(1));
   }
   
-  const isValidDate = (d: any): d is Date => d instanceof Date && !isNaN(d.getTime());
-
+  const isValueValidDate = (value: any): value is Date =>
+    value instanceof Date && !isNaN(value.getTime());
 
   return (
     <Form {...form}>
@@ -164,7 +152,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                               )}
                               disabled={isSubmitting}
                             >
-                              {isValidDate(field.value) ? (
+                              {isValueValidDate(field.value) ? (
                                 format(field.value, "PPP")
                               ) : (
                                 <span>Pick a date</span>
@@ -176,7 +164,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
                             mode="single"
-                            selected={isValidDate(field.value) ? field.value : undefined}
+                            selected={isValueValidDate(field.value) ? field.value : undefined}
                             onSelect={field.onChange}
                             disabled={(date) =>
                               date > new Date() || date < new Date("1900-01-01")
