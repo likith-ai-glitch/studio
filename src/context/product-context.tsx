@@ -122,7 +122,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             
             const allKeys = new Set<string>();
             productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
-            allKeys.add('quoteTotal'); // Add virtual key
+            allKeys.add('quoteTotal');
 
             if (!allKeys.has('qtyForQuote')) {
                 const batch = writeBatch(db);
@@ -131,12 +131,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
                   batch.update(docRef, { qtyForQuote: 0 });
                 });
                 await batch.commit();
+                allKeys.add('qtyForQuote');
             }
 
             const fixedOrder = ['productId', 'name', 'brand', 'category', 'status', 'price', 'qtyForQuote', 'quoteTotal', 'startDate', 'lastUpdatedDate'];
             
             const savedOrder = safelyParseJSON(COLUMN_ORDER_STORAGE_KEY, []);
-            const validSavedOrder = savedOrder.filter((k: string) => allKeys.has(k));
+            const validSavedOrder = savedOrder.filter((k: string) => allKeys.has(k) || k === 'qtyForQuote' || k === 'quoteTotal');
             const newKeys = Array.from(allKeys).filter(k => !validSavedOrder.includes(k) && !fixedOrder.includes(k));
             const combinedKeys = [...fixedOrder.filter(k => allKeys.has(k)), ...validSavedOrder.filter(k => !fixedOrder.includes(k)), ...newKeys];
             const finalKeys = [...new Set(combinedKeys)];
@@ -154,7 +155,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             const homeSavedOrder = safelyParseJSON(HOME_PAGE_FIELD_ORDER_STORAGE_KEY, allConfigurableHomePageFields);
             const validHomeSavedOrder = homeSavedOrder.filter((k: string) => allConfigurableHomePageFields.includes(k));
             const newHomeKeys = allConfigurableHomePageFields.filter(k => !validHomeSavedOrder.includes(k));
-            setHomePageFieldOrder([...validHomeSavedOrder, ...newHomeKeys]);
+            setHomePageFieldOrder([...new Set([...validHomeSavedOrder, ...newHomeKeys])]);
 
 
             setLoading(false);
@@ -466,3 +467,5 @@ export function useProducts() {
   }
   return context;
 }
+
+    
