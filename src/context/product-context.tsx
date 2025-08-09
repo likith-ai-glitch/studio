@@ -79,7 +79,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       }
     };
     
-    setHeaderNames(safelyParseJSON(HEADER_NAMES_STORAGE_KEY, {'qtyForQuote': 'Qty for Quote'}));
+    setHeaderNames(safelyParseJSON(HEADER_NAMES_STORAGE_KEY, {'qtyForQuote': 'Qty for Quote', 'quoteTotal': 'Quote Total'}));
     setHomePageVisibleFields(safelyParseJSON(HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY, { name: true, brand: true, category: true, price: true }));
 
     const unsubscribe = onSnapshot(productsCollectionRef, async (snapshot) => {
@@ -122,6 +122,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             
             const allKeys = new Set<string>();
             productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
+            allKeys.add('quoteTotal'); // Add virtual key
 
             if (!allKeys.has('qtyForQuote')) {
                 const batch = writeBatch(db);
@@ -132,12 +133,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
                 await batch.commit();
             }
 
-            const fixedOrder = ['productId', 'name', 'brand', 'category', 'status', 'qtyForQuote', 'startDate', 'lastUpdatedDate'];
+            const fixedOrder = ['productId', 'name', 'brand', 'category', 'status', 'price', 'qtyForQuote', 'quoteTotal', 'startDate', 'lastUpdatedDate'];
             
             const savedOrder = safelyParseJSON(COLUMN_ORDER_STORAGE_KEY, []);
             const validSavedOrder = savedOrder.filter((k: string) => allKeys.has(k));
             const newKeys = Array.from(allKeys).filter(k => !validSavedOrder.includes(k) && !fixedOrder.includes(k));
-            const combinedKeys = [...fixedOrder, ...validSavedOrder.filter(k => !fixedOrder.includes(k)), ...newKeys];
+            const combinedKeys = [...fixedOrder.filter(k => allKeys.has(k)), ...validSavedOrder.filter(k => !fixedOrder.includes(k)), ...newKeys];
             const finalKeys = [...new Set(combinedKeys)];
             setProductKeys(finalKeys);
             
@@ -149,7 +150,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             });
             setAdminTableVisibleFields(finalAdminVisibility);
 
-            const allConfigurableHomePageFields = finalKeys.filter(k => !['productId'].includes(k));
+            const allConfigurableHomePageFields = finalKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
             const homeSavedOrder = safelyParseJSON(HOME_PAGE_FIELD_ORDER_STORAGE_KEY, allConfigurableHomePageFields);
             const validHomeSavedOrder = homeSavedOrder.filter((k: string) => allConfigurableHomePageFields.includes(k));
             const newHomeKeys = allConfigurableHomePageFields.filter(k => !validHomeSavedOrder.includes(k));
@@ -210,11 +211,18 @@ export function ProductProvider({ children }: { children: ReactNode }) {
           throw new Error(`Product with new ID "${productId}" already exists.`);
         }
         
+        const oldDataSnap = await getDoc(oldDocRef);
+        const oldData = oldDataSnap.data() || {};
+        
+        const combinedData = { ...oldData, ...restOfData };
+        
         const newProductData: Record<string, any> = {};
-        Object.entries(restOfData).forEach(([key, value]) => {
+        Object.entries(combinedData).forEach(([key, value]) => {
             if (value !== null && value !== undefined && value !== '') {
                  if (value instanceof Date) {
                     newProductData[key] = Timestamp.fromDate(value);
+                } else if (value.toDate && typeof value.toDate === 'function'){
+                    newProductData[key] = value; // It's already a Timestamp
                 } else {
                     newProductData[key] = value;
                 }

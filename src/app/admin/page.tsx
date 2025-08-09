@@ -107,11 +107,11 @@ export default function AdminPage() {
   }, [products]);
 
   const deletableColumns = useMemo(() => {
-    return productKeys.filter(k => k !== 'productId');
+    return productKeys.filter(k => k !== 'productId' && k !== 'quoteTotal');
   }, [productKeys]);
   
   const homePageConfigurableFields = useMemo(() => {
-    return productKeys.filter(k => !['productId'].includes(k));
+    return productKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
   }, [productKeys]);
   
   const visibleProductKeys = useMemo(() => {
@@ -134,9 +134,16 @@ export default function AdminPage() {
     if (sortConfig.key) {
       sortableProducts.sort((a, b) => {
         const key = sortConfig.key as string;
-        
-        const aValue = a[key as keyof Product] ?? '';
-        const bValue = b[key as keyof Product] ?? '';
+
+        let aValue, bValue;
+
+        if (key === 'quoteTotal') {
+            aValue = (a.qtyForQuote || 0) * (a.price || 0);
+            bValue = (b.qtyForQuote || 0) * (b.price || 0);
+        } else {
+            aValue = a[key as keyof Product] ?? '';
+            bValue = b[key as keyof Product] ?? '';
+        }
 
         if (aValue < bValue) {
           return sortConfig.direction === 'ascending' ? -1 : 1;
@@ -236,7 +243,7 @@ export default function AdminPage() {
   
   const handleQtyChange = (productId: string, newQty: string) => {
     const quantity = parseInt(newQty, 10);
-    if (!isNaN(quantity)) {
+    if (!isNaN(quantity) && quantity >= 0) {
         updateProductField(productId, 'qtyForQuote', quantity);
     }
   }
@@ -244,43 +251,47 @@ export default function AdminPage() {
 
   const renderHeader = (key: string) => {
     const headerText = headerNames[key] || (key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'));
+    const isCalculated = key === 'quoteTotal';
+
     return (
         <TableHead key={key}>
             <div className="flex items-center gap-2">
                 <button className="flex items-center gap-1" onClick={() => requestSort(key)}>
                     {headerText} <ArrowUpDown className="inline-block h-4 w-4" />
                 </button>
-                <Dialog open={columnToRename === key} onOpenChange={(isOpen) => !isOpen && setColumnToRename(null)}>
-                    <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
-                            setColumnToRename(key);
-                            setNewHeaderName(headerText);
-                        }}>
-                            <Pencil className="h-3 w-3" />
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Rename Column</DialogTitle>
-                            <DialogDescription>
-                                Change the display name for the &quot;{key}&quot; column.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="py-4">
-                            <Input
-                                value={newHeaderName}
-                                onChange={(e) => setNewHeaderName(e.target.value)}
-                                placeholder="Enter new column name"
-                            />
-                        </div>
-                        <DialogFooter>
-                            <DialogClose asChild>
-                                <Button variant="outline">Cancel</Button>
-                            </DialogClose>
-                            <Button onClick={handleRenameColumn}>Save</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                {!isCalculated && (
+                  <Dialog open={columnToRename === key} onOpenChange={(isOpen) => !isOpen && setColumnToRename(null)}>
+                      <DialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
+                              setColumnToRename(key);
+                              setNewHeaderName(headerText);
+                          }}>
+                              <Pencil className="h-3 w-3" />
+                          </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                          <DialogHeader>
+                              <DialogTitle>Rename Column</DialogTitle>
+                              <DialogDescription>
+                                  Change the display name for the &quot;{key}&quot; column.
+                              </DialogDescription>
+                          </DialogHeader>
+                          <div className="py-4">
+                              <Input
+                                  value={newHeaderName}
+                                  onChange={(e) => setNewHeaderName(e.target.value)}
+                                  placeholder="Enter new column name"
+                              />
+                          </div>
+                          <DialogFooter>
+                              <DialogClose asChild>
+                                  <Button variant="outline">Cancel</Button>
+                              </DialogClose>
+                              <Button onClick={handleRenameColumn}>Save</Button>
+                          </DialogFooter>
+                      </DialogContent>
+                  </Dialog>
+                )}
             </div>
         </TableHead>
     );
@@ -382,7 +393,7 @@ export default function AdminPage() {
                 {productKeys.map(key => (
                   <DropdownMenuCheckboxItem
                     key={key}
-                    checked={adminTableVisibleFields[key]}
+                    checked={!!adminTableVisibleFields[key]}
                     onCheckedChange={() => toggleAdminTableFieldVisibility(key)}
                     onSelect={(e) => e.preventDefault()}
                   >
@@ -588,20 +599,34 @@ export default function AdminPage() {
                   <TableBody>
                     {sortedAndFilteredProducts.map((product) => (
                       <TableRow key={product.productId}>
-                        {visibleProductKeys.map(key => (
-                          <TableCell key={key} className={key === 'productId' ? 'font-mono text-xs' : ''}>
-                             {key === 'qtyForQuote' ? (
+                        {visibleProductKeys.map(key => {
+                          if (key === 'qtyForQuote') {
+                            return (
+                              <TableCell key={key}>
                                 <Input 
-                                    type="number"
-                                    defaultValue={product.qtyForQuote || 0}
-                                    onBlur={(e) => handleQtyChange(product.productId, e.target.value)}
-                                    className="w-20"
+                                  type="number"
+                                  min="0"
+                                  defaultValue={product.qtyForQuote || 0}
+                                  onBlur={(e) => handleQtyChange(product.productId, e.target.value)}
+                                  className="w-20"
                                 />
-                             ) : (
-                                String(product[key as keyof Product] ?? '')
-                             )}
-                          </TableCell>
-                        ))}
+                              </TableCell>
+                            );
+                          }
+                          if (key === 'quoteTotal') {
+                             const quoteTotal = (product.qtyForQuote || 0) * (product.price || 0);
+                             return (
+                               <TableCell key={key} className="text-right">
+                                  {quoteTotal > 0 ? `₹${quoteTotal.toFixed(2)}` : '-'}
+                               </TableCell>
+                             )
+                          }
+                          return (
+                            <TableCell key={key} className={key === 'productId' ? 'font-mono text-xs' : ''}>
+                               {String(product[key as keyof Product] ?? '')}
+                            </TableCell>
+                          )
+                        })}
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
