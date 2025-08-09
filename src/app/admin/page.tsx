@@ -62,6 +62,7 @@ export default function AdminPage() {
     toggleHomePageFieldVisibility,
     adminTableVisibleFields,
     toggleAdminTableFieldVisibility,
+    updateProductField,
   } = useProducts();
   const { orders } = useOrders();
   const [searchTerm, setSearchTerm] = useState('');
@@ -232,6 +233,13 @@ export default function AdminPage() {
     setHomePageFieldOrder(localHomePageOrder);
     setIsHomePageSettingsOpen(false);
   };
+  
+  const handleQtyChange = (productId: string, newQty: string) => {
+    const quantity = parseInt(newQty, 10);
+    if (!isNaN(quantity)) {
+        updateProductField(productId, 'qtyForQuote', quantity);
+    }
+  }
 
 
   const renderHeader = (key: string) => {
@@ -582,7 +590,16 @@ export default function AdminPage() {
                       <TableRow key={product.productId}>
                         {visibleProductKeys.map(key => (
                           <TableCell key={key} className={key === 'productId' ? 'font-mono text-xs' : ''}>
-                            {String(product[key as keyof Product] ?? '')}
+                             {key === 'qtyForQuote' ? (
+                                <Input 
+                                    type="number"
+                                    defaultValue={product.qtyForQuote || 0}
+                                    onBlur={(e) => handleQtyChange(product.productId, e.target.value)}
+                                    className="w-20"
+                                />
+                             ) : (
+                                String(product[key as keyof Product] ?? '')
+                             )}
                           </TableCell>
                         ))}
                         <TableCell>

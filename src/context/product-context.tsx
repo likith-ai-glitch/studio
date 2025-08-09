@@ -3,7 +3,7 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, setDoc, deleteDoc, getDoc, writeBatch, getDocs, deleteField, Timestamp, addDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, getDoc, writeBatch, getDocs, deleteField, Timestamp, addDoc, updateDoc } from 'firebase/firestore';
 import { products as initialProducts } from '@/lib/products';
 import type { Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -26,6 +26,7 @@ interface ProductContextType {
   loading: boolean;
   addProduct: (productData: ProductFormValues) => Promise<void>;
   updateProduct: (productData: ProductFormValues, originalProductId?: string) => Promise<void>;
+  updateProductField: (productId: string, field: string, value: any) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
   getProduct: (productId: string) => Promise<Product | undefined>;
   addColumn: (columnName: string) => Promise<void>;
@@ -78,7 +79,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       }
     };
     
-    setHeaderNames(safelyParseJSON(HEADER_NAMES_STORAGE_KEY, {}));
+    setHeaderNames(safelyParseJSON(HEADER_NAMES_STORAGE_KEY, {'qtyForQuote': 'Qty for Quote'}));
     setHomePageVisibleFields(safelyParseJSON(HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY, { name: true, brand: true, category: true, price: true }));
 
     const unsubscribe = onSnapshot(productsCollectionRef, async (snapshot) => {
@@ -89,7 +90,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             initialProducts.forEach((product) => {
                 const docRef = doc(db, "products", product.productId);
                 const { ...productData} = product;
-                const productWithDates: Record<string, any> = { ...productData };
+                const productWithDates: Record<string, any> = { ...productData, qtyForQuote: 0 };
                  Object.keys(productWithDates).forEach(key => {
                     if (key === 'startDate' || key === 'lastUpdatedDate') {
                         productWithDates[key] = productWithDates[key] ? Timestamp.fromDate(new Date(productWithDates[key])) : null;
@@ -122,7 +123,16 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             const allKeys = new Set<string>();
             productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
 
-            const fixedOrder = ['productId', 'name', 'brand', 'category', 'status', 'startDate', 'lastUpdatedDate'];
+            if (!allKeys.has('qtyForQuote')) {
+                const batch = writeBatch(db);
+                snapshot.docs.forEach(document => {
+                  const docRef = document.ref;
+                  batch.update(docRef, { qtyForQuote: 0 });
+                });
+                await batch.commit();
+            }
+
+            const fixedOrder = ['productId', 'name', 'brand', 'category', 'status', 'qtyForQuote', 'startDate', 'lastUpdatedDate'];
             
             const savedOrder = safelyParseJSON(COLUMN_ORDER_STORAGE_KEY, []);
             const validSavedOrder = savedOrder.filter((k: string) => allKeys.has(k));
@@ -130,6 +140,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             const combinedKeys = [...fixedOrder, ...validSavedOrder.filter(k => !fixedOrder.includes(k)), ...newKeys];
             const finalKeys = [...new Set(combinedKeys)];
             setProductKeys(finalKeys);
+            
 
             const savedAdminVisibility = safelyParseJSON(ADMIN_TABLE_VISIBLE_FIELDS_STORAGE_KEY, {});
             const finalAdminVisibility: Record<string, boolean> = {};
@@ -138,8 +149,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             });
             setAdminTableVisibleFields(finalAdminVisibility);
 
-            const homeSavedOrder = safelyParseJSON(HOME_PAGE_FIELD_ORDER_STORAGE_KEY, []);
             const allConfigurableHomePageFields = finalKeys.filter(k => !['productId'].includes(k));
+            const homeSavedOrder = safelyParseJSON(HOME_PAGE_FIELD_ORDER_STORAGE_KEY, allConfigurableHomePageFields);
             const validHomeSavedOrder = homeSavedOrder.filter((k: string) => allConfigurableHomePageFields.includes(k));
             const newHomeKeys = allConfigurableHomePageFields.filter(k => !validHomeSavedOrder.includes(k));
             setHomePageFieldOrder([...validHomeSavedOrder, ...newHomeKeys]);
@@ -171,6 +182,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const newProduct: Record<string, any> = {
       ...productData,
       status: productData.status || 'Available',
+      qtyForQuote: 0,
     };
     
     Object.keys(newProduct).forEach(key => {
@@ -232,6 +244,24 @@ export function ProductProvider({ children }: { children: ReactNode }) {
        await setDoc(docRef, dataToUpdate, { merge: true });
     }
   };
+  
+  const updateProductField = async (productId: string, field: string, value: any) => {
+    const docRef = doc(db, 'products', productId);
+    try {
+        await updateDoc(docRef, { [field]: value });
+         toast({
+            title: 'Product Updated',
+            description: `Successfully updated ${field}.`,
+        });
+    } catch (error) {
+        console.error("Error updating product field: ", error);
+        toast({
+            title: 'Error',
+            description: `Failed to update ${field}.`,
+            variant: 'destructive',
+        });
+    }
+  }
 
 
   const deleteProduct = async (productId: string) => {
@@ -402,6 +432,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         loading, 
         addProduct, 
         updateProduct, 
+        updateProductField,
         deleteProduct, 
         getProduct, 
         addColumn, 
