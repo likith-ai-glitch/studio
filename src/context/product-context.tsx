@@ -36,6 +36,8 @@ interface ProductContextType {
   setHomePageFieldOrder: (order: string[]) => void;
   homePageVisibleFields: Record<string, boolean>;
   toggleHomePageFieldVisibility: (key: string) => void;
+  adminTableVisibleFields: Record<string, boolean>;
+  toggleAdminTableFieldVisibility: (key: string) => void;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
@@ -44,6 +46,7 @@ const COLUMN_ORDER_STORAGE_KEY = 'shopstream_column_order';
 const HEADER_NAMES_STORAGE_KEY = 'shopstream_header_names';
 const HOME_PAGE_FIELD_ORDER_STORAGE_KEY = 'shopstream_homepage_field_order';
 const HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY = 'shopstream_homepage_visible_fields';
+const ADMIN_TABLE_VISIBLE_FIELDS_STORAGE_KEY = 'shopstream_admintable_visible_fields';
 
 
 export function ProductProvider({ children }: { children: ReactNode }) {
@@ -53,6 +56,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [homePageFieldOrder, setHomePageFieldOrder] = useState<string[]>([]);
   const [homePageVisibleFields, setHomePageVisibleFields] = useState<Record<string, boolean>>({});
+  const [adminTableVisibleFields, setAdminTableVisibleFields] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
   const productsCollectionRef = collection(db, 'products');
 
@@ -123,11 +127,18 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             const savedOrder = safelyParseJSON(COLUMN_ORDER_STORAGE_KEY, []);
             const validSavedOrder = savedOrder.filter((k: string) => allKeys.has(k));
             const newKeys = Array.from(allKeys).filter(k => !validSavedOrder.includes(k) && !fixedOrder.includes(k));
-            const finalKeys = [...fixedOrder.filter(k => allKeys.has(k)), ...validSavedOrder.filter(k => !fixedOrder.includes(k)), ...newKeys];
-            setProductKeys([...new Set(finalKeys)]);
-            
+            const finalKeys = [...new Set(finalKeys)];
+            setProductKeys(finalKeys);
+
+            const savedAdminVisibility = safelyParseJSON(ADMIN_TABLE_VISIBLE_FIELDS_STORAGE_KEY, {});
+            const finalAdminVisibility: Record<string, boolean> = {};
+            finalKeys.forEach(key => {
+              finalAdminVisibility[key] = savedAdminVisibility[key] ?? true; // Default to visible
+            });
+            setAdminTableVisibleFields(finalAdminVisibility);
+
             const homeSavedOrder = safelyParseJSON(HOME_PAGE_FIELD_ORDER_STORAGE_KEY, []);
-            const allConfigurableHomePageFields = Array.from(allKeys).filter(k => k !== 'productId');
+            const allConfigurableHomePageFields = finalKeys.filter(k => !['productId'].includes(k));
             const validHomeSavedOrder = homeSavedOrder.filter((k: string) => allConfigurableHomePageFields.includes(k));
             const newHomeKeys = allConfigurableHomePageFields.filter(k => !validHomeSavedOrder.includes(k));
             setHomePageFieldOrder([...validHomeSavedOrder, ...newHomeKeys]);
@@ -365,6 +376,21 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       console.error('Failed to save home page visibility to localStorage', error);
     }
   };
+  
+  const toggleAdminTableFieldVisibility = (key: string) => {
+    const newVisibility = {
+      ...adminTableVisibleFields,
+      [key]: !adminTableVisibleFields[key],
+    };
+    setAdminTableVisibleFields(newVisibility);
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(ADMIN_TABLE_VISIBLE_FIELDS_STORAGE_KEY, JSON.stringify(newVisibility));
+      }
+    } catch (error) {
+      console.error('Failed to save admin table visibility to localStorage', error);
+    }
+  };
 
 
   return (
@@ -385,6 +411,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         setHomePageFieldOrder: setHomePageOrder,
         homePageVisibleFields,
         toggleHomePageFieldVisibility: toggleHomePageVisibility,
+        adminTableVisibleFields,
+        toggleAdminTableFieldVisibility: toggleAdminTableFieldVisibility,
     }}>
       {children}
     </ProductContext.Provider>

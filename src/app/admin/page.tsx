@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings, View } from 'lucide-react';
 import Link from 'next/link';
 import {
     DropdownMenu,
@@ -16,6 +16,8 @@ import {
     DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuTrigger,
+    DropdownMenuCheckboxItem,
+    DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
@@ -26,7 +28,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   Dialog,
@@ -58,6 +59,8 @@ export default function AdminPage() {
     setHomePageFieldOrder,
     homePageVisibleFields,
     toggleHomePageFieldVisibility,
+    adminTableVisibleFields,
+    toggleAdminTableFieldVisibility,
   } = useProducts();
   const { orders } = useOrders();
   const [searchTerm, setSearchTerm] = useState('');
@@ -106,8 +109,12 @@ export default function AdminPage() {
   }, [productKeys]);
   
   const homePageConfigurableFields = useMemo(() => {
-    return productKeys.filter(k => k !== 'productId');
+    return productKeys.filter(k => !['productId'].includes(k));
   }, [productKeys]);
+  
+  const visibleProductKeys = useMemo(() => {
+    return productKeys.filter(key => adminTableVisibleFields[key]);
+  }, [productKeys, adminTableVisibleFields]);
 
 
   const sortedAndFilteredProducts = useMemo(() => {
@@ -353,6 +360,28 @@ export default function AdminPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full sm:w-auto md:w-48"
               />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline">
+                  <View className="mr-2 h-4 w-4" />
+                  View
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {productKeys.map(key => (
+                  <DropdownMenuCheckboxItem
+                    key={key}
+                    checked={adminTableVisibleFields[key]}
+                    onCheckedChange={() => toggleAdminTableFieldVisibility(key)}
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    {headerNames[key] || key}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Dialog open={isAddColumnDialogOpen} onOpenChange={setAddColumnDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" variant="outline">
@@ -537,10 +566,11 @@ export default function AdminPage() {
                 </div>
             ) : (
               <AlertDialog>
+                <div className="relative w-full overflow-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      {productKeys.map(key => renderHeader(key))}
+                      {visibleProductKeys.map(key => renderHeader(key))}
                       <TableHead>
                         <span className="sr-only">Actions</span>
                       </TableHead>
@@ -549,7 +579,7 @@ export default function AdminPage() {
                   <TableBody>
                     {sortedAndFilteredProducts.map((product) => (
                       <TableRow key={product.productId}>
-                        {productKeys.map(key => (
+                        {visibleProductKeys.map(key => (
                           <TableCell key={key} className={key === 'productId' ? 'font-mono text-xs' : ''}>
                             {String(product[key as keyof Product] ?? '')}
                           </TableCell>
@@ -579,6 +609,7 @@ export default function AdminPage() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
                 
                 <AlertDialogContent>
                     <AlertDialogHeader>
