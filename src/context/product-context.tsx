@@ -127,7 +127,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             const savedOrder = safelyParseJSON(COLUMN_ORDER_STORAGE_KEY, []);
             const validSavedOrder = savedOrder.filter((k: string) => allKeys.has(k));
             const newKeys = Array.from(allKeys).filter(k => !validSavedOrder.includes(k) && !fixedOrder.includes(k));
-            const finalKeys = [...new Set(finalKeys)];
+            const combinedKeys = [...fixedOrder, ...validSavedOrder.filter(k => !fixedOrder.includes(k)), ...newKeys];
+            const finalKeys = [...new Set(combinedKeys)];
             setProductKeys(finalKeys);
 
             const savedAdminVisibility = safelyParseJSON(ADMIN_TABLE_VISIBLE_FIELDS_STORAGE_KEY, {});
