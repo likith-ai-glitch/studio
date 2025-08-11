@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings, View } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings, View, Copy } from 'lucide-react';
 import Link from 'next/link';
 import {
     DropdownMenu,
@@ -44,6 +44,7 @@ import type { Product } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { ProductCompare } from '@/components/product-compare';
 
 export default function AdminPage() {
   const { 
@@ -63,6 +64,10 @@ export default function AdminPage() {
     adminTableVisibleFields,
     toggleAdminTableFieldVisibility,
     updateProductField,
+    selectedProducts,
+    toggleProductSelection,
+    toggleSelectAllProducts,
+    clearSelection,
   } = useProducts();
   const { orders } = useOrders();
   const [searchTerm, setSearchTerm] = useState('');
@@ -85,6 +90,8 @@ export default function AdminPage() {
 
   const [isHomePageSettingsOpen, setIsHomePageSettingsOpen] = useState(false);
   const [localHomePageOrder, setLocalHomePageOrder] = useState(homePageFieldOrder);
+  
+  const [isCompareDialogOpen, setCompareDialogOpen] = useState(false);
 
   useEffect(() => {
     setLocalColumnOrder(productKeys);
@@ -93,6 +100,13 @@ export default function AdminPage() {
   useEffect(() => {
     setLocalHomePageOrder(homePageFieldOrder);
   }, [homePageFieldOrder]);
+
+  // Clear selection when navigating away or data reloads
+  useEffect(() => {
+    return () => {
+      clearSelection();
+    };
+  }, [clearSelection]);
 
 
   const totalRevenue = orders.reduce((sum, order) => sum + Number(order.total), 0);
@@ -297,6 +311,14 @@ export default function AdminPage() {
     );
 };
 
+  const visibleFilteredProductIds = sortedAndFilteredProducts.map(p => p.productId);
+  const areAllVisibleFilteredSelected = selectedProducts.length > 0 && visibleFilteredProductIds.every(id => selectedProducts.includes(id));
+  const isAnyVisibleFilteredSelected = visibleFilteredProductIds.some(id => selectedProducts.includes(id));
+
+  const handleSelectAllToggle = () => {
+    toggleSelectAllProducts(visibleFilteredProductIds);
+  };
+
   return (
     <div className="space-y-8">
       <header className="flex justify-between items-center">
@@ -380,6 +402,28 @@ export default function AdminPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full sm:w-auto md:w-48"
               />
+            <Dialog open={isCompareDialogOpen} onOpenChange={setCompareDialogOpen}>
+              <DialogTrigger asChild>
+                  <Button size="sm" variant="outline" disabled={selectedProducts.length === 0}>
+                      <Copy className="mr-2 h-4 w-4" />
+                      Compare Selected ({selectedProducts.length})
+                  </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl h-[90vh]">
+                  <DialogHeader>
+                      <DialogTitle>Compare Products</DialogTitle>
+                      <DialogDescription>
+                          View selected products side-by-side.
+                      </DialogDescription>
+                  </DialogHeader>
+                  <ProductCompare productIds={selectedProducts} />
+                  <DialogFooter>
+                      <DialogClose asChild>
+                          <Button>Close</Button>
+                      </DialogClose>
+                  </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size="sm" variant="outline">
@@ -590,6 +634,13 @@ export default function AdminPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead padding="checkbox">
+                        <Checkbox
+                           checked={areAllVisibleFilteredSelected}
+                           onCheckedChange={handleSelectAllToggle}
+                           aria-label="Select all"
+                        />
+                      </TableHead>
                       {visibleProductKeys.map(key => renderHeader(key))}
                       <TableHead>
                         <span className="sr-only">Actions</span>
@@ -598,7 +649,17 @@ export default function AdminPage() {
                   </TableHeader>
                   <TableBody>
                     {sortedAndFilteredProducts.map((product) => (
-                      <TableRow key={product.productId}>
+                      <TableRow 
+                        key={product.productId}
+                        data-state={selectedProducts.includes(product.productId) && "selected"}
+                      >
+                         <TableCell padding="checkbox">
+                            <Checkbox
+                              checked={selectedProducts.includes(product.productId)}
+                              onCheckedChange={() => toggleProductSelection(product.productId)}
+                              aria-label="Select row"
+                            />
+                        </TableCell>
                         {visibleProductKeys.map(key => {
                           if (key === 'qtyForQuote') {
                             return (

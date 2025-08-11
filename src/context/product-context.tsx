@@ -39,6 +39,10 @@ interface ProductContextType {
   toggleHomePageFieldVisibility: (key: string) => void;
   adminTableVisibleFields: Record<string, boolean>;
   toggleAdminTableFieldVisibility: (key: string) => void;
+  selectedProducts: string[];
+  toggleProductSelection: (productId: string) => void;
+  toggleSelectAllProducts: (productIds: string[]) => void;
+  clearSelection: () => void;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
@@ -58,6 +62,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const [homePageFieldOrder, setHomePageFieldOrder] = useState<string[]>([]);
   const [homePageVisibleFields, setHomePageVisibleFields] = useState<Record<string, boolean>>({});
   const [adminTableVisibleFields, setAdminTableVisibleFields] = useState<Record<string, boolean>>({});
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const { toast } = useToast();
   const productsCollectionRef = collection(db, 'products');
 
@@ -432,6 +437,26 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const toggleProductSelection = (productId: string) => {
+    setSelectedProducts(prev => 
+      prev.includes(productId) 
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId]
+    );
+  };
+
+  const toggleSelectAllProducts = (productIds: string[]) => {
+    setSelectedProducts(prev => 
+      prev.length === productIds.length 
+        ? [] 
+        : productIds
+    );
+  };
+  
+  const clearSelection = () => {
+    setSelectedProducts([]);
+  };
+
 
   return (
     <ProductContext.Provider value={{ 
@@ -454,6 +479,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         toggleHomePageFieldVisibility: toggleHomePageVisibility,
         adminTableVisibleFields,
         toggleAdminTableFieldVisibility: toggleAdminTableFieldVisibility,
+        selectedProducts,
+        toggleProductSelection,
+        toggleSelectAllProducts,
+        clearSelection,
     }}>
       {children}
     </ProductContext.Provider>
@@ -467,5 +496,3 @@ export function useProducts() {
   }
   return context;
 }
-
-    
