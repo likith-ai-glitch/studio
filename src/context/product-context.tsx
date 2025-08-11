@@ -437,25 +437,34 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const toggleProductSelection = (productId: string) => {
+  const toggleProductSelection = useCallback((productId: string) => {
     setSelectedProducts(prev => 
       prev.includes(productId) 
         ? prev.filter(id => id !== productId)
         : [...prev, productId]
     );
-  };
+  }, []);
 
-  const toggleSelectAllProducts = (productIds: string[]) => {
-    setSelectedProducts(prev => 
-      prev.length === productIds.length 
-        ? [] 
-        : productIds
-    );
-  };
+  const toggleSelectAllProducts = useCallback((productIds: string[]) => {
+    setSelectedProducts(prev => {
+        const visibleProductIds = new Set(productIds);
+        const selectedProductIds = new Set(prev);
+        
+        const allVisibleSelected = productIds.every(id => selectedProductIds.has(id));
+
+        if (allVisibleSelected) {
+            // Deselect all visible products
+            return prev.filter(id => !visibleProductIds.has(id));
+        } else {
+            // Select all visible products
+            return [...new Set([...prev, ...productIds])];
+        }
+    });
+  }, []);
   
-  const clearSelection = () => {
+  const clearSelection = useCallback(() => {
     setSelectedProducts([]);
-  };
+  }, []);
 
 
   return (
@@ -496,3 +505,5 @@ export function useProducts() {
   }
   return context;
 }
+
+    

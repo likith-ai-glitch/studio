@@ -28,7 +28,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   Dialog,
@@ -311,9 +310,12 @@ export default function AdminPage() {
     );
 };
 
-  const visibleFilteredProductIds = sortedAndFilteredProducts.map(p => p.productId);
-  const areAllVisibleFilteredSelected = selectedProducts.length > 0 && visibleFilteredProductIds.every(id => selectedProducts.includes(id));
-  const isAnyVisibleFilteredSelected = visibleFilteredProductIds.some(id => selectedProducts.includes(id));
+  const visibleFilteredProductIds = useMemo(() => sortedAndFilteredProducts.map(p => p.productId), [sortedAndFilteredProducts]);
+
+  const allVisibleSelected = useMemo(() => {
+    if (selectedProducts.length === 0) return false;
+    return visibleFilteredProductIds.every(id => selectedProducts.includes(id));
+  }, [selectedProducts, visibleFilteredProductIds]);
 
   const handleSelectAllToggle = () => {
     toggleSelectAllProducts(visibleFilteredProductIds);
@@ -636,7 +638,7 @@ export default function AdminPage() {
                     <TableRow>
                       <TableHead padding="checkbox">
                         <Checkbox
-                           checked={areAllVisibleFilteredSelected}
+                           checked={allVisibleSelected}
                            onCheckedChange={handleSelectAllToggle}
                            aria-label="Select all"
                         />
@@ -736,3 +738,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    
