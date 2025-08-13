@@ -5,7 +5,7 @@ import Link from 'next/link';
 import type { Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package } from 'lucide-react';
+import { Package, ShoppingCart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useProducts } from '@/context/product-context';
@@ -20,7 +20,7 @@ interface ProductCardProps {
 export function ProductCard({ product }: ProductCardProps) {
   const { headerNames, homePageFieldOrder, homePageVisibleFields } = useProducts();
   const { toast } = useToast();
-  const { addItemToQuote, setIsQuoteSheetOpen } = useQuote();
+  const { addItemToQuote, buyNow, setIsQuoteSheetOpen } = useQuote();
   const isUnavailable = product.status === 'Unavailable';
 
   const productDetails = homePageFieldOrder
@@ -47,6 +47,18 @@ export function ProductCard({ product }: ProductCardProps) {
         description: `${product.name} has been added to your quote.`
     });
     setIsQuoteSheetOpen(true);
+  }
+
+  const handleBuyNow = () => {
+    if (isUnavailable) return;
+     buyNow({
+        id: product.productId,
+        name: product.name,
+        price: Number(product.price) || 99.99, // Fallback price
+        quantity: 1,
+        brand: product.brand,
+        category: product.category,
+    });
   }
 
   return (
@@ -76,8 +88,12 @@ export function ProductCard({ product }: ProductCardProps) {
             </CardContent>
         </Link>
         <CardFooter className="p-4 pt-0 mt-auto flex gap-2">
-           <Button className="w-full" disabled={isUnavailable} onClick={handleAddToQuote}>
+           <Button variant="secondary" className="w-full" disabled={isUnavailable} onClick={handleAddToQuote}>
                 Add to Quote
+            </Button>
+            <Button className="w-full" disabled={isUnavailable} onClick={handleBuyNow}>
+                <ShoppingCart className="mr-2 h-4 w-4" />
+                Buy Now
             </Button>
         </CardFooter>
     </Card>

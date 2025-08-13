@@ -17,6 +17,7 @@ interface QuoteContextType {
   isQuoteSheetOpen: boolean;
   setIsQuoteSheetOpen: (isOpen: boolean) => void;
   addItemToQuote: (item: QuoteItem) => void;
+  buyNow: (item: QuoteItem) => void;
   updateItemQuantity: (itemId: string, quantity: number) => void;
   removeItemFromQuote: (itemId: string) => void;
   clearQuote: () => void;
@@ -44,6 +45,11 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const buyNow = (item: QuoteItem) => {
+    setQuote([item]);
+    setIsQuoteSheetOpen(true);
+  }
+
   const updateItemQuantity = (itemId: string, quantity: number) => {
     if (quantity <= 0) {
       removeItemFromQuote(itemId);
@@ -65,7 +71,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   const quoteTotal = quote.reduce((total, item) => total + Number(item.price) * item.quantity, 0);
 
   return (
-    <QuoteContext.Provider value={{ quote, isQuoteSheetOpen, setIsQuoteSheetOpen, addItemToQuote, updateItemQuantity, removeItemFromQuote, clearQuote, quoteTotal }}>
+    <QuoteContext.Provider value={{ quote, isQuoteSheetOpen, setIsQuoteSheetOpen, addItemToQuote, buyNow, updateItemQuantity, removeItemFromQuote, clearQuote, quoteTotal }}>
       {children}
     </QuoteContext.Provider>
   );

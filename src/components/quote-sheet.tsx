@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { useQuote } from '@/context/quote-context';
+import { useOrders } from '@/context/order-context';
 import {
   Sheet,
   SheetContent,
@@ -11,6 +12,15 @@ import {
   SheetFooter,
   SheetClose,
 } from '@/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -24,9 +34,26 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { AddressForm, type AddressFormValues } from './address-form';
+import { useToast } from '@/hooks/use-toast';
+
 
 export function QuoteSheet() {
-  const { quote, isQuoteSheetOpen, setIsQuoteSheetOpen, updateItemQuantity, removeItemFromQuote, quoteTotal } = useQuote();
+  const { quote, isQuoteSheetOpen, setIsQuoteSheetOpen, updateItemQuantity, removeItemFromQuote, quoteTotal, clearQuote } = useQuote();
+  const { addOrder } = useOrders();
+  const { toast } = useToast();
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+
+  const handlePlaceOrder = (customerData: AddressFormValues) => {
+    addOrder(customerData, quote, quoteTotal);
+    toast({
+        title: "Order Placed!",
+        description: "Thank you for your purchase. Your order is being processed."
+    });
+    clearQuote();
+    setIsCheckoutOpen(false);
+    setIsQuoteSheetOpen(false);
+  }
 
   return (
     <Sheet open={isQuoteSheetOpen} onOpenChange={setIsQuoteSheetOpen}>
@@ -36,7 +63,7 @@ export function QuoteSheet() {
         </SheetHeader>
         <Separator />
         {quote.length > 0 ? (
-          <>
+          <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
             <ScrollArea className="flex-1 -mx-6">
               <Table>
                 <TableHeader>
@@ -86,16 +113,27 @@ export function QuoteSheet() {
                 <p>₹{quoteTotal.toFixed(2)}</p>
               </div>
               <div className="flex flex-col gap-2">
-                 <Button disabled>
-                    <ShoppingCart className="mr-2 h-4 w-4" />
-                    Proceed to Checkout
-                </Button>
+                 <DialogTrigger asChild>
+                    <Button>
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        Proceed to Checkout
+                    </Button>
+                </DialogTrigger>
                 <SheetClose asChild>
                   <Button variant="outline">Continue Browsing</Button>
                 </SheetClose>
               </div>
             </SheetFooter>
-          </>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Shipping Information</DialogTitle>
+                    <DialogDescription>
+                        Please provide your details to place the order.
+                    </DialogDescription>
+                </DialogHeader>
+                <AddressForm onSubmit={handlePlaceOrder} />
+            </DialogContent>
+          </Dialog>
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
             <FileText className="h-16 w-16 text-muted-foreground" />
