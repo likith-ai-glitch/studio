@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useProducts } from '@/context/product-context';
 import { useToast } from '@/hooks/use-toast';
-import { useCart } from '@/context/cart-context';
+import { useQuote } from '@/context/quote-context';
 
 
 interface ProductCardProps {
@@ -20,7 +20,7 @@ interface ProductCardProps {
 export function ProductCard({ product }: ProductCardProps) {
   const { headerNames, homePageFieldOrder, homePageVisibleFields } = useProducts();
   const { toast } = useToast();
-  const { addItemToCart, setIsCartOpen } = useCart();
+  const { addItemToQuote, setIsQuoteSheetOpen } = useQuote();
   const isUnavailable = product.status === 'Unavailable';
 
   const productDetails = homePageFieldOrder
@@ -30,10 +30,10 @@ export function ProductCard({ product }: ProductCardProps) {
       value: product[key],
     }));
     
-  const handleAddToCart = () => {
+  const handleAddToQuote = () => {
     if (isUnavailable) return;
     
-    addItemToCart({
+    addItemToQuote({
         id: product.productId,
         name: product.name,
         price: Number(product.price) || 99.99, // Fallback price
@@ -43,10 +43,10 @@ export function ProductCard({ product }: ProductCardProps) {
     });
 
     toast({
-        title: "Added to cart",
-        description: `${product.name} has been added to your cart.`
+        title: "Added to quote",
+        description: `${product.name} has been added to your quote.`
     });
-    setIsCartOpen(true);
+    setIsQuoteSheetOpen(true);
   }
 
   return (
@@ -76,8 +76,8 @@ export function ProductCard({ product }: ProductCardProps) {
             </CardContent>
         </Link>
         <CardFooter className="p-4 pt-0 mt-auto flex gap-2">
-           <Button className="w-full" disabled={isUnavailable} onClick={handleAddToCart}>
-                Buy Now
+           <Button className="w-full" disabled={isUnavailable} onClick={handleAddToQuote}>
+                Add to Quote
             </Button>
         </CardFooter>
     </Card>
