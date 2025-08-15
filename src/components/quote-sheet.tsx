@@ -19,7 +19,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogClose,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,66 +63,68 @@ export function QuoteSheet() {
         <Separator />
         {quote.length > 0 ? (
           <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
-            <ScrollArea className="flex-1 -mx-6">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead className="text-center">Qty</TableHead>
-                    <TableHead className="text-right">Unit Price</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {quote.map(item => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <div className="font-medium">{item.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                            <p>Brand: {item.brand}</p>
-                            <p>Category: {item.category}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Input
-                          type="number"
-                          min="1"
-                          value={item.quantity}
-                          onChange={(e) => updateItemQuantity(item.id, parseInt(e.target.value) || 1)}
-                          className="w-16 h-8 mx-auto"
-                        />
-                      </TableCell>
-                      <TableCell className="text-right">₹{Number(item.price).toFixed(2)}</TableCell>
-                      <TableCell className="text-right">₹{(Number(item.price) * item.quantity).toFixed(2)}</TableCell>
-                      <TableCell>
-                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeItemFromQuote(item.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
+            <div className="flex-1 flex flex-col justify-between">
+                <ScrollArea className="-mx-6">
+                <Table>
+                    <TableHeader>
+                    <TableRow>
+                        <TableHead>Product</TableHead>
+                        <TableHead className="text-center">Qty</TableHead>
+                        <TableHead className="text-right">Unit Price</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-            <Separator />
-            <SheetFooter className="mt-auto flex-col space-y-4">
-              <div className="flex justify-between text-lg font-semibold">
-                <p>Total</p>
-                <p>₹{quoteTotal.toFixed(2)}</p>
-              </div>
-              <div className="flex flex-col gap-2">
-                 <DialogTrigger asChild>
-                    <Button>
-                        <ShoppingCart className="mr-2 h-4 w-4" />
-                        Proceed to Checkout
-                    </Button>
-                </DialogTrigger>
-                <SheetClose asChild>
-                  <Button variant="outline">Continue Browsing</Button>
-                </SheetClose>
-              </div>
-            </SheetFooter>
+                    </TableHeader>
+                    <TableBody>
+                    {quote.map(item => (
+                        <TableRow key={item.id}>
+                        <TableCell>
+                            <div className="font-medium">{item.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                                <p>Brand: {item.brand}</p>
+                                <p>Category: {item.category}</p>
+                            </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                            <Input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) => updateItemQuantity(item.id, parseInt(e.target.value) || 1)}
+                            className="w-16 h-8 mx-auto"
+                            />
+                        </TableCell>
+                        <TableCell className="text-right">₹{Number(item.price).toFixed(2)}</TableCell>
+                        <TableCell className="text-right">₹{(Number(item.price) * item.quantity).toFixed(2)}</TableCell>
+                        <TableCell>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeItemFromQuote(item.id)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                        </TableCell>
+                        </TableRow>
+                    ))}
+                    </TableBody>
+                </Table>
+                </ScrollArea>
+                <SheetFooter className="mt-auto flex-col space-y-4 pt-4">
+                <Separator />
+                <div className="flex justify-between text-lg font-semibold">
+                    <p>Total</p>
+                    <p>₹{quoteTotal.toFixed(2)}</p>
+                </div>
+                <div className="flex flex-col gap-2">
+                    <DialogTrigger asChild>
+                        <Button>
+                            <ShoppingCart className="mr-2 h-4 w-4" />
+                            Proceed to Checkout
+                        </Button>
+                    </DialogTrigger>
+                    <SheetClose asChild>
+                    <Button variant="outline">Continue Browsing</Button>
+                    </SheetClose>
+                </div>
+                </SheetFooter>
+            </div>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Shipping Information</DialogTitle>
