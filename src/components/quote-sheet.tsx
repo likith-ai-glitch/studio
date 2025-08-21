@@ -62,77 +62,78 @@ export function QuoteSheet() {
         </SheetHeader>
         <Separator />
         {quote.length > 0 ? (
-          <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
-            <div className="flex-1 flex flex-col justify-between">
-                <ScrollArea className="-mx-6">
+           <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
+            <div className="flex flex-1 flex-col justify-between overflow-hidden">
+              <ScrollArea className="-mx-6">
                 <Table>
-                    <TableHeader>
+                  <TableHeader>
                     <TableRow>
-                        <TableHead>Product</TableHead>
-                        <TableHead className="text-center">Qty</TableHead>
-                        <TableHead className="text-right">Unit Price</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
-                        <TableHead className="w-[50px]"></TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead className="text-center">Qty</TableHead>
+                      <TableHead className="text-right">Unit Price</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                  </TableHeader>
+                  <TableBody>
                     {quote.map(item => (
-                        <TableRow key={item.id}>
+                      <TableRow key={item.id}>
                         <TableCell>
-                            <div className="font-medium">{item.name}</div>
-                            <div className="text-xs text-muted-foreground">
-                                <p>Brand: {item.brand}</p>
-                                <p>Category: {item.category}</p>
-                            </div>
+                          <div className="font-medium">{item.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            <p>Brand: {item.brand}</p>
+                            <p>Category: {item.category}</p>
+                          </div>
                         </TableCell>
                         <TableCell className="text-center">
-                            <Input
+                          <Input
                             type="number"
                             min="1"
                             value={item.quantity}
                             onChange={(e) => updateItemQuantity(item.id, parseInt(e.target.value) || 1)}
                             className="w-16 h-8 mx-auto"
-                            />
+                          />
                         </TableCell>
                         <TableCell className="text-right">₹{Number(item.price).toFixed(2)}</TableCell>
                         <TableCell className="text-right">₹{(Number(item.price) * item.quantity).toFixed(2)}</TableCell>
                         <TableCell>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeItemFromQuote(item.id)}>
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeItemFromQuote(item.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </TableCell>
-                        </TableRow>
+                      </TableRow>
                     ))}
-                    </TableBody>
+                  </TableBody>
                 </Table>
-                </ScrollArea>
-                <SheetFooter className="mt-auto flex-col space-y-4 pt-4">
-                <Separator />
-                <div className="flex justify-between text-lg font-semibold">
-                    <p>Total</p>
-                    <p>₹{quoteTotal.toFixed(2)}</p>
-                </div>
-                <div className="flex flex-col gap-2">
-                    <DialogTrigger asChild>
-                        <Button>
-                            <ShoppingCart className="mr-2 h-4 w-4" />
-                            Proceed to Checkout
-                        </Button>
-                    </DialogTrigger>
-                    <SheetClose asChild>
-                    <Button variant="outline">Continue Browsing</Button>
-                    </SheetClose>
-                </div>
-                </SheetFooter>
+              </ScrollArea>
             </div>
+            
+            <SheetFooter className="mt-auto flex-col space-y-4 pt-4 border-t">
+              <div className="flex justify-between text-lg font-semibold">
+                <p>Total</p>
+                <p>₹{quoteTotal.toFixed(2)}</p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <DialogTrigger asChild>
+                  <Button>
+                    <ShoppingCart className="mr-2 h-4 w-4" />
+                    Proceed to Checkout
+                  </Button>
+                </DialogTrigger>
+                <SheetClose asChild>
+                  <Button variant="outline">Continue Browsing</Button>
+                </SheetClose>
+              </div>
+            </SheetFooter>
+
             <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Shipping Information</DialogTitle>
-                    <DialogDescription>
-                        Please provide your details to place the order.
-                    </DialogDescription>
-                </DialogHeader>
-                <AddressForm onSubmit={handlePlaceOrder} />
+              <DialogHeader>
+                <DialogTitle>Shipping Information</DialogTitle>
+                <DialogDescription>
+                  Please provide your details to place the order.
+                </DialogDescription>
+              </DialogHeader>
+              <AddressForm onSubmit={handlePlaceOrder} />
             </DialogContent>
           </Dialog>
         ) : (
