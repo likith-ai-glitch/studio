@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A flow for generating order-related notifications.
@@ -11,7 +12,7 @@ import { ai } from '@/ai/genkit';
 import type { Order } from '@/lib/types';
 import { z } from 'zod';
 
-export const OrderConfirmationInputSchema = z.object({
+const OrderConfirmationInputSchema = z.object({
   customerName: z.string().describe('The name of the customer.'),
   orderId: z.string().describe('The unique identifier for the order.'),
   total: z.number().describe('The total amount of the order.'),
@@ -22,7 +23,7 @@ export const OrderConfirmationInputSchema = z.object({
 });
 export type OrderConfirmationInput = z.infer<typeof OrderConfirmationInputSchema>;
 
-export const OrderConfirmationOutputSchema = z.object({
+const OrderConfirmationOutputSchema = z.object({
   subject: z.string().describe('The subject line for the notification.'),
   body: z.string().describe('The body content of the notification.'),
 });

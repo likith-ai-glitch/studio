@@ -89,7 +89,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             });
             
             await addDoc(notificationsCollectionRef, {
-                to: order.customer.email,
+                customer: {
+                  email: order.customer.email,
+                  phone: order.customer.phone,
+                },
                 ...notificationContent,
                 sentAt: serverTimestamp(),
                 orderId: order.id,
