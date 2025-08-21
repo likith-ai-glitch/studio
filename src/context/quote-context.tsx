@@ -46,7 +46,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   };
 
   const buyNow = (item: QuoteItem) => {
-    setQuote([item]);
+    addItemToQuote(item);
     setIsQuoteSheetOpen(true);
   }
 
