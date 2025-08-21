@@ -62,9 +62,9 @@ export function QuoteSheet() {
         </SheetHeader>
         <Separator />
         {quote.length > 0 ? (
-           <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
-            <div className="flex flex-1 flex-col justify-between overflow-hidden">
-              <ScrollArea className="-mx-6">
+           <>
+            <div className="flex-1 overflow-hidden">
+              <ScrollArea className="h-full -mx-6">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -114,28 +114,29 @@ export function QuoteSheet() {
                 <p>₹{quoteTotal.toFixed(2)}</p>
               </div>
               <div className="flex flex-col gap-2">
-                <DialogTrigger asChild>
-                  <Button>
-                    <ShoppingCart className="mr-2 h-4 w-4" />
-                    Proceed to Checkout
-                  </Button>
-                </DialogTrigger>
+                <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        Proceed to Checkout
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Shipping Information</DialogTitle>
+                        <DialogDescription>
+                          Please provide your details to place the order.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <AddressForm onSubmit={handlePlaceOrder} />
+                    </DialogContent>
+                </Dialog>
                 <SheetClose asChild>
                   <Button variant="outline">Continue Browsing</Button>
                 </SheetClose>
               </div>
             </SheetFooter>
-
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Shipping Information</DialogTitle>
-                <DialogDescription>
-                  Please provide your details to place the order.
-                </DialogDescription>
-              </DialogHeader>
-              <AddressForm onSubmit={handlePlaceOrder} />
-            </DialogContent>
-          </Dialog>
+          </>
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
             <FileText className="h-16 w-16 text-muted-foreground" />
