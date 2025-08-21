@@ -6,6 +6,7 @@ import type { Order, OrderStatus } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { generateOrderConfirmation } from '@/ai/flows/notification-flow';
 
 interface OrderContextType {
   orders: Order[];
@@ -20,6 +21,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const { toast } = useToast();
   const ordersCollectionRef = collection(db, 'orders');
+  const notificationsCollectionRef = collection(db, 'notifications');
 
   useEffect(() => {
     const q = query(ordersCollectionRef, orderBy('orderDate', 'desc'));
@@ -70,6 +72,36 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         title: 'Order Updated',
         description: `Order status changed to ${status}.`,
       });
+
+      if (status === 'Accepted') {
+        const order = orders.find(o => o.id === orderId);
+        if (order) {
+            toast({
+                title: 'Generating Notification...',
+                description: 'Creating a confirmation message for the customer.'
+            });
+
+            const notificationContent = await generateOrderConfirmation({
+                customerName: order.customer.name,
+                orderId: order.id,
+                total: order.total,
+                items: order.items.map(item => ({ name: item.name, quantity: item.quantity })),
+            });
+            
+            await addDoc(notificationsCollectionRef, {
+                to: order.customer.email,
+                ...notificationContent,
+                sentAt: serverTimestamp(),
+                orderId: order.id,
+            });
+
+            toast({
+                title: 'Notification Ready',
+                description: `Confirmation for order #${orderId} has been generated and saved.`,
+            });
+        }
+      }
+
     } catch (error) {
       console.error('Error updating order status:', error);
       toast({
