@@ -15,7 +15,7 @@ import { useRouter } from 'next/navigation';
 import { useProducts } from '@/context/product-context';
 import { useMemo, useEffect } from 'react';
 import { Loader2, CalendarIcon } from 'lucide-react';
-import { format, parse } from 'date-fns';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Timestamp } from 'firebase/firestore';
 
@@ -125,7 +125,13 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                           <Calendar
                             mode="single"
                             selected={isValueValidDate(field.value) ? field.value : undefined}
-                            onSelect={field.onChange}
+                            onSelect={(day) => {
+                                const newDate = day || new Date();
+                                const oldDate = isValueValidDate(field.value) ? field.value : new Date();
+                                newDate.setHours(oldDate.getHours());
+                                newDate.setMinutes(oldDate.getMinutes());
+                                field.onChange(newDate);
+                            }}
                             disabled={(date) =>
                               date > new Date() || date < new Date("1900-01-01")
                             }
@@ -146,7 +152,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                                 if (isValueValidDate(dateValue) && time) {
                                     const [hours, minutes] = time.split(':').map(Number);
                                     const newDate = new Date(dateValue);
-                                    newDate.setHours(hours, minutes);
+                                    newDate.setHours(hours, minutes, 0, 0); // Also reset seconds and ms
                                     setValue(key, newDate, { shouldDirty: true });
                                 }
                             }}
