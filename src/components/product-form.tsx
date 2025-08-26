@@ -15,7 +15,7 @@ import { useRouter } from 'next/navigation';
 import { useProducts } from '@/context/product-context';
 import { useMemo, useEffect } from 'react';
 import { Loader2, CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parse } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Timestamp } from 'firebase/firestore';
 
@@ -63,7 +63,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
     defaultValues,
   });
   
-  const { control, handleSubmit, reset } = form;
+  const { control, handleSubmit, reset, setValue, watch } = form;
 
   useEffect(() => {
     reset(defaultValues);
@@ -92,6 +92,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
             const label = getLabel(key);
             
             if (key === 'startDate' || key === 'lastUpdatedDate') {
+              const dateValue = watch(key);
               return (
                 <FormField
                   key={key}
@@ -112,7 +113,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                               disabled={isSubmitting}
                             >
                               {isValueValidDate(field.value) ? (
-                                format(field.value, "PPP")
+                                format(field.value, "PPP p")
                               ) : (
                                 <span>Pick a date</span>
                               )}
@@ -132,6 +133,25 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
                           />
                         </PopoverContent>
                       </Popover>
+                      <div className="flex items-center gap-2 pt-2">
+                        <FormLabel htmlFor={`${key}-time`} className="text-sm">Time:</FormLabel>
+                        <Input
+                            id={`${key}-time`}
+                            type="time"
+                            defaultValue={isValueValidDate(dateValue) ? format(dateValue, 'HH:mm') : ''}
+                            disabled={!dateValue || isSubmitting}
+                            className="w-auto"
+                            onChange={(e) => {
+                                const time = e.target.value;
+                                if (isValueValidDate(dateValue) && time) {
+                                    const [hours, minutes] = time.split(':').map(Number);
+                                    const newDate = new Date(dateValue);
+                                    newDate.setHours(hours, minutes);
+                                    setValue(key, newDate, { shouldDirty: true });
+                                }
+                            }}
+                        />
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
