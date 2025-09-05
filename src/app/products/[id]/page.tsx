@@ -3,27 +3,30 @@
 
 import { useProducts } from '@/context/product-context';
 import type { Product } from '@/lib/types';
-import { notFound } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import { ProductCard } from '@/components/product-card';
 import { useEffect, useState } from 'react';
 import { Loader2, Package } from 'lucide-react';
 
-export default function ProductDetailPage({ params }: { params: { id: string } }) {
+export default function ProductDetailPage() {
+  const params = useParams();
+  const id = params.id as string;
   const { products, getProduct, loading, homePageFieldOrder, homePageVisibleFields, headerNames } = useProducts();
   const [product, setProduct] = useState<Product | undefined | null>(null);
 
   useEffect(() => {
+    if (!id) return;
     const fetchProduct = async () => {
-        const p = await getProduct(params.id);
+        const p = await getProduct(id);
         setProduct(p);
     }
-    const foundProduct = products.find((p) => p.productId === params.id);
+    const foundProduct = products.find((p) => p.productId === id);
     if(foundProduct){
         setProduct(foundProduct);
     } else {
         fetchProduct();
     }
-  }, [params.id, products, getProduct]);
+  }, [id, products, getProduct]);
 
 
   if (loading || product === null) {
