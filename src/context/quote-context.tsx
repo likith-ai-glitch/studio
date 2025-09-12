@@ -21,6 +21,7 @@ export interface IndicativePricing {
 }
 
 export interface Quote {
+  quoteNumber: string;
   items: QuoteItem[];
   status: QuoteStatus;
   type: QuoteType;
@@ -48,6 +49,7 @@ interface QuoteContextType {
 const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
 
 const initialQuoteState: Quote = {
+    quoteNumber: '',
     items: [],
     status: 'Draft',
     type: 'Transaction',

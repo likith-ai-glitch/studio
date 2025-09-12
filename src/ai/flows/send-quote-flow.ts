@@ -13,6 +13,7 @@ import { z } from 'zod';
 import type { Quote } from '@/context/quote-context';
 
 const QuoteInputSchema = z.object({
+  quoteNumber: z.string(),
   items: z.array(z.object({
     id: z.string(),
     name: z.string(),
@@ -66,6 +67,7 @@ const prompt = ai.definePrompt({
   You are tasked with generating a professional and friendly email to a customer with their requested quote.
 
   The quote details are as follows:
+  - Quote Number: {{{quoteNumber}}}
   - Quote Status: {{{status}}}
   - Quote Type: {{{type}}}
   - Approval Status: {{{approvalStatus}}}
@@ -95,7 +97,7 @@ const prompt = ai.definePrompt({
   The final Grand Total for the quote is: ₹{{grandTotal}}
 
   Generate the content for the email.
-  - The subject line should be "Your Quote from Shopstream".
+  - The subject line should be "Your Quote from Shopstream ({{{quoteNumber}}})".
   - The body should be a polite HTML message. Start by thanking the customer for their interest.
   - Present the items, additional costs, discount, GST, and grand total in a clear, easy-to-read format. A table would be ideal.
   - Clearly state the final grand total.
