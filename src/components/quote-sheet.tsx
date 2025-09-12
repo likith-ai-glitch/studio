@@ -59,7 +59,6 @@ export function QuoteSheet() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const notificationsCollectionRef = collection(db, 'notifications');
-  const quotesCollectionRef = collection(db, 'quotes');
 
 
   const handlePlaceOrder = (customerData: AddressFormValues) => {
@@ -81,15 +80,22 @@ export function QuoteSheet() {
       description: 'Generating quote details and preparing document.',
     });
     try {
-      const emailContent = await sendQuote(quote);
+      // The AI flow needs a quote number, but we use quoteId for the database.
+      // We can pass the quoteId as the quoteNumber for the AI prompt.
+      const aiQuoteInput = {
+        ...quote,
+        quoteNumber: quote.quoteId,
+      };
 
-      const quoteId = quote.quoteId;
+      const emailContent = await sendQuote(aiQuoteInput);
+      
+      const { quoteId } = quote;
 
-      // Save the quote object to the 'quotes' collection
+      // Save the quote object to the 'quotes' collection with the stable quoteId
       const quoteDocRef = doc(db, 'quotes', quoteId);
       await setDoc(quoteDocRef, quote);
 
-      // Save the notification
+      // Save the notification, ensuring the stable quoteId is included
       await addDoc(notificationsCollectionRef, {
         customer: {
           email: 'customer@example.com', // Placeholder email

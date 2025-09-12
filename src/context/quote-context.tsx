@@ -53,10 +53,11 @@ interface QuoteContextType {
 
 const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
 
+// A simple and robust way to generate a unique ID.
 const generateNewQuoteId = () => {
-    const timestamp = Date.now();
-    const randomSuffix = Math.random().toString(36).substring(2, 9).toUpperCase();
-    return `Q-${timestamp}-${randomSuffix}`;
+    const timestamp = Date.now().toString(36);
+    const randomPart = Math.random().toString(36).substring(2, 9);
+    return `Q-${timestamp}-${randomPart}`.toUpperCase();
 }
 
 const createInitialQuoteState = (): Quote => ({
