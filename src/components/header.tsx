@@ -51,6 +51,13 @@ export function Header() {
                     <span className="hidden md:inline">Audit Log</span>
                   </Link>
                 </Button>
+                <Button variant="ghost" className="relative flex items-center gap-1" onClick={() => setIsQuoteSheetOpen(true)}>
+                    <FileText className="h-5 w-5" />
+                    <span className="hidden md:inline">Quote</span>
+                    {totalItems > 0 && (
+                        <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-1" variant="destructive">{totalItems}</Badge>
+                    )}
+                </Button>
               </>
             )}
              {!loading && (
@@ -68,13 +75,6 @@ export function Header() {
                 </Button>
               )
             )}
-             <Button variant="ghost" className="relative flex items-center gap-1" onClick={() => setIsQuoteSheetOpen(true)}>
-                <FileText className="h-5 w-5" />
-                <span className="hidden md:inline">Quote</span>
-                {totalItems > 0 && (
-                    <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-1" variant="destructive">{totalItems}</Badge>
-                )}
-            </Button>
           </nav>
         </div>
       </div>
