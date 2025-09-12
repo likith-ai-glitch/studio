@@ -103,12 +103,6 @@ const prompt = ai.definePrompt({
   - Mention the quote's status and type.
   - End with a friendly closing, letting them know you are available for any questions.
   `,
-  config: {
-    customHelpers: {
-        divide: (a: number, b: number) => a / b,
-        multiply: (a: number, b: number) => a * b,
-    }
-  }
 });
 
 const sendQuoteFlow = ai.defineFlow(
