@@ -85,7 +85,7 @@ export default function DocumentsPage() {
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0">
-                     {notification.quoteId && <Badge variant="secondary" className="mb-1">{notification.quoteId}</Badge>}
+                     {notification.quoteId && <Badge variant="secondary" className="mb-1">Quote: {notification.quoteId}</Badge>}
                      <p className="text-sm text-muted-foreground">{format(notification.sentAt, "PPP p")}</p>
                   </div>
                 </div>

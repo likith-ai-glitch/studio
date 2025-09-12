@@ -34,15 +34,21 @@ export default function PublicQuotePage() {
 
   const fetchQuote = useCallback(async (quoteId: string) => {
     setLoading(true);
-    const quoteDocRef = doc(db, 'quotes', quoteId);
-    const quoteSnap = await getDoc(quoteDocRef);
-
-    if (quoteSnap.exists()) {
-      setQuote(quoteSnap.data() as Quote);
-    } else {
-      setQuote(null); // Explicitly set to null if not found
+    try {
+        const quoteDocRef = doc(db, 'quotes', quoteId);
+        const quoteSnap = await getDoc(quoteDocRef);
+    
+        if (quoteSnap.exists()) {
+          setQuote(quoteSnap.data() as Quote);
+        } else {
+          setQuote(null); // Explicitly set to null if not found
+        }
+    } catch (error) {
+        console.error("Error fetching quote:", error);
+        setQuote(null);
+    } finally {
+        setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -82,14 +88,14 @@ export default function PublicQuotePage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-3xl font-headline">
             <FileText className="h-8 w-8 text-primary" />
-            <span>Quote Details ({quote.quoteNumber})</span>
+            <span>Quote Details</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div><strong className="block text-muted-foreground">Quote ID:</strong> {quote.quoteId}</div>
                 <div><strong className="block text-muted-foreground">Status:</strong> {quote.status}</div>
                 <div><strong className="block text-muted-foreground">Type:</strong> {quote.type}</div>
-                <div><strong className="block text-muted-foreground">Approval:</strong> {quote.approvalStatus}</div>
                 <div><strong className="block text-muted-foreground">Grand Total:</strong> <span className="font-bold">₹{grandTotal.toFixed(2)}</span></div>
             </div>
         </CardContent>

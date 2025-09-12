@@ -1,7 +1,7 @@
 
 'use client';
 
-import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, ReactNode, useMemo, useCallback } from 'react';
 
 export interface QuoteItem {
   id: string; // Internal ID for the quote item, typically same as productId
@@ -26,7 +26,7 @@ export interface IndicativePricing {
 }
 
 export interface Quote {
-  quoteNumber: string;
+  quoteId: string;
   items: QuoteItem[];
   status: QuoteStatus;
   type: QuoteType;
@@ -47,28 +47,20 @@ interface QuoteContextType {
   clearQuote: () => void;
   subTotal: number;
   grandTotal: number;
-  updateQuoteField: (field: keyof Omit<Quote, 'items' | 'indicativePricing'>, value: any) => void;
+  updateQuoteField: (field: keyof Omit<Quote, 'items' | 'indicativePricing' | 'quoteId'>, value: any) => void;
   updateIndicativePricingField: (field: keyof IndicativePricing, value: number) => void;
 }
 
 const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
 
-const generateNewQuoteNumber = (type: QuoteType = 'Transaction', existingId?: string) => {
-  const prefix = type === 'Master' ? 'MQ-' : 'TQ-';
-  if (existingId && existingId.includes('-')) {
-      const parts = existingId.split('-');
-      if (parts.length > 1) {
-          return `${prefix}${parts.slice(1).join('-')}`;
-      }
-  }
-  const timestamp = Date.now();
-  const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
-  return `${prefix}${timestamp}-${randomSuffix}`;
-};
+const generateNewQuoteId = () => {
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substring(2, 9).toUpperCase();
+    return `Q-${timestamp}-${randomSuffix}`;
+}
 
-
-const initialQuoteState: Quote = {
-    quoteNumber: '',
+const createInitialQuoteState = (): Quote => ({
+    quoteId: generateNewQuoteId(),
     items: [],
     status: 'Draft',
     type: 'Transaction',
@@ -79,13 +71,11 @@ const initialQuoteState: Quote = {
     },
     discount: 0,
     tax: 0,
-}
+});
+
 
 export function QuoteProvider({ children }: { children: ReactNode }) {
-  const [quote, setQuote] = useState<Quote>(() => ({
-    ...initialQuoteState,
-    quoteNumber: generateNewQuoteNumber(),
-  }));
+  const [quote, setQuote] = useState<Quote>(createInitialQuoteState());
   const [isQuoteSheetOpen, setIsQuoteSheetOpen] = useState(false);
   
   const addItemToQuote = (itemToAdd: QuoteItem) => {
@@ -119,14 +109,8 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const updateQuoteField = useCallback((field: keyof Omit<Quote, 'items' | 'indicativePricing'>, value: any) => {
-    setQuote(prevQuote => {
-      let newQuoteNumber = prevQuote.quoteNumber;
-      if (field === 'type' && prevQuote.type !== value) {
-        newQuoteNumber = generateNewQuoteNumber(value, prevQuote.quoteNumber);
-      }
-      return { ...prevQuote, [field]: value, quoteNumber: newQuoteNumber };
-    });
+  const updateQuoteField = useCallback((field: keyof Omit<Quote, 'items' | 'indicativePricing' | 'quoteId'>, value: any) => {
+    setQuote(prevQuote => ({ ...prevQuote, [field]: value }));
   }, []);
   
   const updateIndicativePricingField = (field: keyof IndicativePricing, value: number) => {
@@ -147,7 +131,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   };
   
   const clearQuote = () => {
-    setQuote({ ...initialQuoteState, quoteNumber: generateNewQuoteNumber() });
+    setQuote(createInitialQuoteState());
   }
 
   const subTotal = useMemo(() => {

@@ -83,7 +83,7 @@ export function QuoteSheet() {
     try {
       const emailContent = await sendQuote(quote);
 
-      const quoteId = quote.quoteNumber;
+      const quoteId = quote.quoteId;
 
       // Save the quote object to the 'quotes' collection
       const quoteDocRef = doc(db, 'quotes', quoteId);
@@ -97,7 +97,7 @@ export function QuoteSheet() {
         emailSubject: emailContent.emailSubject,
         emailBody: emailContent.emailBody,
         sentAt: serverTimestamp(),
-        quoteId: quoteId, // Use the quoteNumber as the ID
+        quoteId: quoteId, 
       });
 
       updateQuoteField('approvalStatus', 'SentForApproval');
@@ -134,13 +134,13 @@ export function QuoteSheet() {
               {/* Quote Management Section */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-1">
                  <div className="space-y-2">
-                    <Label htmlFor="quoteNumber">Quote Number</Label>
+                    <Label htmlFor="quoteId">Quote ID</Label>
                     <Input
-                      id="quoteNumber"
+                      id="quoteId"
                       type="text"
-                      value={quote.quoteNumber}
-                      onChange={(e) => updateQuoteField('quoteNumber', e.target.value)}
-                      placeholder="e.g. Q-12345"
+                      value={quote.quoteId}
+                      readOnly
+                      className="font-mono bg-muted"
                     />
                  </div>
                  <div className="space-y-2">
