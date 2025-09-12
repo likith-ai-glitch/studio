@@ -17,6 +17,7 @@ export type QuoteType = 'Master' | 'Transaction';
 export type QuoteApprovalStatus = 'Draft' | 'SentForApproval' | 'Approved';
 
 export interface IndicativePricing {
+    totalProductPrice: number;
     shippingAndInstallation: number;
 }
 
@@ -49,12 +50,13 @@ interface QuoteContextType {
 const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
 
 const initialQuoteState: Quote = {
-    quoteNumber: '',
+    quoteNumber: 'TQ-',
     items: [],
     status: 'Draft',
     type: 'Transaction',
     approvalStatus: 'Draft',
     indicativePricing: {
+        totalProductPrice: 0,
         shippingAndInstallation: 0,
     },
     discount: 0,
@@ -99,10 +101,19 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   };
   
   const updateQuoteField = (field: keyof Omit<Quote, 'items' | 'indicativePricing'>, value: any) => {
-    setQuote(prevQuote => ({
-      ...prevQuote,
-      [field]: value
-    }));
+    setQuote(prevQuote => {
+      const newQuote = { ...prevQuote, [field]: value };
+      if (field === 'type') {
+        const prefix = value === 'Master' ? 'MQ-' : 'TQ-';
+        const currentNumber = newQuote.quoteNumber;
+        if (currentNumber.startsWith('MQ-') || currentNumber.startsWith('TQ-')) {
+            newQuote.quoteNumber = prefix + currentNumber.substring(3);
+        } else {
+            newQuote.quoteNumber = prefix + currentNumber;
+        }
+      }
+      return newQuote;
+    });
   };
   
   const updateIndicativePricingField = (field: keyof IndicativePricing, value: number) => {
