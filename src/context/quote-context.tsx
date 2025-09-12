@@ -53,15 +53,24 @@ interface QuoteContextType {
 
 const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
 
-const generateNewQuoteNumber = (type: QuoteType = 'Transaction') => {
+const generateNewQuoteNumber = (type: QuoteType = 'Transaction', existingId?: string) => {
   const prefix = type === 'Master' ? 'MQ-' : 'TQ-';
+  if (existingId) {
+      const parts = existingId.split('-');
+      if (parts.length > 1) {
+          // Re-use the unique part of the ID, just change the prefix
+          return `${prefix}${parts.slice(1).join('-')}`;
+      }
+  }
+  // Generate a completely new unique ID
   const timestamp = Date.now();
-  const randomSuffix = Math.random().toString(36).substring(2, 7);
+  const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
   return `${prefix}${timestamp}-${randomSuffix}`;
 };
 
+
 const initialQuoteState: Quote = {
-    quoteNumber: generateNewQuoteNumber(),
+    quoteNumber: '', // Will be set on initialization
     items: [],
     status: 'Draft',
     type: 'Transaction',
@@ -116,14 +125,12 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   
   const updateQuoteField = useCallback((field: keyof Omit<Quote, 'items' | 'indicativePricing'>, value: any) => {
     setQuote(prevQuote => {
-      const newQuote = { ...prevQuote, [field]: value };
+      let newQuoteNumber = prevQuote.quoteNumber;
+      // If the type is changing, update the quote number prefix
       if (field === 'type' && prevQuote.type !== value) {
-        const prefix = value === 'Master' ? 'MQ-' : 'TQ-';
-        const currentIdParts = prevQuote.quoteNumber.split('-');
-        const idSuffix = currentIdParts.slice(1).join('-');
-        newQuote.quoteNumber = `${prefix}${idSuffix}`;
+        newQuoteNumber = generateNewQuoteNumber(value, prevQuote.quoteNumber);
       }
-      return newQuote;
+      return { ...prevQuote, [field]: value, quoteNumber: newQuoteNumber };
     });
   }, []);
   
