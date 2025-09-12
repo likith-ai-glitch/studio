@@ -1,4 +1,6 @@
 
+import type { Quote } from '@/context/quote-context';
+
 export interface Product {
   productId: string;
   name: string;
@@ -53,4 +55,5 @@ export interface Notification {
     sentAt: Date;
     orderId?: string;
     quoteId?: string;
+    quote?: Quote;
 }

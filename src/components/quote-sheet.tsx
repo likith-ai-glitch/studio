@@ -38,7 +38,7 @@ import { AddressForm, type AddressFormValues } from './address-form';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { sendQuote } from '@/ai/flows/send-quote-flow';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, doc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export function QuoteSheet() {
@@ -59,6 +59,7 @@ export function QuoteSheet() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const notificationsCollectionRef = collection(db, 'notifications');
+  const quotesCollectionRef = collection(db, 'quotes');
 
 
   const handlePlaceOrder = (customerData: AddressFormValues) => {
@@ -82,6 +83,13 @@ export function QuoteSheet() {
     try {
       const emailContent = await sendQuote(quote);
 
+      const quoteId = `quote_${Date.now()}`;
+
+      // Save the quote object to the 'quotes' collection
+      const quoteDocRef = doc(db, 'quotes', quoteId);
+      await setDoc(quoteDocRef, quote);
+
+      // Save the notification
       await addDoc(notificationsCollectionRef, {
         customer: {
           email: 'customer@example.com', // Placeholder email
@@ -89,7 +97,8 @@ export function QuoteSheet() {
         emailSubject: emailContent.emailSubject,
         emailBody: emailContent.emailBody,
         sentAt: serverTimestamp(),
-        quoteId: `quote_${Date.now()}`,
+        quoteId: quoteId,
+        quote: quote, // Embed quote for easier access on documents page
       });
 
       updateQuoteField('approvalStatus', 'SentForApproval');

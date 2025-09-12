@@ -10,9 +10,10 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { format } from 'date-fns';
-import { FileText, Mail } from 'lucide-react';
+import { FileText, Mail, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 // A simple SVG for the WhatsApp icon
 const WhatsAppIcon = () => (
@@ -34,6 +35,7 @@ const WhatsAppIcon = () => (
 
 export default function DocumentsPage() {
   const { notifications } = useNotifications();
+  const { toast } = useToast();
   
   // Helper to strip HTML for plain text versions
   const stripHtml = (html: string) => {
@@ -43,6 +45,22 @@ export default function DocumentsPage() {
     }
     return html.replace(/<[^>]*>/g, ''); // Fallback for server
   }
+
+  const handleCopyLink = (quoteId: string) => {
+    const link = `${window.location.origin}/quote/${quoteId}`;
+    navigator.clipboard.writeText(link).then(() => {
+      toast({
+        title: "Link Copied!",
+        description: "The shareable link has been copied to your clipboard.",
+      });
+    }, (err) => {
+      toast({
+        title: "Error",
+        description: "Could not copy the link.",
+        variant: "destructive",
+      });
+    });
+  };
 
   return (
     <div className="space-y-8">
@@ -86,6 +104,15 @@ export default function DocumentsPage() {
                 </Card>
 
                  <div className="flex justify-end gap-4">
+                    {notification.quoteId && (
+                      <Button
+                        variant="outline"
+                        onClick={() => handleCopyLink(notification.quoteId!)}
+                      >
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copy Share Link
+                      </Button>
+                    )}
                     <Button
                         variant="outline"
                         asChild
