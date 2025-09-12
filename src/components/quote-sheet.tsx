@@ -203,7 +203,7 @@ export function QuoteSheet() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Product</TableHead>
+                      <TableHead className="min-w-[250px]">Product</TableHead>
                       <TableHead className="text-center">Qty</TableHead>
                       <TableHead className="text-right">Unit Price</TableHead>
                       <TableHead className="text-right">Total</TableHead>
@@ -214,13 +214,13 @@ export function QuoteSheet() {
                     {quote.items.map(item => (
                       <TableRow key={item.id}>
                         <TableCell>
-                          <div className="font-medium text-base">{item.name}</div>
-                          <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
-                            {item.productId && <div><span className="font-semibold">ID:</span> {item.productId}</div>}
-                            {item.brand && <div><span className="font-semibold">Brand:</span> {item.brand}</div>}
-                            {item.category && <div><span className="font-semibold">Category:</span> {item.category}</div>}
-                            {item.partName && <div><span className="font-semibold">Part Name:</span> {item.partName}</div>}
-                            {item.colour && <div><span className="font-semibold">Colour:</span> {item.colour}</div>}
+                          <div className="font-medium text-base mb-2">{item.name}</div>
+                          <div className="text-xs text-muted-foreground space-y-1">
+                            {item.productId && <div className="flex justify-between"><span className="font-semibold">ID:</span> <span>{item.productId}</span></div>}
+                            {item.brand && <div className="flex justify-between"><span className="font-semibold">Brand:</span> <span>{item.brand}</span></div>}
+                            {item.category && <div className="flex justify-between"><span className="font-semibold">Category:</span> <span>{item.category}</span></div>}
+                            {item.partName && <div className="flex justify-between"><span className="font-semibold">Part Name:</span> <span>{item.partName}</span></div>}
+                            {item.colour && <div className="flex justify-between"><span className="font-semibold">Colour:</span> <span>{item.colour}</span></div>}
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
