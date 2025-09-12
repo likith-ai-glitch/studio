@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useProducts } from '@/context/product-context';
 import { ProductCard } from '@/components/product-card';
 import { Input } from '@/components/ui/input';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -17,8 +17,11 @@ export default function Home() {
   
   const filteredProducts = useMemo(() => {
     return allProducts.filter((product) => {
-      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesSearch;
+      const lowercasedFilter = searchTerm.toLowerCase();
+      // Search across all product values
+      return Object.values(product).some(value => 
+          String(value).toLowerCase().includes(lowercasedFilter)
+      );
     });
   }, [allProducts, searchTerm]);
   
@@ -62,12 +65,15 @@ export default function Home() {
           <div className="space-y-6">
             <h2 className="text-xl font-headline font-semibold">Filter All Products</h2>
             <div>
-              <Input
-                placeholder="Search products..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full"
-              />
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search all products..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10"
+                />
+              </div>
             </div>
           </div>
         </aside>
