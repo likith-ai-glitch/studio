@@ -25,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, FileText, ShoppingCart, Send, Loader2 } from 'lucide-react';
+import { Trash2, FileText, ShoppingCart, Loader2 } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -76,8 +76,8 @@ export function QuoteSheet() {
   const handleSendQuote = async () => {
     setIsSending(true);
     const { id: toastId } = toast({
-      title: 'Sending Quote...',
-      description: 'Generating quote details and preparing to send.',
+      title: 'Generating Document...',
+      description: 'Generating quote details and preparing document.',
     });
     try {
       const emailContent = await sendQuote(quote);
@@ -96,8 +96,8 @@ export function QuoteSheet() {
       
       toast({
         id: toastId,
-        title: 'Quote Sent!',
-        description: 'The quote has been generated and logged for sending.',
+        title: 'Document Generated!',
+        description: 'The quote document has been generated and logged.',
       });
 
     } catch (error) {
@@ -105,7 +105,7 @@ export function QuoteSheet() {
       toast({
         id: toastId,
         title: 'Error',
-        description: 'Could not send the quote.',
+        description: 'Could not generate the document.',
         variant: 'destructive',
       });
     } finally {
@@ -275,9 +275,9 @@ export function QuoteSheet() {
                     {isSending ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
-                        <Send className="mr-2 h-4 w-4" />
+                        <FileText className="mr-2 h-4 w-4" />
                     )}
-                    Send to Customer
+                    GENERATE DOCUMENT
                 </Button>
                 <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
                     <DialogTrigger asChild>
