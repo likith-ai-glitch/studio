@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings, View, Copy } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings, View, Copy, FilePlus } from 'lucide-react';
 import Link from 'next/link';
 import {
     DropdownMenu,
@@ -45,6 +45,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { ProductCompare } from '@/components/product-compare';
+import { useQuote } from '@/context/quote-context';
+import { useToast } from '@/hooks/use-toast';
 
 export default function AdminPage() {
   const { 
@@ -70,6 +72,8 @@ export default function AdminPage() {
     clearSelection,
   } = useProducts();
   const { orders } = useOrders();
+  const { addItemToQuote, setIsQuoteSheetOpen } = useQuote();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Product | string | null; direction: 'ascending' | 'descending' }>({ key: 'name', direction: 'ascending' });
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -262,6 +266,31 @@ export default function AdminPage() {
     }
   }
 
+  const handleAddToQuote = (product: Product) => {
+    if (product.status === 'Unavailable') {
+        toast({
+            title: "Product Unavailable",
+            description: `${product.name} cannot be added to the quote.`,
+            variant: "destructive"
+        });
+        return;
+    };
+    
+    addItemToQuote({
+        id: product.productId,
+        name: product.name,
+        price: Number(product.price) || 99.99, // Fallback price
+        quantity: 1,
+        brand: product.brand,
+        category: product.category,
+    });
+
+    toast({
+        title: "Added to quote",
+        description: `${product.name} has been added to your quote.`
+    });
+    setIsQuoteSheetOpen(true);
+  }
 
   const renderHeader = (key: string) => {
     const headerText = headerNames[key] || (key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'));
@@ -704,6 +733,10 @@ export default function AdminPage() {
                               <DropdownMenuItem asChild>
                                 <Link href={`/admin/products/${product.productId}/edit`}>Edit</Link>
                               </DropdownMenuItem>
+                               <DropdownMenuItem onSelect={() => handleAddToQuote(product as Product)}>
+                                <FilePlus className="mr-2 h-4 w-4" />
+                                Add to Quote
+                              </DropdownMenuItem>
                               <AlertDialogTrigger asChild>
                                 <DropdownMenuItem className="text-destructive" onSelect={(e) => {e.preventDefault(); setDeleteTarget(product.productId);}}>
                                   Delete
@@ -739,5 +772,7 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    
 
     
