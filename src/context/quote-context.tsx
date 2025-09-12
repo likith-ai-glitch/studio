@@ -1,7 +1,7 @@
 
 'use client';
 
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useMemo } from 'react';
 
 export interface QuoteItem {
   id: string;
@@ -12,8 +12,21 @@ export interface QuoteItem {
   category: string;
 }
 
+export type QuoteStatus = 'Draft' | 'InProgress' | 'Final';
+export type QuoteType = 'Master' | 'Transaction';
+export type QuoteApprovalStatus = 'Draft' | 'SentForApproval' | 'Approved';
+
+export interface Quote {
+  items: QuoteItem[];
+  status: QuoteStatus;
+  type: QuoteType;
+  approvalStatus: QuoteApprovalStatus;
+  indicativePricing: number;
+  priceList: string;
+}
+
 interface QuoteContextType {
-  quote: QuoteItem[];
+  quote: Quote;
   isQuoteSheetOpen: boolean;
   setIsQuoteSheetOpen: (isOpen: boolean) => void;
   addItemToQuote: (item: QuoteItem) => void;
@@ -22,25 +35,37 @@ interface QuoteContextType {
   removeItemFromQuote: (itemId: string) => void;
   clearQuote: () => void;
   quoteTotal: number;
+  updateQuoteField: (field: keyof Omit<Quote, 'items'>, value: any) => void;
 }
 
 const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
 
+const initialQuoteState: Quote = {
+    items: [],
+    status: 'Draft',
+    type: 'Transaction',
+    approvalStatus: 'Draft',
+    indicativePricing: 0,
+    priceList: '',
+}
+
 export function QuoteProvider({ children }: { children: ReactNode }) {
-  const [quote, setQuote] = useState<QuoteItem[]>([]);
+  const [quote, setQuote] = useState<Quote>(initialQuoteState);
   const [isQuoteSheetOpen, setIsQuoteSheetOpen] = useState(false);
 
   const addItemToQuote = (itemToAdd: QuoteItem) => {
     setQuote(prevQuote => {
-      const existingItem = prevQuote.find(item => item.id === itemToAdd.id);
+      const existingItem = prevQuote.items.find(item => item.id === itemToAdd.id);
       if (existingItem) {
         // Item exists, update quantity
-        return prevQuote.map(item =>
+        const updatedItems = prevQuote.items.map(item =>
           item.id === itemToAdd.id ? { ...item, quantity: item.quantity + itemToAdd.quantity } : item
         );
+        return { ...prevQuote, items: updatedItems };
       } else {
         // Item does not exist, add it
-        return [...prevQuote, itemToAdd];
+        const newItems = [...prevQuote.items, itemToAdd];
+        return { ...prevQuote, items: newItems };
       }
     });
   };
@@ -54,24 +79,37 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
     if (quantity <= 0) {
       removeItemFromQuote(itemId);
     } else {
-      setQuote(prevQuote =>
-        prevQuote.map(item => (item.id === itemId ? { ...item, quantity } : item))
-      );
+      setQuote(prevQuote => {
+        const updatedItems = prevQuote.items.map(item => (item.id === itemId ? { ...item, quantity } : item));
+        return { ...prevQuote, items: updatedItems };
+      });
     }
+  };
+  
+  const updateQuoteField = (field: keyof Omit<Quote, 'items'>, value: any) => {
+    setQuote(prevQuote => ({
+      ...prevQuote,
+      [field]: value
+    }));
   };
 
   const removeItemFromQuote = (itemId: string) => {
-    setQuote(prevQuote => prevQuote.filter(item => item.id !== itemId));
+    setQuote(prevQuote => {
+        const updatedItems = prevQuote.items.filter(item => item.id !== itemId);
+        return { ...prevQuote, items: updatedItems };
+    });
   };
   
   const clearQuote = () => {
-    setQuote([]);
+    setQuote(initialQuoteState);
   }
 
-  const quoteTotal = quote.reduce((total, item) => total + Number(item.price) * item.quantity, 0);
+  const quoteTotal = useMemo(() => {
+    return quote.items.reduce((total, item) => total + Number(item.price) * item.quantity, 0)
+  }, [quote.items]);
 
   return (
-    <QuoteContext.Provider value={{ quote, isQuoteSheetOpen, setIsQuoteSheetOpen, addItemToQuote, buyNow, updateItemQuantity, removeItemFromQuote, clearQuote, quoteTotal }}>
+    <QuoteContext.Provider value={{ quote, isQuoteSheetOpen, setIsQuoteSheetOpen, addItemToQuote, buyNow, updateItemQuantity, removeItemFromQuote, clearQuote, quoteTotal, updateQuoteField }}>
       {children}
     </QuoteContext.Provider>
   );

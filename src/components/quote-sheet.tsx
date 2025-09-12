@@ -22,9 +22,10 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, FileText, ShoppingCart } from 'lucide-react';
+import { Trash2, FileText, ShoppingCart, Send, Loader2 } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -35,16 +36,32 @@ import {
 } from '@/components/ui/table';
 import { AddressForm, type AddressFormValues } from './address-form';
 import { useToast } from '@/hooks/use-toast';
-
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { sendQuote } from '@/ai/flows/send-quote-flow';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export function QuoteSheet() {
-  const { quote, isQuoteSheetOpen, setIsQuoteSheetOpen, updateItemQuantity, removeItemFromQuote, quoteTotal, clearQuote } = useQuote();
+  const { 
+    quote, 
+    isQuoteSheetOpen, 
+    setIsQuoteSheetOpen, 
+    updateItemQuantity, 
+    removeItemFromQuote, 
+    quoteTotal, 
+    clearQuote,
+    updateQuoteField,
+  } = useQuote();
   const { addOrder } = useOrders();
   const { toast } = useToast();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const notificationsCollectionRef = collection(db, 'notifications');
+
 
   const handlePlaceOrder = (customerData: AddressFormValues) => {
-    addOrder(customerData, quote, quoteTotal);
+    if (!quote.items) return;
+    addOrder(customerData, quote.items, quoteTotal);
     toast({
         title: "Order Placed!",
         description: "Thank you for your purchase. Your order is being processed."
@@ -53,17 +70,112 @@ export function QuoteSheet() {
     setIsCheckoutOpen(false);
     setIsQuoteSheetOpen(false);
   }
+  
+  const handleSendQuote = async () => {
+    setIsSending(true);
+    const { id: toastId } = toast({
+      title: 'Sending Quote...',
+      description: 'Generating quote details and preparing to send.',
+    });
+    try {
+      const emailContent = await sendQuote(quote);
+
+      await addDoc(notificationsCollectionRef, {
+        customer: {
+          email: 'customer@example.com', // Placeholder email
+        },
+        emailSubject: emailContent.emailSubject,
+        emailBody: emailContent.emailBody,
+        sentAt: serverTimestamp(),
+        quoteId: `quote_${Date.now()}`,
+      });
+
+      updateQuoteField('approvalStatus', 'SentForApproval');
+      
+      toast({
+        id: toastId,
+        title: 'Quote Sent!',
+        description: 'The quote has been generated and logged for sending.',
+      });
+
+    } catch (error) {
+      console.error("Error sending quote:", error);
+      toast({
+        id: toastId,
+        title: 'Error',
+        description: 'Could not send the quote.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSending(false);
+    }
+  }
 
   return (
     <Sheet open={isQuoteSheetOpen} onOpenChange={setIsQuoteSheetOpen}>
-      <SheetContent className="flex w-full flex-col sm:max-w-xl">
+      <SheetContent className="flex w-full flex-col sm:max-w-3xl">
         <SheetHeader>
           <SheetTitle>Quote Builder</SheetTitle>
         </SheetHeader>
         <Separator />
-        {quote.length > 0 ? (
+        {quote.items && quote.items.length > 0 ? (
            <>
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden flex flex-col gap-4">
+              {/* Quote Management Section */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-1">
+                 <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select value={quote.status} onValueChange={(value) => updateQuoteField('status', value)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Draft">Draft</SelectItem>
+                            <SelectItem value="InProgress">In Progress</SelectItem>
+                            <SelectItem value="Final">Final</SelectItem>
+                        </SelectContent>
+                    </Select>
+                 </div>
+                 <div className="space-y-2">
+                    <Label>Type</Label>
+                    <Select value={quote.type} onValueChange={(value) => updateQuoteField('type', value)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Master">Master</SelectItem>
+                            <SelectItem value="Transaction">Transaction</SelectItem>
+                        </SelectContent>
+                    </Select>
+                 </div>
+                 <div className="space-y-2">
+                    <Label>Approval Status</Label>
+                    <Select value={quote.approvalStatus} onValueChange={(value) => updateQuoteField('approvalStatus', value)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Draft">Draft</SelectItem>
+                            <SelectItem value="SentForApproval">Sent For Approval</SelectItem>
+                            <SelectItem value="Approved">Approved</SelectItem>
+                        </SelectContent>
+                    </Select>
+                 </div>
+                 <div className="space-y-2 md:col-span-1">
+                    <Label htmlFor="indicative-pricing">Indicative Pricing</Label>
+                    <Input 
+                      id="indicative-pricing"
+                      type="number"
+                      value={quote.indicativePricing}
+                      onChange={(e) => updateQuoteField('indicativePricing', parseFloat(e.target.value) || 0)}
+                      placeholder="e.g. 5000.00"
+                    />
+                 </div>
+                 <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="price-list">Price List</Label>
+                    <Input 
+                      id="price-list"
+                      value={quote.priceList}
+                      onChange={(e) => updateQuoteField('priceList', e.target.value)}
+                      placeholder="e.g. 'Standard Price Book'"
+                    />
+                 </div>
+              </div>
+              <Separator />
               <ScrollArea className="h-full -mx-6">
                 <Table>
                   <TableHeader>
@@ -76,7 +188,7 @@ export function QuoteSheet() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {quote.map(item => (
+                    {quote.items.map(item => (
                       <TableRow key={item.id}>
                         <TableCell>
                           <div className="font-medium">{item.name}</div>
@@ -113,28 +225,36 @@ export function QuoteSheet() {
                 <p>Total</p>
                 <p>₹{quoteTotal.toFixed(2)}</p>
               </div>
-              <div className="flex flex-col gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <Button onClick={handleSendQuote} disabled={isSending}>
+                    {isSending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                        <Send className="mr-2 h-4 w-4" />
+                    )}
+                    Send to Customer
+                </Button>
                 <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
                     <DialogTrigger asChild>
                       <Button>
                         <ShoppingCart className="mr-2 h-4 w-4" />
-                        Proceed to Checkout
+                        Create Order
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Shipping Information</DialogTitle>
                         <DialogDescription>
-                          Please provide your details to place the order.
+                          Provide customer details to create an order from this quote.
                         </DialogDescription>
                       </DialogHeader>
                       <AddressForm onSubmit={handlePlaceOrder} />
                     </DialogContent>
                 </Dialog>
-                <SheetClose asChild>
+              </div>
+               <SheetClose asChild>
                   <Button variant="outline">Continue Browsing</Button>
                 </SheetClose>
-              </div>
             </SheetFooter>
           </>
         ) : (

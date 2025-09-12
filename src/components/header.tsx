@@ -12,7 +12,7 @@ export function Header() {
   const { user, logout, loading } = useAuth();
   const { quote, setIsQuoteSheetOpen } = useQuote();
   
-  const totalItems = quote.reduce((sum, item) => sum + item.quantity, 0);
+  const totalItems = quote.items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <header className="bg-card shadow-md sticky top-0 z-40">
