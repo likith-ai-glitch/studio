@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -168,12 +167,12 @@ export function QuoteSheet() {
                     </Select>
                  </div>
                   <div className="space-y-2">
-                    <Label htmlFor="shipping">Shipping & installation</Label>
+                    <Label htmlFor="additionalCost">Additional Cost</Label>
                     <Input 
-                      id="shipping"
+                      id="additionalCost"
                       type="number"
-                      value={quote.indicativePricing.shippingAndInstallation}
-                      onChange={(e) => updateIndicativePricingField('shippingAndInstallation', parseFloat(e.target.value) || 0)}
+                      value={quote.indicativePricing.additionalCost}
+                      onChange={(e) => updateIndicativePricingField('additionalCost', parseFloat(e.target.value) || 0)}
                       placeholder="e.g. 5000.00"
                     />
                  </div>

@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A flow for generating a customer-facing quote email.
@@ -26,7 +25,7 @@ const QuoteInputSchema = z.object({
   type: z.enum(['Master', 'Transaction']),
   approvalStatus: z.enum(['Draft', 'SentForApproval', 'Approved']),
   indicativePricing: z.object({
-    shippingAndInstallation: z.number(),
+    additionalCost: z.number(),
   }).optional(),
   discount: z.number().optional(),
   tax: z.number().optional(), // Represents GST %
@@ -79,7 +78,7 @@ const prompt = ai.definePrompt({
 
   {{#if indicativePricing}}
   Additional Costs:
-  - Shipping & Installation: ₹{{indicativePricing.shippingAndInstallation}}
+  - Additional Cost: ₹{{indicativePricing.additionalCost}}
   {{/if}}
 
   The subtotal for the items and additional costs is: ₹{{subTotal}}

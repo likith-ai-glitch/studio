@@ -1,4 +1,3 @@
-
 'use client';
 
 import { createContext, useContext, useState, ReactNode, useMemo } from 'react';
@@ -18,7 +17,7 @@ export type QuoteApprovalStatus = 'Draft' | 'SentForApproval' | 'Approved';
 
 export interface IndicativePricing {
     totalProductPrice: number;
-    shippingAndInstallation: number;
+    additionalCost: number;
 }
 
 export interface Quote {
@@ -57,7 +56,7 @@ const initialQuoteState: Quote = {
     approvalStatus: 'Draft',
     indicativePricing: {
         totalProductPrice: 0,
-        shippingAndInstallation: 0,
+        additionalCost: 0,
     },
     discount: 0,
     tax: 0,
