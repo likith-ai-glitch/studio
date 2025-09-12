@@ -28,7 +28,8 @@ export interface Quote {
   type: QuoteType;
   approvalStatus: QuoteApprovalStatus;
   indicativePricing: IndicativePricing;
-  priceList: string;
+  discount: number;
+  tax: number;
 }
 
 interface QuoteContextType {
@@ -40,7 +41,8 @@ interface QuoteContextType {
   updateItemQuantity: (itemId: string, quantity: number) => void;
   removeItemFromQuote: (itemId: string) => void;
   clearQuote: () => void;
-  quoteTotal: number;
+  subTotal: number;
+  grandTotal: number;
   updateQuoteField: (field: keyof Omit<Quote, 'items' | 'indicativePricing'>, value: any) => void;
   updateIndicativePricingField: (field: keyof IndicativePricing, value: number) => void;
 }
@@ -57,7 +59,8 @@ const initialQuoteState: Quote = {
         customConfiguration: 0,
         shippingAndInstallation: 0,
     },
-    priceList: '',
+    discount: 0,
+    tax: 0,
 }
 
 export function QuoteProvider({ children }: { children: ReactNode }) {
@@ -125,11 +128,17 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
     setQuote(initialQuoteState);
   }
 
-  const quoteTotal = useMemo(() => {
+  const subTotal = useMemo(() => {
     const itemsTotal = quote.items.reduce((total, item) => total + Number(item.price) * item.quantity, 0);
     const indicativeTotal = Object.values(quote.indicativePricing).reduce((sum, value) => sum + (Number(value) || 0), 0);
     return itemsTotal + indicativeTotal;
   }, [quote.items, quote.indicativePricing]);
+
+  const grandTotal = useMemo(() => {
+    const discountAmount = subTotal * (quote.discount / 100);
+    const totalAfterDiscount = subTotal - discountAmount;
+    return totalAfterDiscount + quote.tax;
+  }, [subTotal, quote.discount, quote.tax]);
 
   return (
     <QuoteContext.Provider value={{ 
@@ -141,7 +150,8 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
         updateItemQuantity, 
         removeItemFromQuote, 
         clearQuote, 
-        quoteTotal, 
+        subTotal, 
+        grandTotal,
         updateQuoteField,
         updateIndicativePricingField,
     }}>

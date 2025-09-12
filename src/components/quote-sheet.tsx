@@ -48,7 +48,8 @@ export function QuoteSheet() {
     setIsQuoteSheetOpen, 
     updateItemQuantity, 
     removeItemFromQuote, 
-    quoteTotal, 
+    subTotal,
+    grandTotal, 
     clearQuote,
     updateQuoteField,
     updateIndicativePricingField,
@@ -62,7 +63,7 @@ export function QuoteSheet() {
 
   const handlePlaceOrder = (customerData: AddressFormValues) => {
     if (!quote.items) return;
-    addOrder(customerData, quote.items, quoteTotal);
+    addOrder(customerData, quote.items, grandTotal);
     toast({
         title: "Order Placed!",
         description: "Thank you for your purchase. Your order is being processed."
@@ -186,13 +187,24 @@ export function QuoteSheet() {
                       placeholder="e.g. 5000.00"
                     />
                  </div>
-                 <div className="space-y-2 md:col-span-3">
-                    <Label htmlFor="price-list">Price List</Label>
+                 <div className="space-y-2">
+                    <Label htmlFor="discount">Discount %</Label>
                     <Input 
-                      id="price-list"
-                      value={quote.priceList}
-                      onChange={(e) => updateQuoteField('priceList', e.target.value)}
-                      placeholder="e.g. 'Standard Price Book'"
+                      id="discount"
+                      type="number"
+                      value={quote.discount}
+                      onChange={(e) => updateQuoteField('discount', parseFloat(e.target.value) || 0)}
+                      placeholder="e.g. 10"
+                    />
+                 </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="tax">Tax Amount</Label>
+                    <Input 
+                      id="tax"
+                      type="number"
+                      value={quote.tax}
+                      onChange={(e) => updateQuoteField('tax', parseFloat(e.target.value) || 0)}
+                      placeholder="e.g. 500.00"
                     />
                  </div>
               </div>
@@ -242,9 +254,28 @@ export function QuoteSheet() {
             </div>
             
             <SheetFooter className="mt-auto flex-col space-y-4 pt-4 border-t">
-              <div className="flex justify-between text-lg font-semibold">
-                <p>Total</p>
-                <p>₹{quoteTotal.toFixed(2)}</p>
+              <div className="space-y-2 text-lg">
+                <div className="flex justify-between font-semibold">
+                  <p>Subtotal</p>
+                  <p>₹{subTotal.toFixed(2)}</p>
+                </div>
+                {quote.discount > 0 && (
+                   <div className="flex justify-between text-sm text-muted-foreground">
+                    <p>Discount ({quote.discount}%)</p>
+                    <p>- ₹{(subTotal * quote.discount / 100).toFixed(2)}</p>
+                  </div>
+                )}
+                {quote.tax > 0 && (
+                   <div className="flex justify-between text-sm text-muted-foreground">
+                    <p>Tax</p>
+                    <p>+ ₹{quote.tax.toFixed(2)}</p>
+                  </div>
+                )}
+                 <Separator />
+                <div className="flex justify-between font-bold text-xl">
+                  <p>Grand Total</p>
+                  <p>₹{grandTotal.toFixed(2)}</p>
+                </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <Button onClick={handleSendQuote} disabled={isSending}>
