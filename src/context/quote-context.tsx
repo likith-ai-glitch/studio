@@ -56,7 +56,7 @@ const initialQuoteState: Quote = {
         shippingAndInstallation: 0,
     },
     discount: 0,
-    tax: 0, // Represents GST %
+    tax: 0,
 }
 
 export function QuoteProvider({ children }: { children: ReactNode }) {
@@ -131,8 +131,8 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   }, [quote.items, quote.indicativePricing]);
 
   const grandTotal = useMemo(() => {
-    const totalAfterDiscount = subTotal * (1 - (quote.discount / 100));
-    const taxAmount = totalAfterDiscount * (quote.tax / 100);
+    const totalAfterDiscount = subTotal * (1 - ((quote.discount || 0) / 100));
+    const taxAmount = totalAfterDiscount * ((quote.tax || 0) / 100);
     return totalAfterDiscount + taxAmount;
   }, [subTotal, quote.discount, quote.tax]);
 
