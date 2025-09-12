@@ -25,7 +25,6 @@ const QuoteInputSchema = z.object({
   type: z.enum(['Master', 'Transaction']),
   approvalStatus: z.enum(['Draft', 'SentForApproval', 'Approved']),
   indicativePricing: z.object({
-    totalProductPrice: z.number(),
     shippingAndInstallation: z.number(),
   }).optional(),
   discount: z.number().optional(),
@@ -78,7 +77,6 @@ const prompt = ai.definePrompt({
 
   {{#if indicativePricing}}
   Additional Costs:
-  - Total Product Price: ₹{{indicativePricing.totalProductPrice}}
   - Shipping & Installation: ₹{{indicativePricing.shippingAndInstallation}}
   {{/if}}
 

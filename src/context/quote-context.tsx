@@ -17,7 +17,6 @@ export type QuoteType = 'Master' | 'Transaction';
 export type QuoteApprovalStatus = 'Draft' | 'SentForApproval' | 'Approved';
 
 export interface IndicativePricing {
-    totalProductPrice: number;
     shippingAndInstallation: number;
 }
 
@@ -54,7 +53,6 @@ const initialQuoteState: Quote = {
     type: 'Transaction',
     approvalStatus: 'Draft',
     indicativePricing: {
-        totalProductPrice: 0,
         shippingAndInstallation: 0,
     },
     discount: 0,

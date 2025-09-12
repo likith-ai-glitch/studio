@@ -158,16 +158,6 @@ export function QuoteSheet() {
                     </Select>
                  </div>
                   <div className="space-y-2">
-                    <Label htmlFor="total-product-price">Total Product Price</Label>
-                    <Input 
-                      id="total-product-price"
-                      type="number"
-                      value={quote.indicativePricing.totalProductPrice}
-                      onChange={(e) => updateIndicativePricingField('totalProductPrice', parseFloat(e.target.value) || 0)}
-                      placeholder="e.g. 50000.00"
-                    />
-                 </div>
-                  <div className="space-y-2">
                     <Label htmlFor="shipping">Shipping & installation</Label>
                     <Input 
                       id="shipping"
