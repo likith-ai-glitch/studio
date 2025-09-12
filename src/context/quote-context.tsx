@@ -1,7 +1,7 @@
 
 'use client';
 
-import { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
+import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
 
 export interface QuoteItem {
   id: string; // Internal ID for the quote item, typically same as productId
@@ -55,7 +55,9 @@ const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
 
 const generateNewQuoteNumber = (type: QuoteType = 'Transaction') => {
   const prefix = type === 'Master' ? 'MQ-' : 'TQ-';
-  return `${prefix}${Date.now()}`;
+  const timestamp = Date.now();
+  const randomSuffix = Math.random().toString(36).substring(2, 7);
+  return `${prefix}${timestamp}-${randomSuffix}`;
 };
 
 const initialQuoteState: Quote = {
@@ -73,7 +75,10 @@ const initialQuoteState: Quote = {
 }
 
 export function QuoteProvider({ children }: { children: ReactNode }) {
-  const [quote, setQuote] = useState<Quote>(initialQuoteState);
+  const [quote, setQuote] = useState<Quote>(() => ({
+    ...initialQuoteState,
+    quoteNumber: generateNewQuoteNumber(),
+  }));
   const [isQuoteSheetOpen, setIsQuoteSheetOpen] = useState(false);
   
   const addItemToQuote = (itemToAdd: QuoteItem) => {
@@ -109,19 +114,18 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const updateQuoteField = (field: keyof Omit<Quote, 'items' | 'indicativePricing'>, value: any) => {
+  const updateQuoteField = useCallback((field: keyof Omit<Quote, 'items' | 'indicativePricing'>, value: any) => {
     setQuote(prevQuote => {
       const newQuote = { ...prevQuote, [field]: value };
-      if (field === 'type') {
+      if (field === 'type' && prevQuote.type !== value) {
         const prefix = value === 'Master' ? 'MQ-' : 'TQ-';
-        const currentNumber = newQuote.quoteNumber;
-        // Keep the timestamp part of the ID, only change prefix
-        const numberPart = currentNumber.split('-').slice(1).join('-');
-        newQuote.quoteNumber = `${prefix}${numberPart}`;
+        const currentIdParts = prevQuote.quoteNumber.split('-');
+        const idSuffix = currentIdParts.slice(1).join('-');
+        newQuote.quoteNumber = `${prefix}${idSuffix}`;
       }
       return newQuote;
     });
-  };
+  }, []);
   
   const updateIndicativePricingField = (field: keyof IndicativePricing, value: number) => {
     setQuote(prevQuote => ({
