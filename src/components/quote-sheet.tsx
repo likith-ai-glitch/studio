@@ -203,7 +203,7 @@ export function QuoteSheet() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="min-w-[250px]">Product</TableHead>
+                      <TableHead className="min-w-[250px] px-6">Product</TableHead>
                       <TableHead className="text-center">Qty</TableHead>
                       <TableHead className="text-right">Unit Price</TableHead>
                       <TableHead className="text-right">Total</TableHead>
@@ -213,15 +213,15 @@ export function QuoteSheet() {
                   <TableBody>
                     {quote.items.map(item => (
                       <TableRow key={item.id}>
-                        <TableCell>
+                        <TableCell className="px-6">
                           <div className="font-medium text-base mb-2">{item.name}</div>
-                          <div className="text-xs text-muted-foreground space-y-1">
-                            {item.productId && <div className="flex justify-between"><span className="font-semibold">ID:</span> <span>{item.productId}</span></div>}
-                            {item.brand && <div className="flex justify-between"><span className="font-semibold">Brand:</span> <span>{item.brand}</span></div>}
-                            {item.category && <div className="flex justify-between"><span className="font-semibold">Category:</span> <span>{item.category}</span></div>}
-                            {item.partName && <div className="flex justify-between"><span className="font-semibold">Part Name:</span> <span>{item.partName}</span></div>}
-                            {item.colour && <div className="flex justify-between"><span className="font-semibold">Colour:</span> <span>{item.colour}</span></div>}
-                          </div>
+                          <dl className="text-xs text-muted-foreground grid grid-cols-[max-content_1fr] gap-x-2 gap-y-1">
+                            {item.productId && (<><dt className="font-semibold">ID:</dt><dd>{item.productId}</dd></>)}
+                            {item.brand && (<><dt className="font-semibold">Brand:</dt><dd>{item.brand}</dd></>)}
+                            {item.category && (<><dt className="font-semibold">Category:</dt><dd>{item.category}</dd></>)}
+                            {item.partName && (<><dt className="font-semibold">Part Name:</dt><dd>{item.partName}</dd></>)}
+                            {item.colour && (<><dt className="font-semibold">Colour:</dt><dd>{item.colour}</dd></>)}
+                          </dl>
                         </TableCell>
                         <TableCell className="text-center">
                           <Input
