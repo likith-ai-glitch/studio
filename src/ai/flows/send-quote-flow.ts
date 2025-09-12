@@ -25,12 +25,11 @@ const QuoteInputSchema = z.object({
   type: z.enum(['Master', 'Transaction']),
   approvalStatus: z.enum(['Draft', 'SentForApproval', 'Approved']),
   indicativePricing: z.object({
-    baseMachine: z.number(),
-    customConfiguration: z.number(),
+    totalProductPrice: z.number(),
     shippingAndInstallation: z.number(),
   }).optional(),
   discount: z.number().optional(),
-  tax: z.number().optional(),
+  tax: z.number().optional(), // Represents GST %
 });
 
 const QuoteOutputSchema = z.object({
@@ -44,17 +43,24 @@ export async function sendQuote(input: Quote): Promise<QuoteOutput> {
   const itemsTotal = input.items.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const indicativeTotal = Object.values(input.indicativePricing || {}).reduce((acc, val) => acc + (Number(val) || 0), 0);
   const subTotal = itemsTotal + indicativeTotal;
-  const discountAmount = subTotal * ((input.discount || 0) / 100);
-  const grandTotal = subTotal - discountAmount + (input.tax || 0);
+  const totalAfterDiscount = subTotal * (1 - ((input.discount || 0) / 100));
+  const taxAmount = totalAfterDiscount * ((input.tax || 0) / 100);
+  const grandTotal = totalAfterDiscount + taxAmount;
 
-  const flowInput = { ...input, subTotal, grandTotal };
+  const flowInput = { ...input, subTotal, grandTotal, taxAmount, totalAfterDiscount };
   return sendQuoteFlow(flowInput);
 }
 
+const promptInputSchema = QuoteInputSchema.extend({ 
+    subTotal: z.number(), 
+    grandTotal: z.number(),
+    taxAmount: z.number(),
+    totalAfterDiscount: z.number(),
+});
 
 const prompt = ai.definePrompt({
   name: 'sendQuotePrompt',
-  input: { schema: QuoteInputSchema.extend({ subTotal: z.number(), grandTotal: z.number() }) },
+  input: { schema: promptInputSchema },
   output: { schema: QuoteOutputSchema },
   prompt: `You are an expert sales assistant for an e-commerce store called Shopstream.
   
@@ -72,8 +78,7 @@ const prompt = ai.definePrompt({
 
   {{#if indicativePricing}}
   Additional Costs:
-  - Base Machine: ₹{{indicativePricing.baseMachine}}
-  - Custom Configuration: ₹{{indicativePricing.customConfiguration}}
+  - Total Product Price: ₹{{indicativePricing.totalProductPrice}}
   - Shipping & Installation: ₹{{indicativePricing.shippingAndInstallation}}
   {{/if}}
 
@@ -83,8 +88,10 @@ const prompt = ai.definePrompt({
   - Discount ({{discount}}%): -₹{{multiply subTotal (divide discount 100)}}
   {{/if}}
 
+  - Total After Discount: ₹{{totalAfterDiscount}}
+
   {{#if tax}}
-  - Tax: +₹{{tax}}
+  - GST ({{tax}}%): +₹{{taxAmount}}
   {{/if}}
 
   The final Grand Total for the quote is: ₹{{grandTotal}}
@@ -92,7 +99,7 @@ const prompt = ai.definePrompt({
   Generate the content for the email.
   - The subject line should be "Your Quote from Shopstream".
   - The body should be a polite HTML message. Start by thanking the customer for their interest.
-  - Present the items, additional costs, discount, tax, and grand total in a clear, easy-to-read format. A table would be ideal.
+  - Present the items, additional costs, discount, GST, and grand total in a clear, easy-to-read format. A table would be ideal.
   - Clearly state the final grand total.
   - Mention the quote's status and type.
   - End with a friendly closing, letting them know you are available for any questions.
@@ -108,7 +115,7 @@ const prompt = ai.definePrompt({
 const sendQuoteFlow = ai.defineFlow(
   {
     name: 'sendQuoteFlow',
-    inputSchema: QuoteInputSchema.extend({ subTotal: z.number(), grandTotal: z.number() }),
+    inputSchema: promptInputSchema,
     outputSchema: QuoteOutputSchema,
   },
   async (input) => {

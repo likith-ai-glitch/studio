@@ -158,23 +158,13 @@ export function QuoteSheet() {
                     </Select>
                  </div>
                   <div className="space-y-2">
-                    <Label htmlFor="base-machine">Base machine</Label>
+                    <Label htmlFor="total-product-price">Total Product Price</Label>
                     <Input 
-                      id="base-machine"
+                      id="total-product-price"
                       type="number"
-                      value={quote.indicativePricing.baseMachine}
-                      onChange={(e) => updateIndicativePricingField('baseMachine', parseFloat(e.target.value) || 0)}
+                      value={quote.indicativePricing.totalProductPrice}
+                      onChange={(e) => updateIndicativePricingField('totalProductPrice', parseFloat(e.target.value) || 0)}
                       placeholder="e.g. 50000.00"
-                    />
-                 </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="custom-config">Custom configuration</Label>
-                    <Input 
-                      id="custom-config"
-                      type="number"
-                      value={quote.indicativePricing.customConfiguration}
-                      onChange={(e) => updateIndicativePricingField('customConfiguration', parseFloat(e.target.value) || 0)}
-                      placeholder="e.g. 10000.00"
                     />
                  </div>
                   <div className="space-y-2">
@@ -198,13 +188,13 @@ export function QuoteSheet() {
                     />
                  </div>
                   <div className="space-y-2">
-                    <Label htmlFor="tax">Tax Amount</Label>
+                    <Label htmlFor="tax">GST %</Label>
                     <Input 
                       id="tax"
                       type="number"
                       value={quote.tax}
                       onChange={(e) => updateQuoteField('tax', parseFloat(e.target.value) || 0)}
-                      placeholder="e.g. 500.00"
+                      placeholder="e.g. 18"
                     />
                  </div>
               </div>
@@ -267,8 +257,8 @@ export function QuoteSheet() {
                 )}
                 {quote.tax > 0 && (
                    <div className="flex justify-between text-sm text-muted-foreground">
-                    <p>Tax</p>
-                    <p>+ ₹{quote.tax.toFixed(2)}</p>
+                    <p>GST ({quote.tax}%)</p>
+                    <p>+ ₹{(subTotal * (1 - quote.discount / 100) * (quote.tax / 100)).toFixed(2)}</p>
                   </div>
                 )}
                  <Separator />

@@ -17,8 +17,7 @@ export type QuoteType = 'Master' | 'Transaction';
 export type QuoteApprovalStatus = 'Draft' | 'SentForApproval' | 'Approved';
 
 export interface IndicativePricing {
-    baseMachine: number;
-    customConfiguration: number;
+    totalProductPrice: number;
     shippingAndInstallation: number;
 }
 
@@ -29,7 +28,7 @@ export interface Quote {
   approvalStatus: QuoteApprovalStatus;
   indicativePricing: IndicativePricing;
   discount: number;
-  tax: number;
+  tax: number; // Represents GST %
 }
 
 interface QuoteContextType {
@@ -55,12 +54,11 @@ const initialQuoteState: Quote = {
     type: 'Transaction',
     approvalStatus: 'Draft',
     indicativePricing: {
-        baseMachine: 0,
-        customConfiguration: 0,
+        totalProductPrice: 0,
         shippingAndInstallation: 0,
     },
     discount: 0,
-    tax: 0,
+    tax: 0, // Represents GST %
 }
 
 export function QuoteProvider({ children }: { children: ReactNode }) {
@@ -135,9 +133,9 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   }, [quote.items, quote.indicativePricing]);
 
   const grandTotal = useMemo(() => {
-    const discountAmount = subTotal * (quote.discount / 100);
-    const totalAfterDiscount = subTotal - discountAmount;
-    return totalAfterDiscount + quote.tax;
+    const totalAfterDiscount = subTotal * (1 - (quote.discount / 100));
+    const taxAmount = totalAfterDiscount * (quote.tax / 100);
+    return totalAfterDiscount + taxAmount;
   }, [subTotal, quote.discount, quote.tax]);
 
   return (
