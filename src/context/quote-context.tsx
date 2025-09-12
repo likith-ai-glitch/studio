@@ -43,7 +43,7 @@ interface QuoteContextType {
   addItemToQuote: (item: QuoteItem) => void;
   buyNow: (item: QuoteItem) => void;
   updateItemQuantity: (itemId: string, quantity: number) => void;
-  removeItemFromQuote: (itemId: string) => void;
+  removeItemFromQuote: (itemId:string) => void;
   clearQuote: () => void;
   subTotal: number;
   grandTotal: number;
@@ -55,14 +55,12 @@ const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
 
 const generateNewQuoteNumber = (type: QuoteType = 'Transaction', existingId?: string) => {
   const prefix = type === 'Master' ? 'MQ-' : 'TQ-';
-  if (existingId) {
+  if (existingId && existingId.includes('-')) {
       const parts = existingId.split('-');
       if (parts.length > 1) {
-          // Re-use the unique part of the ID, just change the prefix
           return `${prefix}${parts.slice(1).join('-')}`;
       }
   }
-  // Generate a completely new unique ID
   const timestamp = Date.now();
   const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
   return `${prefix}${timestamp}-${randomSuffix}`;
@@ -70,7 +68,7 @@ const generateNewQuoteNumber = (type: QuoteType = 'Transaction', existingId?: st
 
 
 const initialQuoteState: Quote = {
-    quoteNumber: '', // Will be set on initialization
+    quoteNumber: '',
     items: [],
     status: 'Draft',
     type: 'Transaction',
@@ -94,13 +92,11 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
     setQuote(prevQuote => {
       const existingItem = prevQuote.items.find(item => item.id === itemToAdd.id);
       if (existingItem) {
-        // Item exists, update quantity
         const updatedItems = prevQuote.items.map(item =>
           item.id === itemToAdd.id ? { ...item, quantity: item.quantity + itemToAdd.quantity } : item
         );
         return { ...prevQuote, items: updatedItems };
       } else {
-        // Item does not exist, add it
         const newItems = [...prevQuote.items, itemToAdd];
         return { ...prevQuote, items: newItems };
       }
@@ -126,7 +122,6 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   const updateQuoteField = useCallback((field: keyof Omit<Quote, 'items' | 'indicativePricing'>, value: any) => {
     setQuote(prevQuote => {
       let newQuoteNumber = prevQuote.quoteNumber;
-      // If the type is changing, update the quote number prefix
       if (field === 'type' && prevQuote.type !== value) {
         newQuoteNumber = generateNewQuoteNumber(value, prevQuote.quoteNumber);
       }
