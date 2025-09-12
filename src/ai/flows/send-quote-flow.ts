@@ -20,6 +20,8 @@ const QuoteInputSchema = z.object({
     quantity: z.number(),
     brand: z.string(),
     category: z.string(),
+    colour: z.string().optional(),
+    partName: z.string().optional(),
   })),
   status: z.enum(['Draft', 'InProgress', 'Final']),
   type: z.enum(['Master', 'Transaction']),
@@ -61,6 +63,12 @@ const prompt = ai.definePrompt({
   name: 'sendQuotePrompt',
   input: { schema: promptInputSchema },
   output: { schema: QuoteOutputSchema },
+  config: {
+    customHelpers: {
+        multiply: (a: number, b: number) => a * b,
+        divide: (a: number, b: number) => a / b,
+    }
+  },
   prompt: `You are an expert sales assistant for an e-commerce store called Shopstream.
   
   You are tasked with generating a professional and friendly email to a customer with their requested quote.
@@ -76,7 +84,7 @@ const prompt = ai.definePrompt({
   - {{quantity}} x {{name}} ({{brand}}) - ₹{{price}} each
   {{/each}}
 
-  {{#if indicativePricing}}
+  {{#if indicativePricing.additionalCost}}
   Additional Costs:
   - Additional Cost: ₹{{indicativePricing.additionalCost}}
   {{/if}}
