@@ -24,7 +24,11 @@ const QuoteInputSchema = z.object({
   status: z.enum(['Draft', 'InProgress', 'Final']),
   type: z.enum(['Master', 'Transaction']),
   approvalStatus: z.enum(['Draft', 'SentForApproval', 'Approved']),
-  indicativePricing: z.number().optional(),
+  indicativePricing: z.object({
+    baseMachine: z.number(),
+    customConfiguration: z.number(),
+    shippingAndInstallation: z.number(),
+  }).optional(),
   priceList: z.string().optional(),
 });
 
@@ -36,8 +40,10 @@ export type QuoteOutput = z.infer<typeof QuoteOutputSchema>;
 
 
 export async function sendQuote(input: Quote): Promise<QuoteOutput> {
-  // We can calculate total here to pass to the prompt
-  const total = input.items.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  const itemsTotal = input.items.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  const indicativeTotal = Object.values(input.indicativePricing || {}).reduce((acc, val) => acc + (Number(val) || 0), 0);
+  const total = itemsTotal + indicativeTotal;
+
   const flowInput = { ...input, total };
   return sendQuoteFlow(flowInput);
 }
@@ -55,9 +61,6 @@ const prompt = ai.definePrompt({
   - Quote Status: {{{status}}}
   - Quote Type: {{{type}}}
   - Approval Status: {{{approvalStatus}}}
-  {{#if indicativePricing}}
-  - Indicative Pricing: ₹{{indicativePricing}}
-  {{/if}}
   {{#if priceList}}
   - Price List: {{{priceList}}}
   {{/if}}
@@ -67,12 +70,19 @@ const prompt = ai.definePrompt({
   - {{quantity}} x {{name}} ({{brand}}) - ₹{{price}} each
   {{/each}}
 
-  The calculated total for the items is: ₹{{total}}
+  {{#if indicativePricing}}
+  Additional Costs:
+  - Base Machine: ₹{{indicativePricing.baseMachine}}
+  - Custom Configuration: ₹{{indicativePricing.customConfiguration}}
+  - Shipping & Installation: ₹{{indicativePricing.shippingAndInstallation}}
+  {{/if}}
+
+  The calculated total for the quote is: ₹{{total}}
 
   Generate the content for the email.
   - The subject line should be "Your Quote from Shopstream".
   - The body should be a polite HTML message. Start by thanking the customer for their interest.
-  - Present the items in a clear, easy-to-read format. A table would be ideal.
+  - Present the items and additional costs in a clear, easy-to-read format. A table would be ideal.
   - Clearly state the total price.
   - Mention the quote's status and type.
   - End with a friendly closing, letting them know you are available for any questions.

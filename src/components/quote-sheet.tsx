@@ -51,6 +51,7 @@ export function QuoteSheet() {
     quoteTotal, 
     clearQuote,
     updateQuoteField,
+    updateIndicativePricingField,
   } = useQuote();
   const { addOrder } = useOrders();
   const { toast } = useToast();
@@ -155,17 +156,37 @@ export function QuoteSheet() {
                         </SelectContent>
                     </Select>
                  </div>
-                 <div className="space-y-2 md:col-span-1">
-                    <Label htmlFor="indicative-pricing">Indicative Pricing</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="base-machine">Base machine</Label>
                     <Input 
-                      id="indicative-pricing"
+                      id="base-machine"
                       type="number"
-                      value={quote.indicativePricing}
-                      onChange={(e) => updateQuoteField('indicativePricing', parseFloat(e.target.value) || 0)}
+                      value={quote.indicativePricing.baseMachine}
+                      onChange={(e) => updateIndicativePricingField('baseMachine', parseFloat(e.target.value) || 0)}
+                      placeholder="e.g. 50000.00"
+                    />
+                 </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="custom-config">Custom configuration</Label>
+                    <Input 
+                      id="custom-config"
+                      type="number"
+                      value={quote.indicativePricing.customConfiguration}
+                      onChange={(e) => updateIndicativePricingField('customConfiguration', parseFloat(e.target.value) || 0)}
+                      placeholder="e.g. 10000.00"
+                    />
+                 </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="shipping">Shipping & installation</Label>
+                    <Input 
+                      id="shipping"
+                      type="number"
+                      value={quote.indicativePricing.shippingAndInstallation}
+                      onChange={(e) => updateIndicativePricingField('shippingAndInstallation', parseFloat(e.target.value) || 0)}
                       placeholder="e.g. 5000.00"
                     />
                  </div>
-                 <div className="space-y-2 md:col-span-2">
+                 <div className="space-y-2 md:col-span-3">
                     <Label htmlFor="price-list">Price List</Label>
                     <Input 
                       id="price-list"

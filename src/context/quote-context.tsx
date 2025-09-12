@@ -16,12 +16,18 @@ export type QuoteStatus = 'Draft' | 'InProgress' | 'Final';
 export type QuoteType = 'Master' | 'Transaction';
 export type QuoteApprovalStatus = 'Draft' | 'SentForApproval' | 'Approved';
 
+export interface IndicativePricing {
+    baseMachine: number;
+    customConfiguration: number;
+    shippingAndInstallation: number;
+}
+
 export interface Quote {
   items: QuoteItem[];
   status: QuoteStatus;
   type: QuoteType;
   approvalStatus: QuoteApprovalStatus;
-  indicativePricing: number;
+  indicativePricing: IndicativePricing;
   priceList: string;
 }
 
@@ -35,7 +41,8 @@ interface QuoteContextType {
   removeItemFromQuote: (itemId: string) => void;
   clearQuote: () => void;
   quoteTotal: number;
-  updateQuoteField: (field: keyof Omit<Quote, 'items'>, value: any) => void;
+  updateQuoteField: (field: keyof Omit<Quote, 'items' | 'indicativePricing'>, value: any) => void;
+  updateIndicativePricingField: (field: keyof IndicativePricing, value: number) => void;
 }
 
 const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
@@ -45,7 +52,11 @@ const initialQuoteState: Quote = {
     status: 'Draft',
     type: 'Transaction',
     approvalStatus: 'Draft',
-    indicativePricing: 0,
+    indicativePricing: {
+        baseMachine: 0,
+        customConfiguration: 0,
+        shippingAndInstallation: 0,
+    },
     priceList: '',
 }
 
@@ -86,10 +97,20 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const updateQuoteField = (field: keyof Omit<Quote, 'items'>, value: any) => {
+  const updateQuoteField = (field: keyof Omit<Quote, 'items' | 'indicativePricing'>, value: any) => {
     setQuote(prevQuote => ({
       ...prevQuote,
       [field]: value
+    }));
+  };
+  
+  const updateIndicativePricingField = (field: keyof IndicativePricing, value: number) => {
+    setQuote(prevQuote => ({
+        ...prevQuote,
+        indicativePricing: {
+            ...prevQuote.indicativePricing,
+            [field]: value,
+        }
     }));
   };
 
@@ -105,11 +126,25 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   }
 
   const quoteTotal = useMemo(() => {
-    return quote.items.reduce((total, item) => total + Number(item.price) * item.quantity, 0)
-  }, [quote.items]);
+    const itemsTotal = quote.items.reduce((total, item) => total + Number(item.price) * item.quantity, 0);
+    const indicativeTotal = Object.values(quote.indicativePricing).reduce((sum, value) => sum + (Number(value) || 0), 0);
+    return itemsTotal + indicativeTotal;
+  }, [quote.items, quote.indicativePricing]);
 
   return (
-    <QuoteContext.Provider value={{ quote, isQuoteSheetOpen, setIsQuoteSheetOpen, addItemToQuote, buyNow, updateItemQuantity, removeItemFromQuote, clearQuote, quoteTotal, updateQuoteField }}>
+    <QuoteContext.Provider value={{ 
+        quote, 
+        isQuoteSheetOpen, 
+        setIsQuoteSheetOpen, 
+        addItemToQuote, 
+        buyNow, 
+        updateItemQuantity, 
+        removeItemFromQuote, 
+        clearQuote, 
+        quoteTotal, 
+        updateQuoteField,
+        updateIndicativePricingField,
+    }}>
       {children}
     </QuoteContext.Provider>
   );
