@@ -12,7 +12,17 @@ import { useProducts } from '@/context/product-context';
 import { useToast } from '@/hooks/use-toast';
 import { useQuote } from '@/context/quote-context';
 import { useAuth } from '@/context/auth-context';
-
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { AddressForm, type AddressFormValues } from './address-form';
+import { useOrders } from '@/context/order-context';
 
 interface ProductCardProps {
   product: Product;
@@ -22,8 +32,11 @@ export function ProductCard({ product }: ProductCardProps) {
   const { user } = useAuth();
   const { headerNames, homePageFieldOrder, homePageVisibleFields } = useProducts();
   const { toast } = useToast();
-  const { addItemToQuote, buyNow, setIsQuoteSheetOpen } = useQuote();
+  const { addItemToQuote, setIsQuoteSheetOpen } = useQuote();
+  const { addOrder } = useOrders();
   const isUnavailable = product.status === 'Unavailable';
+
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
   const productDetails = homePageFieldOrder
     .filter(key => homePageVisibleFields[key] && product[key] && !['productId', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'].includes(key) )
@@ -53,20 +66,27 @@ export function ProductCard({ product }: ProductCardProps) {
     });
     setIsQuoteSheetOpen(true);
   }
+  
+  const handlePlaceOrder = (customerData: AddressFormValues) => {
+    const item = {
+      id: product.productId,
+      name: product.name,
+      price: Number(product.price) || 99.99,
+      quantity: 1,
+      brand: product.brand,
+      category: product.category,
+    };
+    addOrder(customerData, [item], item.price);
+    toast({
+      title: "Order Placed!",
+      description: "Thank you for your purchase. Your order is being processed."
+    });
+    setIsCheckoutOpen(false);
+  };
 
   const handleBuyNow = () => {
     if (isUnavailable) return;
-     buyNow({
-        id: product.productId,
-        productId: product.productId,
-        name: product.name,
-        price: Number(product.price) || 99.99, // Fallback price
-        quantity: 1,
-        brand: product.brand,
-        category: product.category,
-        colour: product.colour,
-        partName: product.partName,
-    });
+    setIsCheckoutOpen(true);
   }
 
   return (
@@ -101,10 +121,23 @@ export function ProductCard({ product }: ProductCardProps) {
                 Add to Quote
             </Button>
            )}
-            <Button className="w-full" disabled={isUnavailable} onClick={handleBuyNow}>
-                <ShoppingCart className="mr-2 h-4 w-4" />
-                Buy Now
-            </Button>
+           <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
+            <DialogTrigger asChild>
+                <Button className="w-full" disabled={isUnavailable} onClick={handleBuyNow}>
+                    <ShoppingCart className="mr-2 h-4 w-4" />
+                    Buy Now
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                <DialogTitle>Buy: {product.name}</DialogTitle>
+                <DialogDescription>
+                    Enter your shipping information to place your order.
+                </DialogDescription>
+                </DialogHeader>
+                <AddressForm onSubmit={handlePlaceOrder} />
+            </DialogContent>
+           </Dialog>
         </CardFooter>
     </Card>
   );
