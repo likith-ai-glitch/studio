@@ -40,3 +40,17 @@ export interface Order {
   orderDate: Date;
   status: OrderStatus;
 }
+
+export interface Notification {
+    id: string;
+    customer: {
+        email: string;
+        phone?: string;
+    };
+    emailSubject: string;
+    emailBody: string;
+    smsBody?: string;
+    sentAt: Date;
+    orderId?: string;
+    quoteId?: string;
+}

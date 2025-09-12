@@ -6,6 +6,7 @@ import { ProductProvider } from '@/context/product-context';
 import { EventsProvider } from '@/context/events-context';
 import { OrderProvider } from '@/context/order-context';
 import { QuoteProvider } from '@/context/quote-context';
+import { NotificationProvider } from '@/context/notification-context';
 import type { ReactNode } from 'react';
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -14,9 +15,11 @@ export function Providers({ children }: { children: ReactNode }) {
       <ProductProvider>
         <OrderProvider>
           <EventsProvider>
-            <QuoteProvider>
-              {children}
-            </QuoteProvider>
+            <NotificationProvider>
+                <QuoteProvider>
+                {children}
+                </QuoteProvider>
+            </NotificationProvider>
           </EventsProvider>
         </OrderProvider>
       </ProductProvider>
