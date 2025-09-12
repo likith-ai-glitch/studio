@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, notFound } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -32,27 +32,27 @@ export default function PublicQuotePage() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchQuote = useCallback(async (quoteId: string) => {
+    setLoading(true);
+    const quoteDocRef = doc(db, 'quotes', quoteId);
+    const quoteSnap = await getDoc(quoteDocRef);
+
+    if (quoteSnap.exists()) {
+      setQuote(quoteSnap.data() as Quote);
+    } else {
+      setQuote(null); // Explicitly set to null if not found
+    }
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
-    if (!id) {
+    if (id) {
+      fetchQuote(id);
+    } else {
       setLoading(false);
-      return;
-    };
+    }
+  }, [id, fetchQuote]);
 
-    const fetchQuote = async () => {
-      setLoading(true);
-      const quoteDocRef = doc(db, 'quotes', id);
-      const quoteSnap = await getDoc(quoteDocRef);
-
-      if (quoteSnap.exists()) {
-        setQuote(quoteSnap.data() as Quote);
-      } else {
-        setQuote(null);
-      }
-      setLoading(false);
-    };
-
-    fetchQuote();
-  }, [id]);
 
   if (loading) {
     return (
@@ -69,7 +69,10 @@ export default function PublicQuotePage() {
   const products = quote.items.map(quoteItemToProduct);
 
   const subTotal = quote.items.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const totalAfterDiscount = subTotal * (1 - ((quote.discount || 0) / 100));
+  const indicativeTotal = Object.values(quote.indicativePricing || {}).reduce((acc, val) => acc + (Number(val) || 0), 0);
+  const quoteSubTotal = subTotal + indicativeTotal;
+  const discountAmount = quoteSubTotal * ((quote.discount || 0) / 100);
+  const totalAfterDiscount = quoteSubTotal - discountAmount;
   const taxAmount = totalAfterDiscount * ((quote.tax || 0) / 100);
   const grandTotal = totalAfterDiscount + taxAmount;
 

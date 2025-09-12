@@ -1,7 +1,7 @@
 
 'use client';
 
-import { createContext, useContext, useState, ReactNode, useMemo } from 'react';
+import { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 
 export interface QuoteItem {
   id: string; // Internal ID for the quote item, typically same as productId
@@ -54,7 +54,7 @@ interface QuoteContextType {
 const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
 
 const initialQuoteState: Quote = {
-    quoteNumber: 'TQ-',
+    quoteNumber: `TQ-${Date.now()}`,
     items: [],
     status: 'Draft',
     type: 'Transaction',
@@ -70,6 +70,14 @@ const initialQuoteState: Quote = {
 export function QuoteProvider({ children }: { children: ReactNode }) {
   const [quote, setQuote] = useState<Quote>(initialQuoteState);
   const [isQuoteSheetOpen, setIsQuoteSheetOpen] = useState(false);
+  
+  useEffect(() => {
+    // This effect ensures a unique quote number when the component mounts
+    // or when the quote is cleared.
+    if (quote.items.length === 0 && !quote.quoteNumber.startsWith('TQ-')) {
+        setQuote(prev => ({ ...prev, quoteNumber: `TQ-${Date.now()}` }));
+    }
+  }, [quote.items.length, quote.quoteNumber]);
 
   const addItemToQuote = (itemToAdd: QuoteItem) => {
     setQuote(prevQuote => {
@@ -111,9 +119,8 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
         const prefix = value === 'Master' ? 'MQ-' : 'TQ-';
         const currentNumber = newQuote.quoteNumber;
         if (currentNumber.startsWith('MQ-') || currentNumber.startsWith('TQ-')) {
-            newQuote.quoteNumber = prefix + currentNumber.substring(3);
-        } else {
-            newQuote.quoteNumber = prefix + currentNumber;
+            const numberPart = currentNumber.split('-').slice(1).join('-');
+            newQuote.quoteNumber = `${prefix}${numberPart}`;
         }
       }
       return newQuote;
@@ -138,7 +145,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   };
   
   const clearQuote = () => {
-    setQuote(initialQuoteState);
+    setQuote({ ...initialQuoteState, quoteNumber: `TQ-${Date.now()}` });
   }
 
   const subTotal = useMemo(() => {

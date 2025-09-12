@@ -83,7 +83,7 @@ export function QuoteSheet() {
     try {
       const emailContent = await sendQuote(quote);
 
-      const quoteId = `quote_${Date.now()}`;
+      const quoteId = quote.quoteNumber;
 
       // Save the quote object to the 'quotes' collection
       const quoteDocRef = doc(db, 'quotes', quoteId);
@@ -97,8 +97,7 @@ export function QuoteSheet() {
         emailSubject: emailContent.emailSubject,
         emailBody: emailContent.emailBody,
         sentAt: serverTimestamp(),
-        quoteId: quoteId,
-        quote: quote, // Embed quote for easier access on documents page
+        quoteId: quoteId, // Use the quoteNumber as the ID
       });
 
       updateQuoteField('approvalStatus', 'SentForApproval');
