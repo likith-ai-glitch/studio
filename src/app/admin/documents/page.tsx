@@ -12,9 +12,37 @@ import {
 import { format } from 'date-fns';
 import { FileText, Mail } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+
+// A simple SVG for the WhatsApp icon
+const WhatsAppIcon = () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+    </svg>
+);
+
 
 export default function DocumentsPage() {
   const { notifications } = useNotifications();
+  
+  // Helper to strip HTML for plain text versions
+  const stripHtml = (html: string) => {
+    if (typeof document !== 'undefined') {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        return doc.body.textContent || "";
+    }
+    return html.replace(/<[^>]*>/g, ''); // Fallback for server
+  }
 
   return (
     <div className="space-y-8">
@@ -56,6 +84,40 @@ export default function DocumentsPage() {
                         />
                     </CardContent>
                 </Card>
+
+                 <div className="flex justify-end gap-4">
+                    <Button
+                        variant="outline"
+                        asChild
+                    >
+                        <a 
+                            href={`mailto:${notification.customer.email}?subject=${encodeURIComponent(notification.emailSubject)}&body=${encodeURIComponent(stripHtml(notification.emailBody))}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <Mail className="mr-2 h-4 w-4" />
+                            Email to Customer
+                        </a>
+                    </Button>
+                    
+                    {notification.customer.phone && (notification.smsBody || notification.emailBody) && (
+                         <Button 
+                            variant="outline"
+                            className="bg-green-100 border-green-600 text-green-700 hover:bg-green-200 hover:text-green-800"
+                            asChild
+                         >
+                            <a
+                                href={`https://wa.me/${notification.customer.phone.replace(/\D/g, '')}?text=${encodeURIComponent(notification.smsBody || stripHtml(notification.emailBody))}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <WhatsAppIcon />
+                                <span className="ml-2">Send on WhatsApp</span>
+                            </a>
+                        </Button>
+                    )}
+                 </div>
+
               </AccordionContent>
             </AccordionItem>
           ))}
