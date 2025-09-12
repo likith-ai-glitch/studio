@@ -44,11 +44,12 @@ export async function sendQuote(input: Quote): Promise<QuoteOutput> {
   const itemsTotal = input.items.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const indicativeTotal = Object.values(input.indicativePricing || {}).reduce((acc, val) => acc + (Number(val) || 0), 0);
   const subTotal = itemsTotal + indicativeTotal;
-  const totalAfterDiscount = subTotal * (1 - ((input.discount || 0) / 100));
+  const discountValue = subTotal * ((input.discount || 0) / 100);
+  const totalAfterDiscount = subTotal - discountValue;
   const taxAmount = totalAfterDiscount * ((input.tax || 0) / 100);
   const grandTotal = totalAfterDiscount + taxAmount;
 
-  const flowInput = { ...input, subTotal, grandTotal, taxAmount, totalAfterDiscount };
+  const flowInput = { ...input, subTotal, grandTotal, taxAmount, totalAfterDiscount, discountValue };
   return sendQuoteFlow(flowInput);
 }
 
@@ -57,18 +58,13 @@ const promptInputSchema = QuoteInputSchema.extend({
     grandTotal: z.number(),
     taxAmount: z.number(),
     totalAfterDiscount: z.number(),
+    discountValue: z.number(),
 });
 
 const prompt = ai.definePrompt({
   name: 'sendQuotePrompt',
   input: { schema: promptInputSchema },
   output: { schema: QuoteOutputSchema },
-  config: {
-    customHelpers: {
-        multiply: (a: number, b: number) => a * b,
-        divide: (a: number, b: number) => a / b,
-    }
-  },
   prompt: `You are an expert sales assistant for an e-commerce store called Shopstream.
   
   You are tasked with generating a professional and friendly email to a customer with their requested quote.
@@ -92,7 +88,7 @@ const prompt = ai.definePrompt({
   The subtotal for the items and additional costs is: ₹{{subTotal}}
   
   {{#if discount}}
-  - Discount ({{discount}}%): -₹{{multiply subTotal (divide discount 100)}}
+  - Discount ({{discount}}%): -₹{{discountValue}}
   {{/if}}
 
   - Total After Discount: ₹{{totalAfterDiscount}}
