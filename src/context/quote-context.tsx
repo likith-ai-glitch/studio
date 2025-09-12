@@ -53,8 +53,13 @@ interface QuoteContextType {
 
 const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
 
+const generateNewQuoteNumber = (type: QuoteType = 'Transaction') => {
+  const prefix = type === 'Master' ? 'MQ-' : 'TQ-';
+  return `${prefix}${Date.now()}`;
+};
+
 const initialQuoteState: Quote = {
-    quoteNumber: `TQ-${Date.now()}`,
+    quoteNumber: generateNewQuoteNumber(),
     items: [],
     status: 'Draft',
     type: 'Transaction',
@@ -71,14 +76,6 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   const [quote, setQuote] = useState<Quote>(initialQuoteState);
   const [isQuoteSheetOpen, setIsQuoteSheetOpen] = useState(false);
   
-  useEffect(() => {
-    // This effect ensures a unique quote number when the component mounts
-    // or when the quote is cleared.
-    if (quote.items.length === 0 && !quote.quoteNumber.startsWith('TQ-')) {
-        setQuote(prev => ({ ...prev, quoteNumber: `TQ-${Date.now()}` }));
-    }
-  }, [quote.items.length, quote.quoteNumber]);
-
   const addItemToQuote = (itemToAdd: QuoteItem) => {
     setQuote(prevQuote => {
       const existingItem = prevQuote.items.find(item => item.id === itemToAdd.id);
@@ -118,10 +115,9 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
       if (field === 'type') {
         const prefix = value === 'Master' ? 'MQ-' : 'TQ-';
         const currentNumber = newQuote.quoteNumber;
-        if (currentNumber.startsWith('MQ-') || currentNumber.startsWith('TQ-')) {
-            const numberPart = currentNumber.split('-').slice(1).join('-');
-            newQuote.quoteNumber = `${prefix}${numberPart}`;
-        }
+        // Keep the timestamp part of the ID, only change prefix
+        const numberPart = currentNumber.split('-').slice(1).join('-');
+        newQuote.quoteNumber = `${prefix}${numberPart}`;
       }
       return newQuote;
     });
@@ -145,7 +141,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   };
   
   const clearQuote = () => {
-    setQuote({ ...initialQuoteState, quoteNumber: `TQ-${Date.now()}` });
+    setQuote({ ...initialQuoteState, quoteNumber: generateNewQuoteNumber() });
   }
 
   const subTotal = useMemo(() => {
@@ -169,7 +165,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
         buyNow, 
         updateItemQuantity, 
         removeItemFromQuote, 
-        clearQuote, 
+        clearQuote,
         subTotal, 
         grandTotal,
         updateQuoteField,
