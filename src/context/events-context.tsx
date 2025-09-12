@@ -28,7 +28,7 @@ export function EventsProvider({ children }: { children: ReactNode }) {
           return {
             ...data,
             id: doc.id,
-            timestamp: data.timestamp.toDate(),
+            timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
           } as AppEvent
       });
       setEvents(eventsData);
