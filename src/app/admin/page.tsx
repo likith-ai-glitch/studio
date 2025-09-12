@@ -278,11 +278,14 @@ export default function AdminPage() {
     
     addItemToQuote({
         id: product.productId,
+        productId: product.productId,
         name: product.name,
         price: Number(product.price) || 99.99, // Fallback price
         quantity: 1,
         brand: product.brand,
         category: product.category,
+        colour: product.colour,
+        partName: product.partName,
     });
 
     toast({
@@ -772,7 +775,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-    
-
-    

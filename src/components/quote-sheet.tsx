@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -213,10 +214,13 @@ export function QuoteSheet() {
                     {quote.items.map(item => (
                       <TableRow key={item.id}>
                         <TableCell>
-                          <div className="font-medium">{item.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            <p>Brand: {item.brand}</p>
-                            <p>Category: {item.category}</p>
+                          <div className="font-medium text-base">{item.name}</div>
+                          <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                            {item.productId && <div><span className="font-semibold">ID:</span> {item.productId}</div>}
+                            {item.brand && <div><span className="font-semibold">Brand:</span> {item.brand}</div>}
+                            {item.category && <div><span className="font-semibold">Category:</span> {item.category}</div>}
+                            {item.partName && <div><span className="font-semibold">Part Name:</span> {item.partName}</div>}
+                            {item.colour && <div><span className="font-semibold">Colour:</span> {item.colour}</div>}
                           </div>
                         </TableCell>
                         <TableCell className="text-center">

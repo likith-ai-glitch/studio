@@ -1,15 +1,20 @@
+
 'use client';
 
 import { createContext, useContext, useState, ReactNode, useMemo } from 'react';
 
 export interface QuoteItem {
-  id: string;
+  id: string; // Internal ID for the quote item, typically same as productId
+  productId: string;
   name: string;
   price: number;
   quantity: number;
   brand: string;
   category: string;
+  colour?: string;
+  partName?: string;
 }
+
 
 export type QuoteStatus = 'Draft' | 'InProgress' | 'Final';
 export type QuoteType = 'Master' | 'Transaction';

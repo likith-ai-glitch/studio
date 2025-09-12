@@ -37,11 +37,14 @@ export function ProductCard({ product }: ProductCardProps) {
     
     addItemToQuote({
         id: product.productId,
+        productId: product.productId,
         name: product.name,
         price: Number(product.price) || 99.99, // Fallback price
         quantity: 1,
         brand: product.brand,
         category: product.category,
+        colour: product.colour,
+        partName: product.partName,
     });
 
     toast({
@@ -55,11 +58,14 @@ export function ProductCard({ product }: ProductCardProps) {
     if (isUnavailable) return;
      buyNow({
         id: product.productId,
+        productId: product.productId,
         name: product.name,
         price: Number(product.price) || 99.99, // Fallback price
         quantity: 1,
         brand: product.brand,
         category: product.category,
+        colour: product.colour,
+        partName: product.partName,
     });
   }
 
