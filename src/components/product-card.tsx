@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { useProducts } from '@/context/product-context';
 import { useToast } from '@/hooks/use-toast';
 import { useQuote } from '@/context/quote-context';
+import { useAuth } from '@/context/auth-context';
 
 
 interface ProductCardProps {
@@ -18,6 +19,7 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  const { user } = useAuth();
   const { headerNames, homePageFieldOrder, homePageVisibleFields } = useProducts();
   const { toast } = useToast();
   const { addItemToQuote, buyNow, setIsQuoteSheetOpen } = useQuote();
@@ -88,9 +90,11 @@ export function ProductCard({ product }: ProductCardProps) {
             </CardContent>
         </Link>
         <CardFooter className="p-4 pt-0 mt-auto flex gap-2">
-           <Button variant="secondary" className="w-full" disabled={isUnavailable} onClick={handleAddToQuote}>
+           {user && (
+            <Button variant="secondary" className="w-full" disabled={isUnavailable} onClick={handleAddToQuote}>
                 Add to Quote
             </Button>
+           )}
             <Button className="w-full" disabled={isUnavailable} onClick={handleBuyNow}>
                 <ShoppingCart className="mr-2 h-4 w-4" />
                 Buy Now
