@@ -85,11 +85,16 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const checkAndSeed = async () => {
         setLoading(true);
-        const snapshot = await getDocs(productsCollectionRef);
-        if (snapshot.empty && initialProducts.length > 0) {
-            await seedDatabase();
+        try {
+            const snapshot = await getDocs(productsCollectionRef);
+            if (snapshot.empty && initialProducts.length > 0) {
+                await seedDatabase();
+            }
+        } catch (error) {
+            console.error("Error checking or seeding database:", error);
         }
     };
+    
     checkAndSeed();
 
     const unsubscribe = onSnapshot(productsCollectionRef, (snapshot) => {
@@ -119,6 +124,14 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const finalKeys = [...fixedOrder.filter(k => currentKeys.includes(k)), ...newKeys];
         
         setProductKeys(prevKeys => {
+            const storedOrder = JSON.parse(localStorage.getItem('productKeysOrder') || '[]');
+            if (storedOrder.length > 0) {
+                // Filter stored keys to only include keys that still exist
+                const validStoredOrder = storedOrder.filter((k: string) => finalKeys.includes(k));
+                // Add any new keys that weren't in the stored order
+                const newUnstoredKeys = finalKeys.filter(k => !validStoredOrder.includes(k));
+                return [...validStoredOrder, ...newUnstoredKeys];
+            }
             if (JSON.stringify(prevKeys) !== JSON.stringify(finalKeys)) {
                 return finalKeys;
             }
@@ -134,30 +147,56 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [seedDatabase, productsCollectionRef]);
+  }, [seedDatabase]);
 
   useEffect(() => {
-    // Initialize settings from localStorage on client side
-    const adminVisibility: Record<string, boolean> = {};
-    productKeys.forEach(key => { adminVisibility[key] = true; });
-    setAdminTableVisibleFields(adminVisibility);
+    // This effect runs only on the client, after initial render
+    const adminVisibility: Record<string, boolean> = JSON.parse(localStorage.getItem('adminTableVisibleFields') || '{}');
+    const homeVisibility: Record<string, boolean> = JSON.parse(localStorage.getItem('homePageVisibleFields') || '{}');
+    const homeOrder: string[] = JSON.parse(localStorage.getItem('homePageFieldOrder') || '[]');
+    const storedHeaders: Record<string, string> = JSON.parse(localStorage.getItem('headerNames') || '{}');
 
-    const homePageFields = productKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
-    setHomePageFieldOrder(homePageFields);
-
-    const homeVisibility: Record<string, boolean> = {};
-    homePageFields.forEach(key => {
-      homeVisibility[key] = ['name', 'brand', 'category', 'price', 'status'].includes(key);
+    // Initialize admin table visibility
+    const newAdminVisibility: Record<string, boolean> = {};
+    productKeys.forEach(key => {
+        newAdminVisibility[key] = adminVisibility[key] !== false; // Default to true
     });
-    setHomePageVisibleFields(homeVisibility);
-  }, [productKeys]);
+    setAdminTableVisibleFields(newAdminVisibility);
+
+    const homePageConfigurableFields = productKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
+    
+    // Initialize home page order
+    if (homeOrder.length > 0) {
+        const validOrder = homeOrder.filter(k => homePageConfigurableFields.includes(k));
+        const newFields = homePageConfigurableFields.filter(k => !validOrder.includes(k));
+        setHomePageFieldOrder([...validOrder, ...newFields]);
+    } else {
+        setHomePageFieldOrder(homePageConfigurableFields);
+    }
+
+    // Initialize home page visibility
+    const newHomeVisibility: Record<string, boolean> = {};
+    const defaultVisible = ['name', 'brand', 'category', 'price', 'status'];
+    homePageConfigurableFields.forEach(key => {
+        if (homeVisibility[key] !== undefined) {
+             newHomeVisibility[key] = homeVisibility[key];
+        } else {
+            newHomeVisibility[key] = defaultVisible.includes(key);
+        }
+    });
+    setHomePageVisibleFields(newHomeVisibility);
+
+    // Initialize header names
+    setHeaderNames(storedHeaders);
+
+  }, [productKeys]); // Re-run when product keys change
   
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
     const docRef = doc(db, "products", productData.productId);
     
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
-      throw new Error(`Product with ID "${productData.productId}" already exists.`);
+      throw new Error(\`Product with ID "\${productData.productId}" already exists.\`);
     }
 
     const newProduct: Record<string, any> = {
@@ -188,7 +227,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
         const newDocSnap = await getDoc(newDocRef);
         if (newDocSnap.exists()) {
-          throw new Error(`Product with new ID "${productId}" already exists.`);
+          throw new Error(\`Product with new ID "\${productId}" already exists.\`);
         }
         
         const oldDataSnap = await getDoc(oldDocRef);
@@ -239,13 +278,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         await updateDoc(docRef, { [field]: value });
          toast({
             title: 'Product Updated',
-            description: `Successfully updated ${field}.`,
+            description: \`Successfully updated \${field}.\`,
         });
     } catch (error) {
         console.error("Error updating product field: ", error);
         toast({
             title: 'Error',
-            description: `Failed to update ${field}.`,
+            description: \`Failed to update \${field}.\`,
             variant: 'destructive',
         });
     }
@@ -264,7 +303,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       await deleteDoc(productDocRef);
       toast({
         title: "Product Deleted",
-        description: `${productToDelete.name} has been successfully deleted.`,
+        description: \`\${productToDelete.name} has been successfully deleted.\`,
         variant: 'destructive',
       });
     } catch (error) {
@@ -315,7 +354,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     await batch.commit();
      toast({
         title: 'Column Added',
-        description: `The column "${columnName}" has been added to all products.`,
+        description: \`The column "\${columnName}" has been added to all products.\`,
     });
   }
 
@@ -329,29 +368,37 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     await batch.commit();
     toast({
       title: 'Column Deleted',
-      description: `The column "${columnName}" has been deleted from all products.`,
+      description: \`The column "\${columnName}" has been deleted from all products.\`,
       variant: 'destructive',
     });
   };
 
   const setColumnOrder = (order: string[]) => {
     setProductKeys(order);
+    localStorage.setItem('productKeysOrder', JSON.stringify(order));
   };
 
   const renameColumn = (columnKey: string, newName: string) => {
-      setHeaderNames(prev => ({...prev, [columnKey]: newName}));
+      const newHeaders = {...headerNames, [columnKey]: newName};
+      setHeaderNames(newHeaders);
+      localStorage.setItem('headerNames', JSON.stringify(newHeaders));
   }
   
   const setHomePageOrder = (order: string[]) => {
     setHomePageFieldOrder(order);
+    localStorage.setItem('homePageFieldOrder', JSON.stringify(order));
   };
 
   const toggleHomePageVisibility = (key: string) => {
-    setHomePageVisibleFields(prev => ({...prev, [key]: !prev[key]}));
+    const newVisibility = {...homePageVisibleFields, [key]: !homePageVisibleFields[key]};
+    setHomePageVisibleFields(newVisibility);
+    localStorage.setItem('homePageVisibleFields', JSON.stringify(newVisibility));
   };
   
   const toggleAdminTableFieldVisibility = (key: string) => {
-    setAdminTableVisibleFields(prev => ({...prev, [key]: !prev[key]}));
+    const newVisibility = {...adminTableVisibleFields, [key]: !adminTableVisibleFields[key]};
+    setAdminTableVisibleFields(newVisibility);
+    localStorage.setItem('adminTableVisibleFields', JSON.stringify(newVisibility));
   };
 
   const toggleProductSelection = useCallback((productId: string) => {
@@ -422,5 +469,3 @@ export function useProducts() {
   }
   return context;
 }
-
-    
