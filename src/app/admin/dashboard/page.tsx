@@ -44,7 +44,6 @@ import type { Product } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { ProductCompare } from '@/components/product-compare';
 import { useQuote } from '@/context/quote-context';
 import { useToast } from '@/hooks/use-toast';
 
@@ -94,8 +93,6 @@ export default function DashboardPage() {
 
   const [isHomePageSettingsOpen, setIsHomePageSettingsOpen] = useState(false);
   const [localHomePageOrder, setLocalHomePageOrder] = useState(homePageFieldOrder);
-  
-  const [isCompareDialogOpen, setCompareDialogOpen] = useState(false);
 
   useEffect(() => {
     setLocalColumnOrder(productKeys);
@@ -437,28 +434,10 @@ export default function DashboardPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full sm:w-auto md:w-48"
               />
-            <Dialog open={isCompareDialogOpen} onOpenChange={setCompareDialogOpen}>
-              <DialogTrigger asChild>
-                  <Button size="sm" variant="outline" disabled={selectedProducts.length === 0}>
-                      <Copy className="mr-2 h-4 w-4" />
-                      Compare Selected ({selectedProducts.length})
-                  </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-4xl h-[90vh]">
-                  <DialogHeader>
-                      <DialogTitle>Compare Products</DialogTitle>
-                      <DialogDescription>
-                          View selected products side-by-side.
-                      </DialogDescription>
-                  </DialogHeader>
-                  <ProductCompare productIds={selectedProducts} />
-                  <DialogFooter>
-                      <DialogClose asChild>
-                          <Button>Close</Button>
-                      </DialogClose>
-                  </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <Button size="sm" variant="outline" disabled={selectedProducts.length === 0}>
+                <Copy className="mr-2 h-4 w-4" />
+                Compare Selected ({selectedProducts.length})
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size="sm" variant="outline">
@@ -775,5 +754,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
