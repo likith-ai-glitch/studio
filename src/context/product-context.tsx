@@ -211,7 +211,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
-      throw new Error(\`Product with ID "\${productData.productId}" already exists.\`);
+      throw new Error(`Product with ID "${productData.productId}" already exists.`);
     }
 
     const newProduct: Record<string, any> = {
@@ -242,7 +242,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
         const newDocSnap = await getDoc(newDocRef);
         if (newDocSnap.exists()) {
-          throw new Error(\`Product with new ID "\${productId}" already exists.\`);
+          throw new Error(`Product with new ID "${productId}" already exists.`);
         }
         
         const oldDataSnap = await getDoc(oldDocRef);
@@ -293,13 +293,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         await updateDoc(docRef, { [field]: value });
          toast({
             title: 'Product Updated',
-            description: \`Successfully updated \${field}.\`,
+            description: `Successfully updated ${field}.`,
         });
     } catch (error) {
         console.error("Error updating product field: ", error);
         toast({
             title: 'Error',
-            description: \`Failed to update \${field}.\`,
+            description: `Failed to update ${field}.`,
             variant: 'destructive',
         });
     }
@@ -318,7 +318,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       await deleteDoc(productDocRef);
       toast({
         title: "Product Deleted",
-        description: \`\${productToDelete.name} has been successfully deleted.\`,
+        description: `"${productToDelete.name}" has been successfully deleted.`,
         variant: 'destructive',
       });
     } catch (error) {
@@ -369,7 +369,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     await batch.commit();
      toast({
         title: 'Column Added',
-        description: \`The column "\${columnName}" has been added to all products.\`,
+        description: `The column "${columnName}" has been added to all products.`,
     });
   }
 
@@ -383,7 +383,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     await batch.commit();
     toast({
       title: 'Column Deleted',
-      description: \`The column "\${columnName}" has been deleted from all products.\`,
+      description: `The column "${columnName}" has been deleted from all products.`,
       variant: 'destructive',
     });
   };
