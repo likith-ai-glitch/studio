@@ -157,7 +157,7 @@ export default function DashboardPage() {
 
         if (key === 'quoteTotal') {
             aValue = (a.qtyForQuote || 0) * (a.price || 0);
-            bValue = (b.qtyForQuote || 0) * (a.price || 0);
+            bValue = (b.qtyForQuote || 0) * (b.price || 0);
         } else {
             aValue = a[key as keyof Product] ?? '';
             bValue = b[key as keyof Product] ?? '';
@@ -613,7 +613,7 @@ export default function DashboardPage() {
                                 <Checkbox
                                     id={`visibility-${key}`}
                                     checked={!!homePageVisibleFields[key]}
-                                    onCheckedChange={() => toggleHomePageFieldVisibility(key)}
+                                    onCheckedChange={()={() => toggleHomePageFieldVisibility(key)}}
                                 />
                                 <Label htmlFor={`visibility-${key}`} className="font-normal">
                                     {headerNames[key] || key}
@@ -629,10 +629,10 @@ export default function DashboardPage() {
                                 <div key={key} className="flex items-center justify-between p-2 border rounded-md">
                                 <span className="font-medium">{headerNames[key] || key}</span>
                                 <div className="flex gap-1">
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => moveHomePageField(index, 'up')} disabled={index === 0}>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={()={() => moveHomePageField(index, 'up')} disabled={index === 0}>
                                     <ArrowUp className="h-4 w-4" />
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => moveHomePageField(index, 'down')} disabled={index === localHomePageOrder.length - 1}>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={()={() => moveHomePageField(index, 'down')} disabled={index === localHomePageOrder.length - 1}>
                                     <ArrowDown className="h-4 w-4" />
                                     </Button>
                                 </div>
