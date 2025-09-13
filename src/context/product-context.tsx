@@ -130,9 +130,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   }, [seedDatabase]);
   
 
-  // Effect for initializing client-side settings from localStorage AFTER initial render
+  // Effect for initializing client-side settings from localStorage AFTER initial render and data load
   useEffect(() => {
-    if (typeof window === 'undefined' || allProductKeys.length === 0) {
+    // This effect should only run on the client, and only after Firestore data has loaded.
+    if (typeof window === 'undefined' || loading) {
       return;
     }
 
@@ -152,7 +153,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         
         const newAdminVisibility: Record<string, boolean> = {};
         allProductKeys.forEach(key => {
-            newAdminVisibility[key] = adminVisibility[key] !== false;
+            newAdminVisibility[key] = adminVisibility[key] !== false; // Default to true
         });
         setAdminTableVisibleFields(newAdminVisibility);
 
@@ -171,9 +172,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
     } catch (error) {
         console.error("Error loading settings from localStorage", error);
+        // If localStorage fails, set sensible defaults to avoid a blank screen
+        setOrderedProductKeys(allProductKeys);
+        const defaultVisibility = allProductKeys.reduce((acc, key) => ({ ...acc, [key]: true }), {});
+        setAdminTableVisibleFields(defaultVisibility);
+        setHomePageVisibleFields(defaultVisibility);
+        setHomePageFieldOrder(allProductKeys.filter(k => !['productId', 'quoteTotal'].includes(k)));
     }
     
-  }, [allProductKeys]); // Rerun only when allProductKeys are loaded from Firestore
+  }, [allProductKeys, loading]); // Rerun only when allProductKeys/loading changes
 
 
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
@@ -454,3 +461,5 @@ export function useProducts() {
   }
   return context;
 }
+
+    
