@@ -47,13 +47,6 @@ interface ProductContextType {
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
-const COLUMN_ORDER_STORAGE_KEY = 'shopstream_column_order';
-const HEADER_NAMES_STORAGE_KEY = 'shopstream_header_names';
-const HOME_PAGE_FIELD_ORDER_STORAGE_KEY = 'shopstream_homepage_field_order';
-const HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY = 'shopstream_homepage_visible_fields';
-const ADMIN_TABLE_VISIBLE_FIELDS_STORAGE_KEY = 'shopstream_admintable_visible_fields';
-
-
 export function ProductProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [productKeys, setProductKeys] = useState<string[]>([]);
@@ -64,16 +57,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const [adminTableVisibleFields, setAdminTableVisibleFields] = useState<Record<string, boolean>>({});
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const { toast } = useToast();
+  
   const productsCollectionRef = collection(db, 'products');
 
   const seedDatabase = useCallback(async () => {
-    console.log("No products found in Firestore. Seeding database...");
-    setLoading(true);
+    console.log("Seeding database with initial products...");
     const batch = writeBatch(db);
     initialProducts.forEach((product) => {
       const docRef = doc(db, "products", product.productId);
-      const { ...productData } = product;
-      const productWithDates: Record<string, any> = { ...productData, qtyForQuote: 0 };
+      const productWithDates: Record<string, any> = { ...product, qtyForQuote: 0 };
       Object.keys(productWithDates).forEach(key => {
         if (key === 'startDate' || key === 'lastUpdatedDate') {
           productWithDates[key] = productWithDates[key] ? Timestamp.fromDate(new Date(productWithDates[key])) : null;
@@ -87,47 +79,21 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error("Error seeding database: ", error);
       toast({ title: "Seeding Error", description: "Could not load initial products.", variant: "destructive" });
-    } finally {
-      // The onSnapshot listener will handle setting loading to false
     }
   }, [toast]);
-  
-  // Effect for initial data check and seeding
+
   useEffect(() => {
-    const checkForInitialData = async () => {
-        setLoading(true);
-        try {
-            const snapshot = await getDocs(productsCollectionRef);
-            if (snapshot.empty && initialProducts.length > 0) {
-              await seedDatabase();
-            }
-        } catch (error) {
-            console.error("Error checking for initial data:", error);
-        } finally {
-            // setLoading(false) is handled by the snapshot listener to avoid race conditions
+    const checkAndSeed = async () => {
+        const snapshot = await getDocs(productsCollectionRef);
+        if (snapshot.empty && initialProducts.length > 0) {
+            await seedDatabase();
         }
-      };
-  
-      checkForInitialData();
+    };
+    checkAndSeed();
   }, [seedDatabase]);
 
 
-  // Effect for setting up the real-time listener and loading settings from localStorage
   useEffect(() => {
-    // Load settings from localStorage only on the client side
-    const safelyParseJSON = (key: string, defaultValue: any) => {
-        try {
-            const item = window.localStorage.getItem(key);
-            return item ? JSON.parse(item) : defaultValue;
-        } catch (error) {
-            console.warn(`Could not parse ${key} from localStorage`, error);
-            window.localStorage.removeItem(key);
-            return defaultValue;
-        }
-    };
-    setHeaderNames(safelyParseJSON(HEADER_NAMES_STORAGE_KEY, {'qtyForQuote': 'Qty for Quote', 'quoteTotal': 'Quote Total'}));
-    setHomePageVisibleFields(safelyParseJSON(HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY, { name: true, brand: true, category: true, price: true, status: true }));
-
     const unsubscribe = onSnapshot(productsCollectionRef, (snapshot) => {
       const productsData = snapshot.docs.map(doc => {
         const data = doc.data();
@@ -149,28 +115,26 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       allKeys.add('quoteTotal');
 
       const fixedOrder = ['productId', 'name', 'brand', 'category', 'status', 'price', 'qtyForQuote', 'quoteTotal', 'startDate', 'lastUpdatedDate'];
+      const currentKeys = Array.from(allKeys);
+      const newKeys = currentKeys.filter(k => !fixedOrder.includes(k));
+      const finalKeys = [...fixedOrder.filter(k => currentKeys.includes(k)), ...newKeys];
       
-      const savedOrder = safelyParseJSON(COLUMN_ORDER_STORAGE_KEY, []);
-      const validSavedOrder = savedOrder.filter((k: string) => allKeys.has(k) || k === 'qtyForQuote' || k === 'quoteTotal');
-      const newKeys = Array.from(allKeys).filter(k => !validSavedOrder.includes(k) && !fixedOrder.includes(k));
-      const combinedKeys = [...fixedOrder.filter(k => allKeys.has(k)), ...validSavedOrder.filter(k => !fixedOrder.includes(k)), ...newKeys];
-      const finalKeys = [...new Set(combinedKeys)];
       setProductKeys(finalKeys);
       
-      const savedAdminVisibility = safelyParseJSON(ADMIN_TABLE_VISIBLE_FIELDS_STORAGE_KEY, {});
-      const finalAdminVisibility: Record<string, boolean> = {};
-      finalKeys.forEach(key => {
-        finalAdminVisibility[key] = savedAdminVisibility[key] ?? true; // Default to visible
-      });
-      setAdminTableVisibleFields(finalAdminVisibility);
+      const adminVisibility: Record<string, boolean> = {};
+      finalKeys.forEach(key => { adminVisibility[key] = true; });
+      setAdminTableVisibleFields(adminVisibility);
 
-      const allConfigurableHomePageFields = finalKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
-      const homeSavedOrder = safelyParseJSON(HOME_PAGE_FIELD_ORDER_STORAGE_KEY, allConfigurableHomePageFields);
-      const validHomeSavedOrder = homeSavedOrder.filter((k: string) => allConfigurableHomePageFields.includes(k));
-      const newHomeKeys = allConfigurableHomePageFields.filter(k => !validHomeSavedOrder.includes(k));
-      setHomePageFieldOrder([...new Set([...validHomeSavedOrder, ...newHomeKeys])]);
+      const homePageFields = finalKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
+      setHomePageFieldOrder(homePageFields);
+
+      const homeVisibility: Record<string, boolean> = {};
+      homePageFields.forEach(key => {
+        homeVisibility[key] = ['name', 'brand', 'category', 'price', 'status'].includes(key);
+      });
+      setHomePageVisibleFields(homeVisibility);
       
-      setLoading(false); // Data has loaded, stop loading indicator.
+      setLoading(false);
       
     }, (error) => {
       console.error("Error fetching products with snapshot: ", error);
@@ -368,80 +332,23 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
 
   const setColumnOrder = (order: string[]) => {
-    try {
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(COLUMN_ORDER_STORAGE_KEY, JSON.stringify(order));
-        setProductKeys(order);
-      }
-    } catch (error) {
-      console.error('Failed to save column order to localStorage', error);
-      toast({
-        title: 'Error Saving Order',
-        description: 'Could not save your column preference.',
-        variant: 'destructive',
-      });
-    }
+    setProductKeys(order);
   };
 
   const renameColumn = (columnKey: string, newName: string) => {
-      const newHeaders = {
-        ...headerNames,
-        [columnKey]: newName,
-      };
-      setHeaderNames(newHeaders);
-      try {
-         if (typeof window !== 'undefined') {
-            window.localStorage.setItem(HEADER_NAMES_STORAGE_KEY, JSON.stringify(newHeaders));
-         }
-      } catch (error) {
-        console.error('Failed to save header names to localStorage', error);
-         toast({
-            title: 'Error Saving Name',
-            description: 'Could not save your column name preference.',
-            variant: 'destructive',
-        });
-      }
+      setHeaderNames(prev => ({...prev, [columnKey]: newName}));
   }
   
   const setHomePageOrder = (order: string[]) => {
-    try {
-       if (typeof window !== 'undefined') {
-          window.localStorage.setItem(HOME_PAGE_FIELD_ORDER_STORAGE_KEY, JSON.stringify(order));
-          setHomePageFieldOrder(order);
-       }
-    } catch (error) {
-      console.error('Failed to save home page field order to localStorage', error);
-    }
+    setHomePageFieldOrder(order);
   };
 
   const toggleHomePageVisibility = (key: string) => {
-    const newVisibility = {
-      ...homePageVisibleFields,
-      [key]: !homePageVisibleFields[key],
-    };
-    setHomePageVisibleFields(newVisibility);
-    try {
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY, JSON.stringify(newVisibility));
-      }
-    } catch (error) {
-      console.error('Failed to save home page visibility to localStorage', error);
-    }
+    setHomePageVisibleFields(prev => ({...prev, [key]: !prev[key]}));
   };
   
   const toggleAdminTableFieldVisibility = (key: string) => {
-    const newVisibility = {
-      ...adminTableVisibleFields,
-      [key]: !adminTableVisibleFields[key],
-    };
-    setAdminTableVisibleFields(newVisibility);
-    try {
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(ADMIN_TABLE_VISIBLE_FIELDS_STORAGE_KEY, JSON.stringify(newVisibility));
-      }
-    } catch (error) {
-      console.error('Failed to save admin table visibility to localStorage', error);
-    }
+    setAdminTableVisibleFields(prev => ({...prev, [key]: !prev[key]}));
   };
 
   const toggleProductSelection = useCallback((productId: string) => {
@@ -512,3 +419,5 @@ export function useProducts() {
   }
   return context;
 }
+
+    
