@@ -75,21 +75,21 @@ export function QuoteSheet() {
     setIsSending(true);
     const { id: toastId } = toast({
       title: 'Generating Document...',
-      description: 'Generating quote details and preparing document.',
+      description: 'Please wait while we prepare the quote.',
     });
     try {
+      // 1. Generate the email content from the AI flow
       const aiQuoteInput = {
         ...quote,
         quoteNumber: quote.quoteId,
       };
-
       const emailContent = await sendQuote(aiQuoteInput);
       
-      const { quoteId } = quote;
-
-      const quoteDocRef = doc(db, 'quotes', quoteId);
+      // 2. Save the full quote object to the 'quotes' collection with the correct ID
+      const quoteDocRef = doc(db, 'quotes', quote.quoteId);
       await setDoc(quoteDocRef, quote);
 
+      // 3. Save the notification, which now links to a valid quote document
       await addDoc(collection(db, 'notifications'), {
         customer: {
           email: 'customer@example.com',
@@ -98,15 +98,16 @@ export function QuoteSheet() {
         emailSubject: emailContent.emailSubject,
         emailBody: emailContent.emailBody,
         sentAt: serverTimestamp(),
-        quoteId: quoteId, 
+        quoteId: quote.quoteId, // Ensure this ID is correct
       });
 
+      // 4. Update local state and notify user
       updateQuoteField('approvalStatus', 'SentForApproval');
       
       toast({
         id: toastId,
         title: 'Document Generated!',
-        description: 'The quote document has been generated and logged.',
+        description: 'The quote document has been saved and can now be shared.',
       });
 
     } catch (error) {
@@ -114,7 +115,7 @@ export function QuoteSheet() {
       toast({
         id: toastId,
         title: 'Error',
-        description: 'Could not generate the document.',
+        description: 'Could not generate the document. Please try again.',
         variant: 'destructive',
       });
     } finally {

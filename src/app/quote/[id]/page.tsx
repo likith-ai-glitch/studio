@@ -33,6 +33,11 @@ export default function PublicQuotePage() {
   const [loading, setLoading] = useState(true);
 
   const fetchQuote = useCallback(async (quoteId: string) => {
+    if (!quoteId) {
+      setLoading(false);
+      setQuote(null);
+      return;
+    }
     setLoading(true);
     try {
         const quoteDocRef = doc(db, 'quotes', quoteId);
@@ -41,6 +46,7 @@ export default function PublicQuotePage() {
         if (quoteSnap.exists()) {
           setQuote(quoteSnap.data() as Quote);
         } else {
+          console.error(`Quote with ID ${quoteId} not found.`);
           setQuote(null); // Explicitly set to null if not found
         }
     } catch (error) {
