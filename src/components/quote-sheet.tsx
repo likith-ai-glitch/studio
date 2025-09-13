@@ -92,7 +92,7 @@ export function QuoteSheet() {
       // 3. Save the notification, which now links to a valid quote document
       await addDoc(collection(db, 'notifications'), {
         customer: {
-          email: 'customer@example.com',
+          email: 'customer@example.com', // Placeholder customer
           phone: '555-123-4567',
         },
         emailSubject: emailContent.emailSubject,
