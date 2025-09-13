@@ -42,9 +42,11 @@ export default function Home() {
         </div>
          <div className="absolute inset-0 z-0 opacity-20">
             <Image
-                src="https://placehold.co/1200x400.png"
+                src="https://picsum.photos/seed/shop-hero/1200/400"
                 alt="Shop background"
                 fill
+                width={1200}
+                height={400}
                 className="object-cover"
                 data-ai-hint="shopping abstract"
             />
@@ -78,7 +80,7 @@ export default function Home() {
           </div>
         </aside>
 
-        <section className="md:col-span-3">
+        <main className="md:col-span-3">
           {productsLoading ? (
              <div className="flex items-center justify-center h-96">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -95,7 +97,7 @@ export default function Home() {
               <p className="text-sm text-muted-foreground">Try adjusting your filters.</p>
             </div>
           )}
-        </section>
+        </main>
       </div>
     </div>
   );
