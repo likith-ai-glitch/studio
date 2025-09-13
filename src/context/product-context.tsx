@@ -3,7 +3,7 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, setDoc, deleteDoc, getDoc, writeBatch, getDocs, deleteField, Timestamp, addDoc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, getDoc, writeBatch, getDocs, deleteField, Timestamp, updateDoc } from 'firebase/firestore';
 import { products as initialProducts } from '@/lib/products';
 import type { Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -83,42 +83,50 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     });
     try {
       await batch.commit();
+      toast({ title: "Database Seeded", description: "Initial products have been loaded." });
     } catch (error) {
       console.error("Error seeding database: ", error);
+      toast({ title: "Seeding Error", description: "Could not load initial products.", variant: "destructive" });
     } finally {
       // The onSnapshot listener will handle setting loading to false
     }
-  }, []);
-
+  }, [toast]);
+  
+  // Effect for initial data check and seeding
   useEffect(() => {
-    const safelyParseJSON = (key: string, defaultValue: any) => {
-      try {
-        const item = window.localStorage.getItem(key);
-        if (item) {
-          return JSON.parse(item);
-        }
-        return defaultValue;
-      } catch (error) {
-        console.warn(`Could not parse ${key} from localStorage`, error);
-        window.localStorage.removeItem(key);
-        return defaultValue;
-      }
-    };
-
-    // Load settings from localStorage only on the client side
-    setHeaderNames(safelyParseJSON(HEADER_NAMES_STORAGE_KEY, {'qtyForQuote': 'Qty for Quote', 'quoteTotal': 'Quote Total'}));
-    setHomePageVisibleFields(safelyParseJSON(HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY, { name: true, brand: true, category: true, price: true }));
-
     const checkForInitialData = async () => {
-        const snapshot = await getDocs(productsCollectionRef);
-        if (snapshot.empty && initialProducts.length > 0) {
-          await seedDatabase();
-        } else {
-          setLoading(false); // If not seeding, stop loading
+        setLoading(true);
+        try {
+            const snapshot = await getDocs(productsCollectionRef);
+            if (snapshot.empty && initialProducts.length > 0) {
+              await seedDatabase();
+            }
+        } catch (error) {
+            console.error("Error checking for initial data:", error);
+        } finally {
+            // setLoading(false) is handled by the snapshot listener to avoid race conditions
         }
       };
   
       checkForInitialData();
+  }, [seedDatabase]);
+
+
+  // Effect for setting up the real-time listener and loading settings from localStorage
+  useEffect(() => {
+    // Load settings from localStorage only on the client side
+    const safelyParseJSON = (key: string, defaultValue: any) => {
+        try {
+            const item = window.localStorage.getItem(key);
+            return item ? JSON.parse(item) : defaultValue;
+        } catch (error) {
+            console.warn(`Could not parse ${key} from localStorage`, error);
+            window.localStorage.removeItem(key);
+            return defaultValue;
+        }
+    };
+    setHeaderNames(safelyParseJSON(HEADER_NAMES_STORAGE_KEY, {'qtyForQuote': 'Qty for Quote', 'quoteTotal': 'Quote Total'}));
+    setHomePageVisibleFields(safelyParseJSON(HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY, { name: true, brand: true, category: true, price: true, status: true }));
 
     const unsubscribe = onSnapshot(productsCollectionRef, (snapshot) => {
       const productsData = snapshot.docs.map(doc => {
@@ -161,10 +169,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       const validHomeSavedOrder = homeSavedOrder.filter((k: string) => allConfigurableHomePageFields.includes(k));
       const newHomeKeys = allConfigurableHomePageFields.filter(k => !validHomeSavedOrder.includes(k));
       setHomePageFieldOrder([...new Set([...validHomeSavedOrder, ...newHomeKeys])]);
-
-      if (loading) { // Only stop loading on first successful snapshot if it was still true
-        setLoading(false);
-      }
+      
+      setLoading(false); // Data has loaded, stop loading indicator.
       
     }, (error) => {
       console.error("Error fetching products with snapshot: ", error);
@@ -177,7 +183,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [toast, seedDatabase, loading]);
+  }, [toast]);
   
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
     const docRef = doc(db, "products", productData.productId);
