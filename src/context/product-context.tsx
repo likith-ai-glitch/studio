@@ -30,7 +30,7 @@ interface ProductContextType {
   deleteProduct: (productId: string) => Promise<void>;
   getProduct: (productId: string) => Promise<Product | undefined>;
   addColumn: (columnName: string) => Promise<void>;
-  deleteColumn: (columnName: string) => Promise<void>;
+  deleteColumn: (columnName string) => Promise<void>;
   setColumnOrder: (order: string[]) => void;
   renameColumn: (columnKey: string, newName: string) => void;
   homePageFieldOrder: string[];
@@ -82,6 +82,60 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
   }, [toast]);
 
+  // Effect for initializing client-side settings from localStorage
+  useEffect(() => {
+    const adminVisibility = JSON.parse(localStorage.getItem('adminTableVisibleFields') || '{}');
+    const homeVisibility = JSON.parse(localStorage.getItem('homePageVisibleFields') || '{}');
+    const homeOrder = JSON.parse(localStorage.getItem('homePageFieldOrder') || '[]');
+    const storedHeaders = JSON.parse(localStorage.getItem('headerNames') || '{}');
+    const storedColumnOrder = JSON.parse(localStorage.getItem('productKeysOrder') || '[]');
+
+    setHeaderNames(storedHeaders);
+
+    // This effect depends on productKeys, but productKeys is established
+    // by the Firestore listener. We only run this logic if keys are present.
+    if (productKeys.length > 0) {
+        // Initialize admin table visibility
+        const newAdminVisibility: Record<string, boolean> = {};
+        productKeys.forEach(key => {
+            newAdminVisibility[key] = adminVisibility[key] !== false; // Default to true
+        });
+        setAdminTableVisibleFields(newAdminVisibility);
+
+        const homePageConfigurableFields = productKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
+        
+        // Initialize home page order
+        if (homeOrder.length > 0) {
+            const validOrder = homeOrder.filter((k: string) => homePageConfigurableFields.includes(k));
+            const newFields = homePageConfigurableFields.filter(k => !validOrder.includes(k));
+            setHomePageFieldOrder([...validOrder, ...newFields]);
+        } else {
+            setHomePageFieldOrder(homePageConfigurableFields);
+        }
+
+        // Initialize home page visibility
+        const newHomeVisibility: Record<string, boolean> = {};
+        const defaultVisible = ['name', 'brand', 'category', 'price', 'status'];
+        homePageConfigurableFields.forEach(key => {
+            if (homeVisibility[key] !== undefined) {
+                newHomeVisibility[key] = homeVisibility[key];
+            } else {
+                newHomeVisibility[key] = defaultVisible.includes(key);
+            }
+        });
+        setHomePageVisibleFields(newHomeVisibility);
+
+        // Initialize main column order
+        if (storedColumnOrder.length > 0) {
+            const validStoredOrder = storedColumnOrder.filter((k: string) => productKeys.includes(k));
+            const newUnstoredKeys = productKeys.filter(k => !validStoredOrder.includes(k));
+            setProductKeys([...validStoredOrder, ...newUnstoredKeys]);
+        }
+    }
+  }, [productKeys]);
+
+
+  // Effect for seeding and listening to Firestore
   useEffect(() => {
     const checkAndSeed = async () => {
         setLoading(true);
@@ -93,6 +147,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             console.error("Error checking or seeding database:", error);
         }
+        setLoading(false);
     };
     
     checkAndSeed();
@@ -124,14 +179,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const finalKeys = [...fixedOrder.filter(k => currentKeys.includes(k)), ...newKeys];
         
         setProductKeys(prevKeys => {
-            const storedOrder = JSON.parse(localStorage.getItem('productKeysOrder') || '[]');
-            if (storedOrder.length > 0) {
-                // Filter stored keys to only include keys that still exist
-                const validStoredOrder = storedOrder.filter((k: string) => finalKeys.includes(k));
-                // Add any new keys that weren't in the stored order
-                const newUnstoredKeys = finalKeys.filter(k => !validStoredOrder.includes(k));
-                return [...validStoredOrder, ...newUnstoredKeys];
-            }
             if (JSON.stringify(prevKeys) !== JSON.stringify(finalKeys)) {
                 return finalKeys;
             }
@@ -147,49 +194,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [seedDatabase]);
-
-  useEffect(() => {
-    // This effect runs only on the client, after initial render
-    const adminVisibility: Record<string, boolean> = JSON.parse(localStorage.getItem('adminTableVisibleFields') || '{}');
-    const homeVisibility: Record<string, boolean> = JSON.parse(localStorage.getItem('homePageVisibleFields') || '{}');
-    const homeOrder: string[] = JSON.parse(localStorage.getItem('homePageFieldOrder') || '[]');
-    const storedHeaders: Record<string, string> = JSON.parse(localStorage.getItem('headerNames') || '{}');
-
-    // Initialize admin table visibility
-    const newAdminVisibility: Record<string, boolean> = {};
-    productKeys.forEach(key => {
-        newAdminVisibility[key] = adminVisibility[key] !== false; // Default to true
-    });
-    setAdminTableVisibleFields(newAdminVisibility);
-
-    const homePageConfigurableFields = productKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
-    
-    // Initialize home page order
-    if (homeOrder.length > 0) {
-        const validOrder = homeOrder.filter(k => homePageConfigurableFields.includes(k));
-        const newFields = homePageConfigurableFields.filter(k => !validOrder.includes(k));
-        setHomePageFieldOrder([...validOrder, ...newFields]);
-    } else {
-        setHomePageFieldOrder(homePageConfigurableFields);
-    }
-
-    // Initialize home page visibility
-    const newHomeVisibility: Record<string, boolean> = {};
-    const defaultVisible = ['name', 'brand', 'category', 'price', 'status'];
-    homePageConfigurableFields.forEach(key => {
-        if (homeVisibility[key] !== undefined) {
-             newHomeVisibility[key] = homeVisibility[key];
-        } else {
-            newHomeVisibility[key] = defaultVisible.includes(key);
-        }
-    });
-    setHomePageVisibleFields(newHomeVisibility);
-
-    // Initialize header names
-    setHeaderNames(storedHeaders);
-
-  }, [productKeys]); // Re-run when product keys change
+  }, [seedDatabase, productsCollectionRef]);
   
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
     const docRef = doc(db, "products", productData.productId);
@@ -469,3 +474,5 @@ export function useProducts() {
   }
   return context;
 }
+
+    
