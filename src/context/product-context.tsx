@@ -90,7 +90,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         }
     };
     checkAndSeed();
-  }, [seedDatabase]);
+  }, [seedDatabase, productsCollectionRef]);
 
 
   useEffect(() => {
@@ -147,7 +147,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [toast]);
+  }, [toast, productsCollectionRef]);
   
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
     const docRef = doc(db, "products", productData.productId);
@@ -419,5 +419,3 @@ export function useProducts() {
   }
   return context;
 }
-
-    
