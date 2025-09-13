@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, 'useState', useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useProducts } from '@/context/product-context';
 import { useOrders } from '@/context/order-context';
 import { Button } from '@/components/ui/button';
@@ -736,7 +736,7 @@ export default function DashboardPage() {
                               <DropdownMenuItem asChild>
                                 <Link href={`/admin/products/${product.productId}/edit`}>Edit</Link>
                               </DropdownMenuItem>
-                               <DropdownMenuItem onSelect={()={() => handleAddToQuote(product as Product)}>
+                               <DropdownMenuItem onSelect={() => handleAddToQuote(product as Product)}>
                                 <FilePlus className="mr-2 h-4 w-4" />
                                 Add to Quote
                               </DropdownMenuItem>
@@ -775,4 +775,6 @@ export default function DashboardPage() {
     </div>
   );
 }
+    
+
     
