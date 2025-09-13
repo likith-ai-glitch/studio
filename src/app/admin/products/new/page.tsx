@@ -42,7 +42,7 @@ export default function NewProductPage() {
         title: 'Product Added',
         description: `${data.name} has been successfully added.`,
       });
-      router.push('/admin');
+      router.push('/admin/dashboard');
     } catch (error: any) {
         toast({
           id: toastId,

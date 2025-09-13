@@ -215,7 +215,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isSubmitting ? 'Saving...' : (initialData ? 'Save Changes' : 'Create Product')}
           </Button>
-          <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>
+          <Button type="button" variant="outline" onClick={() => router.push('/admin/dashboard')} disabled={isSubmitting}>
             Cancel
           </Button>
         </div>
