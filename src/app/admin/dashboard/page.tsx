@@ -75,27 +75,27 @@ export default function DashboardPage() {
   const { addItemToQuote, setIsQuoteSheetOpen } = useQuote();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig = useState<{ key: keyof Product | string | null; direction: 'ascending' | 'descending' }>({ key: 'name', direction: 'ascending' });
-  const [deleteTarget, setDeleteTarget = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Product | string | null; direction: 'ascending' | 'descending' }>({ key: 'name', direction: 'ascending' });
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   
-  const [newColumnName, setNewColumnName = useState('');
-  const [isAddingColumn, setIsAddingColumn = useState(false);
-  const [isAddColumnDialogOpen, setAddColumnDialogOpen = useState(false);
+  const [newColumnName, setNewColumnName] = useState('');
+  const [isAddingColumn, setIsAddingColumn] = useState(false);
+  const [isAddColumnDialogOpen, setAddColumnDialogOpen] = useState(false);
 
-  const [columnToDelete, setColumnToDelete = useState('');
-  const [isDeletingColumn, setIsDeletingColumn = useState(false);
-  const [isDeleteColumnDialogOpen, setDeleteColumnDialogOpen = useState(false);
+  const [columnToDelete, setColumnToDelete] = useState('');
+  const [isDeletingColumn, setIsDeletingColumn] = useState(false);
+  const [isDeleteColumnDialogOpen, setDeleteColumnDialogOpen] = useState(false);
 
-  const [columnToRename, setColumnToRename = useState<string | null>(null);
-  const [newHeaderName, setNewHeaderName = useState('');
+  const [columnToRename, setColumnToRename] = useState<string | null>(null);
+  const [newHeaderName, setNewHeaderName] = useState('');
   
-  const [isReorderDialogOpen, setReorderDialogOpen = useState(false);
-  const [localColumnOrder, setLocalColumnOrder = useState(productKeys);
+  const [isReorderDialogOpen, setReorderDialogOpen] = useState(false);
+  const [localColumnOrder, setLocalColumnOrder] = useState(productKeys);
 
-  const [isHomePageSettingsOpen, setIsHomePageSettingsOpen = useState(false);
-  const [localHomePageOrder, setLocalHomePageOrder = useState(homePageFieldOrder);
+  const [isHomePageSettingsOpen, setIsHomePageSettingsOpen] = useState(false);
+  const [localHomePageOrder, setLocalHomePageOrder] = useState(homePageFieldOrder);
   
-  const [isCompareDialogOpen, setCompareDialogOpen = useState(false);
+  const [isCompareDialogOpen, setCompareDialogOpen] = useState(false);
 
   useEffect(() => {
     setLocalColumnOrder(productKeys);
@@ -774,5 +774,7 @@ export default function DashboardPage() {
       </Card>
     </div>
   );
+}
+    
 
     
