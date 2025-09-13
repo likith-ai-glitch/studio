@@ -77,7 +77,7 @@ export default function EditProductPage() {
         title: 'Product Updated',
         description: `${data.name} has been successfully updated.`,
       });
-      router.push(`/admin/dashboard`);
+      router.push('/admin/dashboard');
     } catch (error: any) {
         console.error(error);
         toast({
