@@ -118,20 +118,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
         allKeys.add('quoteTotal');
         const currentKeys = Array.from(allKeys);
-        
-        // This is safe because it runs after the initial server render
-        const storedColumnOrder = JSON.parse(localStorage.getItem('productKeysOrder') || '[]');
-        const validStoredOrder = storedColumnOrder.filter((k: string) => currentKeys.includes(k));
-        
-        const fixedOrder = ['productId', 'name', 'brand', 'category', 'status', 'price', 'qtyForQuote', 'quoteTotal', 'startDate', 'lastUpdatedDate'];
-        const newKeys = currentKeys.filter(k => !validStoredOrder.includes(k) && !fixedOrder.includes(k));
-        const initialSortedKeys = [...fixedOrder.filter(k => currentKeys.includes(k)), ...newKeys];
-        
-        const finalKeys = validStoredOrder.length > 0 
-          ? [...validStoredOrder, ...currentKeys.filter(k => !validStoredOrder.includes(k))]
-          : initialSortedKeys;
-
-        setProductKeys(finalKeys);
+        setProductKeys(currentKeys);
       }
       
       setLoading(false);
@@ -147,10 +134,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   // Effect for initializing client-side settings from localStorage AFTER initial render
   useEffect(() => {
-    // This code now runs only on the client, after the component has mounted
-    if (typeof window === 'undefined' || productKeys.length === 0) return;
+    if (typeof window === 'undefined' || productKeys.length === 0) {
+      return;
+    }
 
     try {
+        const storedColumnOrder = JSON.parse(localStorage.getItem('productKeysOrder') || '[]');
         const adminVisibility = JSON.parse(localStorage.getItem('adminTableVisibleFields') || '{}');
         const homeVisibility = JSON.parse(localStorage.getItem('homePageVisibleFields') || '{}');
         const homeOrder = JSON.parse(localStorage.getItem('homePageFieldOrder') || '[]');
@@ -158,33 +147,35 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         
         setHeaderNames(storedHeaders);
 
+        const validStoredOrder = storedColumnOrder.filter((k: string) => productKeys.includes(k));
+        const newKeysDetected = productKeys.filter(k => !validStoredOrder.includes(k));
+        const finalKeys = [...validStoredOrder, ...newKeysDetected];
+        setProductKeys(finalKeys);
+        
         const newAdminVisibility: Record<string, boolean> = {};
         productKeys.forEach(key => {
-        newAdminVisibility[key] = adminVisibility[key] !== false;
+            newAdminVisibility[key] = adminVisibility[key] !== false;
         });
         setAdminTableVisibleFields(newAdminVisibility);
 
         const homePageConfigurableFields = productKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
         
-        if (homeOrder.length > 0) {
-        const validOrder = homeOrder.filter((k: string) => homePageConfigurableFields.includes(k));
-        const newFields = homePageConfigurableFields.filter(k => !validOrder.includes(k));
-        setHomePageFieldOrder([...validOrder, ...newFields]);
-        } else {
-        setHomePageFieldOrder(homePageConfigurableFields);
-        }
+        const validHomeOrder = homeOrder.filter((k: string) => homePageConfigurableFields.includes(k));
+        const newHomeFields = homePageConfigurableFields.filter(k => !validHomeOrder.includes(k));
+        setHomePageFieldOrder([...validHomeOrder, ...newHomeFields]);
 
         const newHomeVisibility: Record<string, boolean> = {};
         const defaultVisible = ['name', 'brand', 'category', 'price', 'status'];
         homePageConfigurableFields.forEach(key => {
-        newHomeVisibility[key] = homeVisibility[key] ?? defaultVisible.includes(key);
+            newHomeVisibility[key] = homeVisibility[key] ?? defaultVisible.includes(key);
         });
         setHomePageVisibleFields(newHomeVisibility);
+
     } catch (error) {
         console.error("Error loading settings from localStorage", error);
     }
     
-  }, [productKeys]);
+  }, [productKeys.length]); // Rerun when productKeys are loaded from Firestore
 
 
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
