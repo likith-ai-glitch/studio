@@ -142,43 +142,47 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [seedDatabase, productsCollectionRef]);
+  }, [seedDatabase]);
   
 
   // Effect for initializing client-side settings from localStorage AFTER initial render
   useEffect(() => {
+    // This code now runs only on the client, after the component has mounted
     if (productKeys.length === 0 || typeof window === 'undefined') return;
 
-    // This code now runs only on the client
-    const adminVisibility = JSON.parse(localStorage.getItem('adminTableVisibleFields') || '{}');
-    const homeVisibility = JSON.parse(localStorage.getItem('homePageVisibleFields') || '{}');
-    const homeOrder = JSON.parse(localStorage.getItem('homePageFieldOrder') || '[]');
-    const storedHeaders = JSON.parse(localStorage.getItem('headerNames') || '{}');
-    
-    setHeaderNames(storedHeaders);
+    try {
+        const adminVisibility = JSON.parse(localStorage.getItem('adminTableVisibleFields') || '{}');
+        const homeVisibility = JSON.parse(localStorage.getItem('homePageVisibleFields') || '{}');
+        const homeOrder = JSON.parse(localStorage.getItem('homePageFieldOrder') || '[]');
+        const storedHeaders = JSON.parse(localStorage.getItem('headerNames') || '{}');
+        
+        setHeaderNames(storedHeaders);
 
-    const newAdminVisibility: Record<string, boolean> = {};
-    productKeys.forEach(key => {
-      newAdminVisibility[key] = adminVisibility[key] !== false;
-    });
-    setAdminTableVisibleFields(newAdminVisibility);
+        const newAdminVisibility: Record<string, boolean> = {};
+        productKeys.forEach(key => {
+        newAdminVisibility[key] = adminVisibility[key] !== false;
+        });
+        setAdminTableVisibleFields(newAdminVisibility);
 
-    const homePageConfigurableFields = productKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
-    
-    if (homeOrder.length > 0) {
-      const validOrder = homeOrder.filter((k: string) => homePageConfigurableFields.includes(k));
-      const newFields = homePageConfigurableFields.filter(k => !validOrder.includes(k));
-      setHomePageFieldOrder([...validOrder, ...newFields]);
-    } else {
-      setHomePageFieldOrder(homePageConfigurableFields);
+        const homePageConfigurableFields = productKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
+        
+        if (homeOrder.length > 0) {
+        const validOrder = homeOrder.filter((k: string) => homePageConfigurableFields.includes(k));
+        const newFields = homePageConfigurableFields.filter(k => !validOrder.includes(k));
+        setHomePageFieldOrder([...validOrder, ...newFields]);
+        } else {
+        setHomePageFieldOrder(homePageConfigurableFields);
+        }
+
+        const newHomeVisibility: Record<string, boolean> = {};
+        const defaultVisible = ['name', 'brand', 'category', 'price', 'status'];
+        homePageConfigurableFields.forEach(key => {
+        newHomeVisibility[key] = homeVisibility[key] ?? defaultVisible.includes(key);
+        });
+        setHomePageVisibleFields(newHomeVisibility);
+    } catch (error) {
+        console.error("Error loading settings from localStorage", error);
     }
-
-    const newHomeVisibility: Record<string, boolean> = {};
-    const defaultVisible = ['name', 'brand', 'category', 'price', 'status'];
-    homePageConfigurableFields.forEach(key => {
-      newHomeVisibility[key] = homeVisibility[key] ?? defaultVisible.includes(key);
-    });
-    setHomePageVisibleFields(newHomeVisibility);
     
   }, [productKeys]);
 
