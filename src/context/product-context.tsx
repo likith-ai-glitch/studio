@@ -30,7 +30,7 @@ interface ProductContextType {
   deleteProduct: (productId: string) => Promise<void>;
   getProduct: (productId: string) => Promise<Product | undefined>;
   addColumn: (columnName: string) => Promise<void>;
-  deleteColumn: (columnName string) => Promise<void>;
+  deleteColumn: (columnName: string) => Promise<void>;
   setColumnOrder: (order: string[]) => void;
   renameColumn: (columnKey: string, newName: string) => void;
   homePageFieldOrder: string[];
@@ -474,5 +474,3 @@ export function useProducts() {
   }
   return context;
 }
-
-    
