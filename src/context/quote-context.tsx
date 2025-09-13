@@ -1,10 +1,9 @@
-
 'use client';
 
 import { createContext, useContext, useState, ReactNode, useMemo, useCallback } from 'react';
 
 export interface QuoteItem {
-  id: string; // Internal ID for the quote item, typically same as productId
+  id: string; 
   productId: string;
   name: string;
   price: number;
@@ -33,7 +32,7 @@ export interface Quote {
   approvalStatus: QuoteApprovalStatus;
   indicativePricing: IndicativePricing;
   discount: number;
-  tax: number; // Represents GST %
+  tax: number; 
 }
 
 interface QuoteContextType {
@@ -52,7 +51,6 @@ interface QuoteContextType {
 
 const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
 
-// A simple and robust way to generate a unique ID.
 const generateNewQuoteId = () => {
     const timestamp = Date.now().toString(36);
     const randomPart = Math.random().toString(36).substring(2, 9);

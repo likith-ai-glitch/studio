@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -58,7 +57,6 @@ export function QuoteSheet() {
   const { toast } = useToast();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const notificationsCollectionRef = collection(db, 'notifications');
 
 
   const handlePlaceOrder = (customerData: AddressFormValues) => {
@@ -80,8 +78,6 @@ export function QuoteSheet() {
       description: 'Generating quote details and preparing document.',
     });
     try {
-      // The AI flow needs a quote number, but we use quoteId for the database.
-      // We can pass the quoteId as the quoteNumber for the AI prompt.
       const aiQuoteInput = {
         ...quote,
         quoteNumber: quote.quoteId,
@@ -91,14 +87,13 @@ export function QuoteSheet() {
       
       const { quoteId } = quote;
 
-      // Save the quote object to the 'quotes' collection with the stable quoteId
       const quoteDocRef = doc(db, 'quotes', quoteId);
       await setDoc(quoteDocRef, quote);
 
-      // Save the notification, ensuring the stable quoteId is included
-      await addDoc(notificationsCollectionRef, {
+      await addDoc(collection(db, 'notifications'), {
         customer: {
-          email: 'customer@example.com', // Placeholder email
+          email: 'customer@example.com',
+          phone: '555-123-4567',
         },
         emailSubject: emailContent.emailSubject,
         emailBody: emailContent.emailBody,
@@ -137,7 +132,6 @@ export function QuoteSheet() {
         {quote.items && quote.items.length > 0 ? (
            <>
             <div className="flex-1 overflow-hidden flex flex-col gap-4">
-              {/* Quote Management Section */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-1">
                  <div className="space-y-2">
                     <Label htmlFor="quoteId">Quote ID</Label>
