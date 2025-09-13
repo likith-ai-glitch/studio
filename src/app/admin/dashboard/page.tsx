@@ -157,7 +157,7 @@ export default function DashboardPage() {
 
         if (key === 'quoteTotal') {
             aValue = (a.qtyForQuote || 0) * (a.price || 0);
-            bValue = (b.qtyForQuote || 0) * (b.price || 0);
+            bValue = (b.qtyForQuote || 0) * (a.price || 0);
         } else {
             aValue = a[key as keyof Product] ?? '';
             bValue = b[key as keyof Product] ?? '';
@@ -775,6 +775,5 @@ export default function DashboardPage() {
     </div>
   );
 }
-    
 
     
