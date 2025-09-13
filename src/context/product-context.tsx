@@ -117,13 +117,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const allKeys = new Set<string>();
         productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
         allKeys.add('quoteTotal');
-
-        const fixedOrder = ['productId', 'name', 'brand', 'category', 'status', 'price', 'qtyForQuote', 'quoteTotal', 'startDate', 'lastUpdatedDate'];
         const currentKeys = Array.from(allKeys);
         
-        // This is important: We get the stored order now, to influence the *first* setting of productKeys
+        // This is safe because it runs after the initial server render
         const storedColumnOrder = JSON.parse(localStorage.getItem('productKeysOrder') || '[]');
         const validStoredOrder = storedColumnOrder.filter((k: string) => currentKeys.includes(k));
+        
+        const fixedOrder = ['productId', 'name', 'brand', 'category', 'status', 'price', 'qtyForQuote', 'quoteTotal', 'startDate', 'lastUpdatedDate'];
         const newKeys = currentKeys.filter(k => !validStoredOrder.includes(k) && !fixedOrder.includes(k));
         const initialSortedKeys = [...fixedOrder.filter(k => currentKeys.includes(k)), ...newKeys];
         
@@ -147,7 +147,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   // Effect for initializing client-side settings from localStorage AFTER initial render
   useEffect(() => {
-    if (productKeys.length === 0) return;
+    if (productKeys.length === 0 || typeof window === 'undefined') return;
 
     // This code now runs only on the client
     const adminVisibility = JSON.parse(localStorage.getItem('adminTableVisibleFields') || '{}');
