@@ -49,7 +49,8 @@ const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
 export function ProductProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
-  const [productKeys, setProductKeys] = useState<string[]>([]);
+  const [allProductKeys, setAllProductKeys] = useState<string[]>([]);
+  const [orderedProductKeys, setOrderedProductKeys] = useState<string[]>([]);
   const [headerNames, setHeaderNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [homePageFieldOrder, setHomePageFieldOrder] = useState<string[]>([]);
@@ -75,12 +76,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     });
     try {
       await batch.commit();
-      toast({ title: "Database Seeded", description: "Initial products have been loaded." });
     } catch (error) {
       console.error("Error seeding database: ", error);
-      toast({ title: "Seeding Error", description: "Could not load initial products.", variant: "destructive" });
     }
-  }, [toast]);
+  }, []);
 
   // Effect for listening to Firestore and seeding if necessary
   useEffect(() => {
@@ -117,8 +116,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const allKeys = new Set<string>();
         productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
         allKeys.add('quoteTotal');
-        const currentKeys = Array.from(allKeys);
-        setProductKeys(currentKeys);
+        setAllProductKeys(Array.from(allKeys));
       }
       
       setLoading(false);
@@ -134,7 +132,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   // Effect for initializing client-side settings from localStorage AFTER initial render
   useEffect(() => {
-    if (typeof window === 'undefined' || productKeys.length === 0) {
+    if (typeof window === 'undefined' || allProductKeys.length === 0) {
       return;
     }
 
@@ -147,18 +145,18 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         
         setHeaderNames(storedHeaders);
 
-        const validStoredOrder = storedColumnOrder.filter((k: string) => productKeys.includes(k));
-        const newKeysDetected = productKeys.filter(k => !validStoredOrder.includes(k));
+        const validStoredOrder = storedColumnOrder.filter((k: string) => allProductKeys.includes(k));
+        const newKeysDetected = allProductKeys.filter(k => !validStoredOrder.includes(k));
         const finalKeys = [...validStoredOrder, ...newKeysDetected];
-        setProductKeys(finalKeys);
+        setOrderedProductKeys(finalKeys);
         
         const newAdminVisibility: Record<string, boolean> = {};
-        productKeys.forEach(key => {
+        allProductKeys.forEach(key => {
             newAdminVisibility[key] = adminVisibility[key] !== false;
         });
         setAdminTableVisibleFields(newAdminVisibility);
 
-        const homePageConfigurableFields = productKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
+        const homePageConfigurableFields = allProductKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
         
         const validHomeOrder = homeOrder.filter((k: string) => homePageConfigurableFields.includes(k));
         const newHomeFields = homePageConfigurableFields.filter(k => !validHomeOrder.includes(k));
@@ -175,7 +173,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         console.error("Error loading settings from localStorage", error);
     }
     
-  }, [productKeys.length]); // Rerun when productKeys are loaded from Firestore
+  }, [allProductKeys]); // Rerun only when allProductKeys are loaded from Firestore
 
 
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
@@ -361,7 +359,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
 
   const setColumnOrder = (order: string[]) => {
-    setProductKeys(order);
+    setOrderedProductKeys(order);
     localStorage.setItem('productKeysOrder', JSON.stringify(order));
   };
 
@@ -421,7 +419,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   return (
     <ProductContext.Provider value={{ 
         products, 
-        productKeys, 
+        productKeys: orderedProductKeys.length > 0 ? orderedProductKeys : allProductKeys,
         headerNames, 
         loading, 
         addProduct, 
@@ -456,5 +454,3 @@ export function useProducts() {
   }
   return context;
 }
-
-    
