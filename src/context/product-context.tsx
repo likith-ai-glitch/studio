@@ -148,7 +148,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   // Effect for initializing client-side settings from localStorage AFTER initial render
   useEffect(() => {
     // This code now runs only on the client, after the component has mounted
-    if (productKeys.length === 0 || typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || productKeys.length === 0) return;
 
     try {
         const adminVisibility = JSON.parse(localStorage.getItem('adminTableVisibleFields') || '{}');
