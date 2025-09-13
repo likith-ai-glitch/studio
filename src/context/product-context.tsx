@@ -66,23 +66,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const productsCollectionRef = collection(db, 'products');
 
-  const safelyParseJSON = (key: string, defaultValue: any) => {
-    try {
-      if (typeof window === 'undefined') return defaultValue;
-      const item = window.localStorage.getItem(key);
-      if (item) {
-        return JSON.parse(item);
-      }
-      return defaultValue;
-    } catch (error) {
-      console.warn(`Could not parse ${key} from localStorage`, error);
-      if (typeof window !== 'undefined') {
-        window.localStorage.removeItem(key);
-      }
-      return defaultValue;
-    }
-  };
-  
   const seedDatabase = useCallback(async () => {
     console.log("No products found in Firestore. Seeding database...");
     setLoading(true);
@@ -105,11 +88,37 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     } finally {
       // The onSnapshot listener will handle setting loading to false
     }
-  }, [db]);
+  }, []);
 
   useEffect(() => {
+    const safelyParseJSON = (key: string, defaultValue: any) => {
+      try {
+        const item = window.localStorage.getItem(key);
+        if (item) {
+          return JSON.parse(item);
+        }
+        return defaultValue;
+      } catch (error) {
+        console.warn(`Could not parse ${key} from localStorage`, error);
+        window.localStorage.removeItem(key);
+        return defaultValue;
+      }
+    };
+
+    // Load settings from localStorage only on the client side
     setHeaderNames(safelyParseJSON(HEADER_NAMES_STORAGE_KEY, {'qtyForQuote': 'Qty for Quote', 'quoteTotal': 'Quote Total'}));
     setHomePageVisibleFields(safelyParseJSON(HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY, { name: true, brand: true, category: true, price: true }));
+
+    const checkForInitialData = async () => {
+        const snapshot = await getDocs(productsCollectionRef);
+        if (snapshot.empty && initialProducts.length > 0) {
+          await seedDatabase();
+        } else {
+          setLoading(false); // If not seeding, stop loading
+        }
+      };
+  
+      checkForInitialData();
 
     const unsubscribe = onSnapshot(productsCollectionRef, (snapshot) => {
       const productsData = snapshot.docs.map(doc => {
@@ -153,7 +162,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       const newHomeKeys = allConfigurableHomePageFields.filter(k => !validHomeSavedOrder.includes(k));
       setHomePageFieldOrder([...new Set([...validHomeSavedOrder, ...newHomeKeys])]);
 
-      setLoading(false);
+      if (loading) { // Only stop loading on first successful snapshot if it was still true
+        setLoading(false);
+      }
+      
     }, (error) => {
       console.error("Error fetching products with snapshot: ", error);
       toast({
@@ -164,18 +176,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    // Check for initial data and seed if necessary
-    const checkForInitialData = async () => {
-      const snapshot = await getDocs(productsCollectionRef);
-      if (snapshot.empty && initialProducts.length > 0) {
-        await seedDatabase();
-      }
-    };
-    checkForInitialData();
-
-
     return () => unsubscribe();
-  }, [toast, seedDatabase]);
+  }, [toast, seedDatabase, loading]);
   
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
     const docRef = doc(db, "products", productData.productId);
@@ -504,5 +506,3 @@ export function useProducts() {
   }
   return context;
 }
-
-    
