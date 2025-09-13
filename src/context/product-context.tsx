@@ -92,45 +92,50 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
     setHeaderNames(storedHeaders);
 
-    // This effect depends on productKeys, but productKeys is established
-    // by the Firestore listener. We only run this logic if keys are present.
+    // This effect depends on productKeys, which is established by the Firestore listener.
     if (productKeys.length > 0) {
-        // Initialize admin table visibility
-        const newAdminVisibility: Record<string, boolean> = {};
-        productKeys.forEach(key => {
-            newAdminVisibility[key] = adminVisibility[key] !== false; // Default to true
-        });
-        setAdminTableVisibleFields(newAdminVisibility);
+      // Initialize admin table visibility
+      const newAdminVisibility: Record<string, boolean> = {};
+      productKeys.forEach(key => {
+        newAdminVisibility[key] = adminVisibility[key] !== false; // Default to true
+      });
+      setAdminTableVisibleFields(newAdminVisibility);
 
-        const homePageConfigurableFields = productKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
-        
-        // Initialize home page order
-        if (homeOrder.length > 0) {
-            const validOrder = homeOrder.filter((k: string) => homePageConfigurableFields.includes(k));
-            const newFields = homePageConfigurableFields.filter(k => !validOrder.includes(k));
-            setHomePageFieldOrder([...validOrder, ...newFields]);
+      const homePageConfigurableFields = productKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
+      
+      // Initialize home page order
+      if (homeOrder.length > 0) {
+        const validOrder = homeOrder.filter((k: string) => homePageConfigurableFields.includes(k));
+        const newFields = homePageConfigurableFields.filter(k => !validOrder.includes(k));
+        setHomePageFieldOrder([...validOrder, ...newFields]);
+      } else {
+        setHomePageFieldOrder(homePageConfigurableFields);
+      }
+
+      // Initialize home page visibility
+      const newHomeVisibility: Record<string, boolean> = {};
+      const defaultVisible = ['name', 'brand', 'category', 'price', 'status'];
+      homePageConfigurableFields.forEach(key => {
+        if (homeVisibility[key] !== undefined) {
+          newHomeVisibility[key] = homeVisibility[key];
         } else {
-            setHomePageFieldOrder(homePageConfigurableFields);
+          newHomeVisibility[key] = defaultVisible.includes(key);
         }
+      });
+      setHomePageVisibleFields(newHomeVisibility);
 
-        // Initialize home page visibility
-        const newHomeVisibility: Record<string, boolean> = {};
-        const defaultVisible = ['name', 'brand', 'category', 'price', 'status'];
-        homePageConfigurableFields.forEach(key => {
-            if (homeVisibility[key] !== undefined) {
-                newHomeVisibility[key] = homeVisibility[key];
-            } else {
-                newHomeVisibility[key] = defaultVisible.includes(key);
-            }
+      // Initialize main column order
+      if (storedColumnOrder.length > 0) {
+        const validStoredOrder = storedColumnOrder.filter((k: string) => productKeys.includes(k));
+        const newUnstoredKeys = productKeys.filter(k => !validStoredOrder.includes(k));
+        setProductKeys(prevKeys => {
+           const finalOrder = [...validStoredOrder, ...newUnstoredKeys];
+           if (JSON.stringify(prevKeys) !== JSON.stringify(finalOrder)) {
+               return finalOrder;
+           }
+           return prevKeys;
         });
-        setHomePageVisibleFields(newHomeVisibility);
-
-        // Initialize main column order
-        if (storedColumnOrder.length > 0) {
-            const validStoredOrder = storedColumnOrder.filter((k: string) => productKeys.includes(k));
-            const newUnstoredKeys = productKeys.filter(k => !validStoredOrder.includes(k));
-            setProductKeys([...validStoredOrder, ...newUnstoredKeys]);
-        }
+      }
     }
   }, [productKeys]);
 
@@ -138,7 +143,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   // Effect for seeding and listening to Firestore
   useEffect(() => {
     const checkAndSeed = async () => {
-        setLoading(true);
         try {
             const snapshot = await getDocs(productsCollectionRef);
             if (snapshot.empty && initialProducts.length > 0) {
@@ -147,12 +151,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             console.error("Error checking or seeding database:", error);
         }
-        setLoading(false);
     };
     
     checkAndSeed();
 
     const unsubscribe = onSnapshot(productsCollectionRef, (snapshot) => {
+      setLoading(true);
       const productsData = snapshot.docs.map(doc => {
         const data = doc.data();
         const productWithDates: Record<string, any> = {};
@@ -179,6 +183,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const finalKeys = [...fixedOrder.filter(k => currentKeys.includes(k)), ...newKeys];
         
         setProductKeys(prevKeys => {
+            const storedOrder = JSON.parse(localStorage.getItem('productKeysOrder') || '[]');
+            if (storedOrder.length > 0) {
+              const validStoredOrder = storedOrder.filter((k: string) => finalKeys.includes(k));
+              const newUnstoredKeys = finalKeys.filter(k => !validStoredOrder.includes(k));
+              return [...validStoredOrder, ...newUnstoredKeys];
+            }
             if (JSON.stringify(prevKeys) !== JSON.stringify(finalKeys)) {
                 return finalKeys;
             }
@@ -194,7 +204,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [seedDatabase, productsCollectionRef]);
+  }, [seedDatabase]);
   
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
     const docRef = doc(db, "products", productData.productId);
@@ -474,3 +484,5 @@ export function useProducts() {
   }
   return context;
 }
+
+    
