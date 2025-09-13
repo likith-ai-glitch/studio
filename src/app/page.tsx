@@ -45,8 +45,6 @@ export default function Home() {
                 src="https://picsum.photos/seed/shop-hero/1200/400"
                 alt="Shop background"
                 fill
-                width={1200}
-                height={400}
                 className="object-cover"
                 data-ai-hint="shopping abstract"
             />
