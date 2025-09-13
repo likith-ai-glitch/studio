@@ -73,7 +73,7 @@ export default function AdminLayout({
                 </SidebarMenu>
             </SidebarContent>
         </Sidebar>
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 ml-0 md:ml-[3rem] group-data-[collapsible=offcanvas]/sidebar-wrapper:ml-0 transition-all duration-200">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 ml-0 md:ml-[16rem] group-data-[state=collapsed]/sidebar-wrapper:md:ml-[3rem] group-data-[collapsible=offcanvas]/sidebar-wrapper:ml-0 transition-all duration-200">
              {children}
         </main>
     </SidebarProvider>
