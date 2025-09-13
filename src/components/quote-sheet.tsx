@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -81,9 +82,11 @@ export function QuoteSheet() {
       // 1. Generate the email content from the AI flow
       const emailContent = await sendQuote(quote);
       
-      // 2. Save the full quote object to the 'quotes' collection with the correct ID
+      // 2. Save the full quote object to the 'quotes' collection with the correct ID.
+      // Convert the quote object to a plain JS object to ensure serializability.
+      const plainQuoteObject = JSON.parse(JSON.stringify(quote));
       const quoteDocRef = doc(db, 'quotes', quote.quoteId);
-      await setDoc(quoteDocRef, quote);
+      await setDoc(quoteDocRef, plainQuoteObject);
 
       // 3. Save the notification, which now links to a valid quote document
       await addDoc(collection(db, 'notifications'), {
@@ -94,7 +97,7 @@ export function QuoteSheet() {
         emailSubject: emailContent.emailSubject,
         emailBody: emailContent.emailBody,
         sentAt: serverTimestamp(),
-        quoteId: quote.quoteId, // Ensure this ID is correct
+        quoteId: quote.quoteId, 
       });
 
       // 4. Update local state and notify user
