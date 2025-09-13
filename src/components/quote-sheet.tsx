@@ -79,11 +79,7 @@ export function QuoteSheet() {
     });
     try {
       // 1. Generate the email content from the AI flow
-      const aiQuoteInput = {
-        ...quote,
-        quoteNumber: quote.quoteId,
-      };
-      const emailContent = await sendQuote(aiQuoteInput);
+      const emailContent = await sendQuote(quote);
       
       // 2. Save the full quote object to the 'quotes' collection with the correct ID
       const quoteDocRef = doc(db, 'quotes', quote.quoteId);
