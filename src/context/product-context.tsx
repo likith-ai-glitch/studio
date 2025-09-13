@@ -66,117 +66,116 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const productsCollectionRef = collection(db, 'products');
 
-  useEffect(() => {
-    const safelyParseJSON = (key: string, defaultValue: any) => {
-      try {
-        if (typeof window === 'undefined') return defaultValue;
-        const item = window.localStorage.getItem(key);
-        if (item) {
-          return JSON.parse(item);
-        }
-        return defaultValue;
-      } catch (error) {
-        console.warn(`Could not parse ${key} from localStorage`, error);
-        if (typeof window !== 'undefined') {
-          window.localStorage.removeItem(key);
-        }
-        return defaultValue;
+  const safelyParseJSON = (key: string, defaultValue: any) => {
+    try {
+      if (typeof window === 'undefined') return defaultValue;
+      const item = window.localStorage.getItem(key);
+      if (item) {
+        return JSON.parse(item);
       }
-    };
-    
+      return defaultValue;
+    } catch (error) {
+      console.warn(`Could not parse ${key} from localStorage`, error);
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(key);
+      }
+      return defaultValue;
+    }
+  };
+  
+  const seedDatabase = useCallback(async () => {
+    console.log("No products found in Firestore. Seeding database...");
+    setLoading(true);
+    const batch = writeBatch(db);
+    initialProducts.forEach((product) => {
+      const docRef = doc(db, "products", product.productId);
+      const { ...productData } = product;
+      const productWithDates: Record<string, any> = { ...productData, qtyForQuote: 0 };
+      Object.keys(productWithDates).forEach(key => {
+        if (key === 'startDate' || key === 'lastUpdatedDate') {
+          productWithDates[key] = productWithDates[key] ? Timestamp.fromDate(new Date(productWithDates[key])) : null;
+        }
+      });
+      batch.set(docRef, productWithDates);
+    });
+    try {
+      await batch.commit();
+    } catch (error) {
+      console.error("Error seeding database: ", error);
+    } finally {
+      // The onSnapshot listener will handle setting loading to false
+    }
+  }, [db]);
+
+  useEffect(() => {
     setHeaderNames(safelyParseJSON(HEADER_NAMES_STORAGE_KEY, {'qtyForQuote': 'Qty for Quote', 'quoteTotal': 'Quote Total'}));
     setHomePageVisibleFields(safelyParseJSON(HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY, { name: true, brand: true, category: true, price: true }));
 
-    const unsubscribe = onSnapshot(productsCollectionRef, async (snapshot) => {
-        if (snapshot.empty && initialProducts.length > 0) {
-            console.log("No products found in Firestore. Seeding database...");
-            setLoading(true);
-            const batch = writeBatch(db);
-            initialProducts.forEach((product) => {
-                const docRef = doc(db, "products", product.productId);
-                const { ...productData} = product;
-                const productWithDates: Record<string, any> = { ...productData, qtyForQuote: 0 };
-                 Object.keys(productWithDates).forEach(key => {
-                    if (key === 'startDate' || key === 'lastUpdatedDate') {
-                        productWithDates[key] = productWithDates[key] ? Timestamp.fromDate(new Date(productWithDates[key])) : null;
-                    }
-                });
-                batch.set(docRef, productWithDates);
-            });
-            try {
-              await batch.commit();
-            } catch (error) {
-              console.error("Error seeding database: ", error);
-            } finally {
-               setLoading(false);
-            }
-        } else {
-            const productsData = snapshot.docs.map(doc => {
-              const data = doc.data();
-              const productWithDates: Record<string, any> = {};
-              for (const key in data) {
-                if (data[key] instanceof Timestamp) {
-                  productWithDates[key] = data[key].toDate();
-                } else {
-                  productWithDates[key] = data[key];
-                }
-              }
-              return { ...productWithDates, productId: doc.id } as Product;
-            });
-            setProducts(productsData);
-            
-            const allKeys = new Set<string>();
-            productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
-            allKeys.add('quoteTotal');
-
-            if (!allKeys.has('qtyForQuote')) {
-                const batch = writeBatch(db);
-                snapshot.docs.forEach(document => {
-                  const docRef = document.ref;
-                  batch.update(docRef, { qtyForQuote: 0 });
-                });
-                await batch.commit();
-                allKeys.add('qtyForQuote');
-            }
-
-            const fixedOrder = ['productId', 'name', 'brand', 'category', 'status', 'price', 'qtyForQuote', 'quoteTotal', 'startDate', 'lastUpdatedDate'];
-            
-            const savedOrder = safelyParseJSON(COLUMN_ORDER_STORAGE_KEY, []);
-            const validSavedOrder = savedOrder.filter((k: string) => allKeys.has(k) || k === 'qtyForQuote' || k === 'quoteTotal');
-            const newKeys = Array.from(allKeys).filter(k => !validSavedOrder.includes(k) && !fixedOrder.includes(k));
-            const combinedKeys = [...fixedOrder.filter(k => allKeys.has(k)), ...validSavedOrder.filter(k => !fixedOrder.includes(k)), ...newKeys];
-            const finalKeys = [...new Set(combinedKeys)];
-            setProductKeys(finalKeys);
-            
-
-            const savedAdminVisibility = safelyParseJSON(ADMIN_TABLE_VISIBLE_FIELDS_STORAGE_KEY, {});
-            const finalAdminVisibility: Record<string, boolean> = {};
-            finalKeys.forEach(key => {
-              finalAdminVisibility[key] = savedAdminVisibility[key] ?? true; // Default to visible
-            });
-            setAdminTableVisibleFields(finalAdminVisibility);
-
-            const allConfigurableHomePageFields = finalKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
-            const homeSavedOrder = safelyParseJSON(HOME_PAGE_FIELD_ORDER_STORAGE_KEY, allConfigurableHomePageFields);
-            const validHomeSavedOrder = homeSavedOrder.filter((k: string) => allConfigurableHomePageFields.includes(k));
-            const newHomeKeys = allConfigurableHomePageFields.filter(k => !validHomeSavedOrder.includes(k));
-            setHomePageFieldOrder([...new Set([...validHomeSavedOrder, ...newHomeKeys])]);
-
-
-            setLoading(false);
+    const unsubscribe = onSnapshot(productsCollectionRef, (snapshot) => {
+      const productsData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        const productWithDates: Record<string, any> = {};
+        for (const key in data) {
+          if (data[key] instanceof Timestamp) {
+            productWithDates[key] = data[key].toDate();
+          } else {
+            productWithDates[key] = data[key];
+          }
         }
+        return { ...productWithDates, productId: doc.id } as Product;
+      });
+
+      setProducts(productsData);
+
+      const allKeys = new Set<string>();
+      productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
+      allKeys.add('quoteTotal');
+
+      const fixedOrder = ['productId', 'name', 'brand', 'category', 'status', 'price', 'qtyForQuote', 'quoteTotal', 'startDate', 'lastUpdatedDate'];
+      
+      const savedOrder = safelyParseJSON(COLUMN_ORDER_STORAGE_KEY, []);
+      const validSavedOrder = savedOrder.filter((k: string) => allKeys.has(k) || k === 'qtyForQuote' || k === 'quoteTotal');
+      const newKeys = Array.from(allKeys).filter(k => !validSavedOrder.includes(k) && !fixedOrder.includes(k));
+      const combinedKeys = [...fixedOrder.filter(k => allKeys.has(k)), ...validSavedOrder.filter(k => !fixedOrder.includes(k)), ...newKeys];
+      const finalKeys = [...new Set(combinedKeys)];
+      setProductKeys(finalKeys);
+      
+      const savedAdminVisibility = safelyParseJSON(ADMIN_TABLE_VISIBLE_FIELDS_STORAGE_KEY, {});
+      const finalAdminVisibility: Record<string, boolean> = {};
+      finalKeys.forEach(key => {
+        finalAdminVisibility[key] = savedAdminVisibility[key] ?? true; // Default to visible
+      });
+      setAdminTableVisibleFields(finalAdminVisibility);
+
+      const allConfigurableHomePageFields = finalKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
+      const homeSavedOrder = safelyParseJSON(HOME_PAGE_FIELD_ORDER_STORAGE_KEY, allConfigurableHomePageFields);
+      const validHomeSavedOrder = homeSavedOrder.filter((k: string) => allConfigurableHomePageFields.includes(k));
+      const newHomeKeys = allConfigurableHomePageFields.filter(k => !validHomeSavedOrder.includes(k));
+      setHomePageFieldOrder([...new Set([...validHomeSavedOrder, ...newHomeKeys])]);
+
+      setLoading(false);
     }, (error) => {
-        console.error("Error fetching products with snapshot: ", error);
-        toast({
-            title: "Connection Error",
-            description: "Could not connect to Firestore for real-time updates.",
-            variant: "destructive",
-        });
-        setLoading(false);
+      console.error("Error fetching products with snapshot: ", error);
+      toast({
+        title: "Connection Error",
+        description: "Could not connect to Firestore for real-time updates.",
+        variant: "destructive",
+      });
+      setLoading(false);
     });
 
+    // Check for initial data and seed if necessary
+    const checkForInitialData = async () => {
+      const snapshot = await getDocs(productsCollectionRef);
+      if (snapshot.empty && initialProducts.length > 0) {
+        await seedDatabase();
+      }
+    };
+    checkForInitialData();
+
+
     return () => unsubscribe();
-  }, [toast]);
+  }, [toast, seedDatabase]);
   
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
     const docRef = doc(db, "products", productData.productId);
@@ -505,3 +504,5 @@ export function useProducts() {
   }
   return context;
 }
+
+    
