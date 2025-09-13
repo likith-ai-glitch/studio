@@ -84,16 +84,14 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const checkAndSeed = async () => {
+        setLoading(true);
         const snapshot = await getDocs(productsCollectionRef);
         if (snapshot.empty && initialProducts.length > 0) {
             await seedDatabase();
         }
     };
     checkAndSeed();
-  }, [seedDatabase, productsCollectionRef]);
 
-
-  useEffect(() => {
     const unsubscribe = onSnapshot(productsCollectionRef, (snapshot) => {
       const productsData = snapshot.docs.map(doc => {
         const data = doc.data();
@@ -110,44 +108,49 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
       setProducts(productsData);
 
-      const allKeys = new Set<string>();
-      productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
-      allKeys.add('quoteTotal');
+      if (productsData.length > 0) {
+        const allKeys = new Set<string>();
+        productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
+        allKeys.add('quoteTotal');
 
-      const fixedOrder = ['productId', 'name', 'brand', 'category', 'status', 'price', 'qtyForQuote', 'quoteTotal', 'startDate', 'lastUpdatedDate'];
-      const currentKeys = Array.from(allKeys);
-      const newKeys = currentKeys.filter(k => !fixedOrder.includes(k));
-      const finalKeys = [...fixedOrder.filter(k => currentKeys.includes(k)), ...newKeys];
-      
-      setProductKeys(finalKeys);
-      
-      const adminVisibility: Record<string, boolean> = {};
-      finalKeys.forEach(key => { adminVisibility[key] = true; });
-      setAdminTableVisibleFields(adminVisibility);
-
-      const homePageFields = finalKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
-      setHomePageFieldOrder(homePageFields);
-
-      const homeVisibility: Record<string, boolean> = {};
-      homePageFields.forEach(key => {
-        homeVisibility[key] = ['name', 'brand', 'category', 'price', 'status'].includes(key);
-      });
-      setHomePageVisibleFields(homeVisibility);
+        const fixedOrder = ['productId', 'name', 'brand', 'category', 'status', 'price', 'qtyForQuote', 'quoteTotal', 'startDate', 'lastUpdatedDate'];
+        const currentKeys = Array.from(allKeys);
+        const newKeys = currentKeys.filter(k => !fixedOrder.includes(k));
+        const finalKeys = [...fixedOrder.filter(k => currentKeys.includes(k)), ...newKeys];
+        
+        setProductKeys(prevKeys => {
+            if (JSON.stringify(prevKeys) !== JSON.stringify(finalKeys)) {
+                return finalKeys;
+            }
+            return prevKeys;
+        });
+      }
       
       setLoading(false);
       
     }, (error) => {
       console.error("Error fetching products with snapshot: ", error);
-      toast({
-        title: "Connection Error",
-        description: "Could not connect to Firestore for real-time updates.",
-        variant: "destructive",
-      });
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [toast, productsCollectionRef]);
+  }, [seedDatabase, productsCollectionRef]);
+
+  useEffect(() => {
+    // Initialize settings from localStorage on client side
+    const adminVisibility: Record<string, boolean> = {};
+    productKeys.forEach(key => { adminVisibility[key] = true; });
+    setAdminTableVisibleFields(adminVisibility);
+
+    const homePageFields = productKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
+    setHomePageFieldOrder(homePageFields);
+
+    const homeVisibility: Record<string, boolean> = {};
+    homePageFields.forEach(key => {
+      homeVisibility[key] = ['name', 'brand', 'category', 'price', 'status'].includes(key);
+    });
+    setHomePageVisibleFields(homeVisibility);
+  }, [productKeys]);
   
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
     const docRef = doc(db, "products", productData.productId);
