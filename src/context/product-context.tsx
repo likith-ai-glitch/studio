@@ -118,7 +118,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   }, [seedDatabase]);
   
   useEffect(() => {
-    if (loading || rawKeys.length === 0) return;
+    if (typeof window === 'undefined' || loading || rawKeys.length === 0) return;
 
     const storedColumnOrder = JSON.parse(localStorage.getItem('productKeysOrder') || '[]');
     const adminVisibility = JSON.parse(localStorage.getItem('adminTableVisibleFields') || '{}');
