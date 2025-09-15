@@ -117,7 +117,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
         allKeys.add('quoteTotal');
         
-        // This is safe because it only updates state, no browser APIs
         setAllProductKeys(currentKeys => {
           const newKeys = Array.from(allKeys);
           if (JSON.stringify(currentKeys) !== JSON.stringify(newKeys)) {
@@ -140,53 +139,50 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   // Effect for initializing client-side settings from localStorage AFTER initial render and data load
   useEffect(() => {
     // This effect should only run on the client, and only after Firestore data has loaded.
-    if (typeof window === 'undefined' || loading) {
-      return;
+    if (typeof window !== 'undefined' && !loading) {
+        try {
+            const storedColumnOrder = JSON.parse(localStorage.getItem('productKeysOrder') || '[]');
+            const adminVisibility = JSON.parse(localStorage.getItem('adminTableVisibleFields') || '{}');
+            const homeVisibility = JSON.parse(localStorage.getItem('homePageVisibleFields') || '{}');
+            const homeOrder = JSON.parse(localStorage.getItem('homePageFieldOrder') || '[]');
+            const storedHeaders = JSON.parse(localStorage.getItem('headerNames') || '{}');
+            
+            setHeaderNames(storedHeaders);
+
+            const validStoredOrder = storedColumnOrder.filter((k: string) => allProductKeys.includes(k));
+            const newKeysDetected = allProductKeys.filter(k => !validStoredOrder.includes(k));
+            const finalKeys = [...validStoredOrder, ...newKeysDetected];
+            setOrderedProductKeys(finalKeys);
+            
+            const newAdminVisibility: Record<string, boolean> = {};
+            allProductKeys.forEach(key => {
+                newAdminVisibility[key] = adminVisibility[key] !== false; // Default to true
+            });
+            setAdminTableVisibleFields(newAdminVisibility);
+
+            const homePageConfigurableFields = allProductKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
+            
+            const validHomeOrder = homeOrder.filter((k: string) => homePageConfigurableFields.includes(k));
+            const newHomeFields = homePageConfigurableFields.filter(k => !validHomeOrder.includes(k));
+            setHomePageFieldOrder([...validHomeOrder, ...newHomeFields]);
+
+            const newHomeVisibility: Record<string, boolean> = {};
+            const defaultVisible = ['name', 'brand', 'category', 'price', 'status'];
+            homePageConfigurableFields.forEach(key => {
+                newHomeVisibility[key] = homeVisibility[key] ?? defaultVisible.includes(key);
+            });
+            setHomePageVisibleFields(newHomeVisibility);
+
+        } catch (error) {
+            console.error("Error loading settings from localStorage", error);
+            // If localStorage fails, set sensible defaults to avoid a blank screen
+            setOrderedProductKeys(allProductKeys);
+            const defaultVisibility = allProductKeys.reduce((acc, key) => ({ ...acc, [key]: true }), {});
+            setAdminTableVisibleFields(defaultVisibility);
+            setHomePageVisibleFields(defaultVisibility);
+            setHomePageFieldOrder(allProductKeys.filter(k => !['productId', 'quoteTotal'].includes(k)));
+        }
     }
-
-    try {
-        const storedColumnOrder = JSON.parse(localStorage.getItem('productKeysOrder') || '[]');
-        const adminVisibility = JSON.parse(localStorage.getItem('adminTableVisibleFields') || '{}');
-        const homeVisibility = JSON.parse(localStorage.getItem('homePageVisibleFields') || '{}');
-        const homeOrder = JSON.parse(localStorage.getItem('homePageFieldOrder') || '[]');
-        const storedHeaders = JSON.parse(localStorage.getItem('headerNames') || '{}');
-        
-        setHeaderNames(storedHeaders);
-
-        const validStoredOrder = storedColumnOrder.filter((k: string) => allProductKeys.includes(k));
-        const newKeysDetected = allProductKeys.filter(k => !validStoredOrder.includes(k));
-        const finalKeys = [...validStoredOrder, ...newKeysDetected];
-        setOrderedProductKeys(finalKeys);
-        
-        const newAdminVisibility: Record<string, boolean> = {};
-        allProductKeys.forEach(key => {
-            newAdminVisibility[key] = adminVisibility[key] !== false; // Default to true
-        });
-        setAdminTableVisibleFields(newAdminVisibility);
-
-        const homePageConfigurableFields = allProductKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
-        
-        const validHomeOrder = homeOrder.filter((k: string) => homePageConfigurableFields.includes(k));
-        const newHomeFields = homePageConfigurableFields.filter(k => !validHomeOrder.includes(k));
-        setHomePageFieldOrder([...validHomeOrder, ...newHomeFields]);
-
-        const newHomeVisibility: Record<string, boolean> = {};
-        const defaultVisible = ['name', 'brand', 'category', 'price', 'status'];
-        homePageConfigurableFields.forEach(key => {
-            newHomeVisibility[key] = homeVisibility[key] ?? defaultVisible.includes(key);
-        });
-        setHomePageVisibleFields(newHomeVisibility);
-
-    } catch (error) {
-        console.error("Error loading settings from localStorage", error);
-        // If localStorage fails, set sensible defaults to avoid a blank screen
-        setOrderedProductKeys(allProductKeys);
-        const defaultVisibility = allProductKeys.reduce((acc, key) => ({ ...acc, [key]: true }), {});
-        setAdminTableVisibleFields(defaultVisibility);
-        setHomePageVisibleFields(defaultVisibility);
-        setHomePageFieldOrder(allProductKeys.filter(k => !['productId', 'quoteTotal'].includes(k)));
-    }
-    
   }, [allProductKeys, loading]); // Rerun only when allProductKeys/loading changes
 
 
@@ -468,5 +464,3 @@ export function useProducts() {
   }
   return context;
 }
-
-    
