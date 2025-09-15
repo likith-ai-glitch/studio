@@ -49,7 +49,7 @@ const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
 export function ProductProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
-  const [allProductKeys, setAllProductKeys] = useState<string[]>([]);
+  const [rawKeys, setRawKeys] = useState<string[]>([]);
   const [orderedProductKeys, setOrderedProductKeys] = useState<string[]>([]);
   const [headerNames, setHeaderNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -62,7 +62,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const productsCollectionRef = collection(db, 'products');
 
   const seedDatabase = useCallback(async () => {
-    console.log("Seeding database with initial products...");
     const batch = writeBatch(db);
     initialProducts.forEach((product) => {
       const docRef = doc(db, "products", product.productId);
@@ -74,23 +73,14 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       });
       batch.set(docRef, productWithDates);
     });
-    try {
-      await batch.commit();
-    } catch (error) {
-      console.error("Error seeding database: ", error);
-    }
+    await batch.commit();
   }, []);
 
-  // Effect for listening to Firestore and seeding if necessary
   useEffect(() => {
     const checkAndSeed = async () => {
-        try {
-            const snapshot = await getDocs(productsCollectionRef);
-            if (snapshot.empty && initialProducts.length > 0) {
-                await seedDatabase();
-            }
-        } catch (error) {
-            console.error("Error checking or seeding database:", error);
+        const snapshot = await getDocs(productsCollectionRef);
+        if (snapshot.empty && initialProducts.length > 0) {
+            await seedDatabase();
         }
     };
     
@@ -116,18 +106,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const allKeys = new Set<string>();
         productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
         allKeys.add('quoteTotal');
-        
-        setAllProductKeys(currentKeys => {
-          const newKeys = Array.from(allKeys);
-          if (JSON.stringify(currentKeys) !== JSON.stringify(newKeys)) {
-            return newKeys;
-          }
-          return currentKeys;
-        });
+        setRawKeys(Array.from(allKeys));
       }
-      
       setLoading(false);
-      
     }, (error) => {
       console.error("Error fetching products with snapshot: ", error);
       setLoading(false);
@@ -136,54 +117,42 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [seedDatabase]);
   
-  // Effect for initializing client-side settings from localStorage AFTER initial render and data load
   useEffect(() => {
-    // This effect should only run on the client, and only after Firestore data has loaded.
-    if (typeof window !== 'undefined' && !loading) {
-        try {
-            const storedColumnOrder = JSON.parse(localStorage.getItem('productKeysOrder') || '[]');
-            const adminVisibility = JSON.parse(localStorage.getItem('adminTableVisibleFields') || '{}');
-            const homeVisibility = JSON.parse(localStorage.getItem('homePageVisibleFields') || '{}');
-            const homeOrder = JSON.parse(localStorage.getItem('homePageFieldOrder') || '[]');
-            const storedHeaders = JSON.parse(localStorage.getItem('headerNames') || '{}');
-            
-            setHeaderNames(storedHeaders);
+    if (loading || rawKeys.length === 0) return;
 
-            const validStoredOrder = storedColumnOrder.filter((k: string) => allProductKeys.includes(k));
-            const newKeysDetected = allProductKeys.filter(k => !validStoredOrder.includes(k));
-            const finalKeys = [...validStoredOrder, ...newKeysDetected];
-            setOrderedProductKeys(finalKeys);
-            
-            const newAdminVisibility: Record<string, boolean> = {};
-            allProductKeys.forEach(key => {
-                newAdminVisibility[key] = adminVisibility[key] !== false; // Default to true
-            });
-            setAdminTableVisibleFields(newAdminVisibility);
+    const storedColumnOrder = JSON.parse(localStorage.getItem('productKeysOrder') || '[]');
+    const adminVisibility = JSON.parse(localStorage.getItem('adminTableVisibleFields') || '{}');
+    const homeVisibility = JSON.parse(localStorage.getItem('homePageVisibleFields') || '{}');
+    const homeOrder = JSON.parse(localStorage.getItem('homePageFieldOrder') || '[]');
+    const storedHeaders = JSON.parse(localStorage.getItem('headerNames') || '{}');
+    
+    setHeaderNames(storedHeaders);
 
-            const homePageConfigurableFields = allProductKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
-            
-            const validHomeOrder = homeOrder.filter((k: string) => homePageConfigurableFields.includes(k));
-            const newHomeFields = homePageConfigurableFields.filter(k => !validHomeOrder.includes(k));
-            setHomePageFieldOrder([...validHomeOrder, ...newHomeFields]);
+    const validStoredOrder = storedColumnOrder.filter((k: string) => rawKeys.includes(k));
+    const newKeysDetected = rawKeys.filter(k => !validStoredOrder.includes(k));
+    const finalKeys = [...validStoredOrder, ...newKeysDetected];
+    setOrderedProductKeys(finalKeys);
+    
+    const newAdminVisibility: Record<string, boolean> = {};
+    rawKeys.forEach(key => {
+        newAdminVisibility[key] = adminVisibility[key] !== false;
+    });
+    setAdminTableVisibleFields(newAdminVisibility);
 
-            const newHomeVisibility: Record<string, boolean> = {};
-            const defaultVisible = ['name', 'brand', 'category', 'price', 'status'];
-            homePageConfigurableFields.forEach(key => {
-                newHomeVisibility[key] = homeVisibility[key] ?? defaultVisible.includes(key);
-            });
-            setHomePageVisibleFields(newHomeVisibility);
+    const homePageConfigurableFields = rawKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
+    
+    const validHomeOrder = homeOrder.filter((k: string) => homePageConfigurableFields.includes(k));
+    const newHomeFields = homePageConfigurableFields.filter(k => !validHomeOrder.includes(k));
+    setHomePageFieldOrder([...validHomeOrder, ...newHomeFields]);
 
-        } catch (error) {
-            console.error("Error loading settings from localStorage", error);
-            // If localStorage fails, set sensible defaults to avoid a blank screen
-            setOrderedProductKeys(allProductKeys);
-            const defaultVisibility = allProductKeys.reduce((acc, key) => ({ ...acc, [key]: true }), {});
-            setAdminTableVisibleFields(defaultVisibility);
-            setHomePageVisibleFields(defaultVisibility);
-            setHomePageFieldOrder(allProductKeys.filter(k => !['productId', 'quoteTotal'].includes(k)));
-        }
-    }
-  }, [allProductKeys, loading]); // Rerun only when allProductKeys/loading changes
+    const newHomeVisibility: Record<string, boolean> = {};
+    const defaultVisible = ['name', 'brand', 'category', 'price', 'status'];
+    homePageConfigurableFields.forEach(key => {
+        newHomeVisibility[key] = homeVisibility[key] ?? defaultVisible.includes(key);
+    });
+    setHomePageVisibleFields(newHomeVisibility);
+
+  }, [loading, rawKeys]);
 
 
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
@@ -194,16 +163,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       throw new Error(`Product with ID "${productData.productId}" already exists.`);
     }
 
-    const newProduct: Record<string, any> = {
-      ...productData,
-      status: productData.status || 'Available',
-      qtyForQuote: 0,
-    };
+    const newProduct: Record<string, any> = { ...productData, status: productData.status || 'Available', qtyForQuote: 0 };
     
     Object.keys(newProduct).forEach(key => {
-        if (newProduct[key] instanceof Date) {
-            newProduct[key] = Timestamp.fromDate(newProduct[key]);
-        }
+        if (newProduct[key] instanceof Date) newProduct[key] = Timestamp.fromDate(newProduct[key]);
     });
     
     await setDoc(docRef, newProduct);
@@ -211,35 +174,22 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const updateProduct = async (productData: ProductFormValues, originalProductId?: string): Promise<void> => {
     const { productId, ...restOfData } = productData;
-
-    if (!productId) {
-      throw new Error("productId is missing, cannot update product.");
-    }
+    if (!productId) throw new Error("productId is missing, cannot update product.");
 
     if (originalProductId && originalProductId !== productId) {
         const newDocRef = doc(db, 'products', productId);
         const oldDocRef = doc(db, 'products', originalProductId);
-
         const newDocSnap = await getDoc(newDocRef);
-        if (newDocSnap.exists()) {
-          throw new Error(`Product with new ID "${productId}" already exists.`);
-        }
+        if (newDocSnap.exists()) throw new Error(`Product with new ID "${productId}" already exists.`);
         
         const oldDataSnap = await getDoc(oldDocRef);
         const oldData = oldDataSnap.data() || {};
-        
         const combinedData = { ...oldData, ...restOfData };
-        
         const newProductData: Record<string, any> = {};
+
         Object.entries(combinedData).forEach(([key, value]) => {
             if (value !== null && value !== undefined && value !== '') {
-                 if (value instanceof Date) {
-                    newProductData[key] = Timestamp.fromDate(value);
-                } else if (value.toDate && typeof value.toDate === 'function'){
-                    newProductData[key] = value; // It's already a Timestamp
-                } else {
-                    newProductData[key] = value;
-                }
+                 newProductData[key] = value instanceof Date ? Timestamp.fromDate(value) : value;
             }
         });
 
@@ -251,18 +201,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     } else {
        const docRef = doc(db, 'products', productId);
        const dataToUpdate: Record<string, any> = {};
-
        Object.keys(restOfData).forEach(key => {
             const value = (restOfData as any)[key];
-            if (value instanceof Date) {
-                dataToUpdate[key] = Timestamp.fromDate(value);
-            } else if (value === null || value === undefined || value === '') {
-                dataToUpdate[key] = deleteField();
-            } else {
-                dataToUpdate[key] = value;
-            }
+            if (value instanceof Date) dataToUpdate[key] = Timestamp.fromDate(value);
+            else if (value === null || value === undefined || value === '') dataToUpdate[key] = deleteField();
+            else dataToUpdate[key] = value;
         });
-
        await setDoc(docRef, dataToUpdate, { merge: true });
     }
   };
@@ -271,101 +215,51 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const docRef = doc(db, 'products', productId);
     try {
         await updateDoc(docRef, { [field]: value });
-         toast({
-            title: 'Product Updated',
-            description: `Successfully updated ${field}.`,
-        });
+         toast({ title: 'Product Updated', description: `Successfully updated ${field}.` });
     } catch (error) {
         console.error("Error updating product field: ", error);
-        toast({
-            title: 'Error',
-            description: `Failed to update ${field}.`,
-            variant: 'destructive',
-        });
+        toast({ title: 'Error', description: `Failed to update ${field}.`, variant: 'destructive' });
     }
   }
-
 
   const deleteProduct = async (productId: string) => {
     const productToDelete = products.find(p => p.productId === productId);
     if (!productToDelete) return;
     
-    const originalProducts = products;
-    setProducts(prev => prev.filter(p => p.productId !== productId));
-    
-    const productDocRef = doc(db, 'products', productId);
-    try {
-      await deleteDoc(productDocRef);
-      toast({
-        title: "Product Deleted",
-        description: `"${productToDelete.name}" has been successfully deleted.`,
-        variant: 'destructive',
-      });
-    } catch (error) {
-      console.error("Error deleting product: ", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete product.",
-        variant: "destructive",
-      });
-      setProducts(originalProducts);
-    }
+    await deleteDoc(doc(db, 'products', productId));
+    toast({ title: "Product Deleted", description: `"${productToDelete.name}" has been successfully deleted.`, variant: 'destructive' });
   };
 
   const getProduct = async (productId: string): Promise<Product | undefined> => {
     const localProduct = products.find(p => p.productId === productId);
     if (localProduct) return localProduct;
 
-    try {
-      const productDoc = doc(db, 'products', productId);
-      const docSnap = await getDoc(productDoc);
-      if (docSnap.exists()) {
+    const docSnap = await getDoc(doc(db, 'products', productId));
+    if (docSnap.exists()) {
         const data = docSnap.data();
         const productDataWithDates: Record<string, any> = {};
          for (const key in data) {
-            if (data[key] instanceof Timestamp) {
-                productDataWithDates[key] = data[key].toDate();
-            } else {
-                productDataWithDates[key] = data[key];
-            }
+            productDataWithDates[key] = data[key] instanceof Timestamp ? data[key].toDate() : data[key];
         }
         return { productId: docSnap.id, ...productDataWithDates } as Product;
-      } else {
-        return undefined;
-      }
-    } catch (error) {
-      console.error("Error getting product:", error);
-      return undefined;
     }
+    return undefined;
   };
 
   const addColumn = async (columnName: string) => {
     const batch = writeBatch(db);
     const snapshot = await getDocs(productsCollectionRef);
-    snapshot.forEach(doc => {
-      const docRef = doc.ref;
-      batch.update(docRef, { [columnName]: '' });
-    });
+    snapshot.forEach(doc => batch.update(doc.ref, { [columnName]: '' }));
     await batch.commit();
-     toast({
-        title: 'Column Added',
-        description: `The column "${columnName}" has been added to all products.`,
-    });
+    toast({ title: 'Column Added', description: `The column "${columnName}" has been added.` });
   }
 
   const deleteColumn = async (columnName: string) => {
     const batch = writeBatch(db);
     const snapshot = await getDocs(productsCollectionRef);
-    snapshot.forEach(document => {
-      const docRef = document.ref;
-      batch.update(docRef, { [columnName]: deleteField() });
-    });
+    snapshot.forEach(document => batch.update(document.ref, { [columnName]: deleteField() }));
     await batch.commit();
-    toast({
-      title: 'Column Deleted',
-      description: `The column "${columnName}" has been deleted from all products.`,
-      variant: 'destructive',
-    });
+    toast({ title: 'Column Deleted', description: `The column "${columnName}" has been deleted.`, variant: 'destructive' });
   };
 
   const setColumnOrder = (order: string[]) => {
@@ -398,9 +292,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const toggleProductSelection = useCallback((productId: string) => {
     setSelectedProducts(prev => 
-      prev.includes(productId) 
-        ? prev.filter(id => id !== productId)
-        : [...prev, productId]
+      prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId]
     );
   }, []);
 
@@ -408,49 +300,25 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     setSelectedProducts(prev => {
         const visibleProductIds = new Set(productIds);
         const selectedProductIds = new Set(prev);
-        
         const allVisibleSelected = productIds.every(id => selectedProductIds.has(id));
 
-        if (allVisibleSelected) {
-            // Deselect all visible products
-            return prev.filter(id => !visibleProductIds.has(id));
-        } else {
-            // Select all visible products
-            return [...new Set([...prev, ...productIds])];
-        }
+        if (allVisibleSelected) return prev.filter(id => !visibleProductIds.has(id));
+        else return [...new Set([...prev, ...productIds])];
     });
   }, []);
   
-  const clearSelection = useCallback(() => {
-    setSelectedProducts([]);
-  }, []);
+  const clearSelection = useCallback(() => { setSelectedProducts([]); }, []);
 
+  const productKeys = orderedProductKeys.length > 0 ? orderedProductKeys : rawKeys;
 
   return (
     <ProductContext.Provider value={{ 
-        products, 
-        productKeys: orderedProductKeys.length > 0 ? orderedProductKeys : allProductKeys,
-        headerNames, 
-        loading, 
-        addProduct, 
-        updateProduct, 
-        updateProductField,
-        deleteProduct, 
-        getProduct, 
-        addColumn, 
-        deleteColumn, 
-        setColumnOrder, 
-        renameColumn,
-        homePageFieldOrder,
-        setHomePageFieldOrder: setHomePageOrder,
-        homePageVisibleFields,
-        toggleHomePageFieldVisibility: toggleHomePageVisibility,
-        adminTableVisibleFields,
-        toggleAdminTableFieldVisibility: toggleAdminTableFieldVisibility,
-        selectedProducts,
-        toggleProductSelection,
-        toggleSelectAllProducts,
-        clearSelection,
+        products, productKeys, headerNames, loading, addProduct, updateProduct, updateProductField,
+        deleteProduct, getProduct, addColumn, deleteColumn, setColumnOrder, renameColumn,
+        homePageFieldOrder, setHomePageFieldOrder: setHomePageOrder,
+        homePageVisibleFields, toggleHomePageFieldVisibility: toggleHomePageVisibility,
+        adminTableVisibleFields, toggleAdminTableFieldVisibility: toggleAdminTableFieldVisibility,
+        selectedProducts, toggleProductSelection, toggleSelectAllProducts, clearSelection,
     }}>
       {children}
     </ProductContext.Provider>

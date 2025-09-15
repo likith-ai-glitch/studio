@@ -1,0 +1,11 @@
+{
+  "hosting": {
+    "source": ".",
+    "rewrites": [
+      {
+        "source": "**",
+        "function": "server"
+      }
+    ]
+  }
+}
