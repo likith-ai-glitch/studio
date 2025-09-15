@@ -57,14 +57,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const [homePageVisibleFields, setHomePageVisibleFields] = useState<Record<string, boolean>>({});
   const [adminTableVisibleFields, setAdminTableVisibleFields] = useState<Record<string, boolean>>({});
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
-  const [isClient, setIsClient] = useState(false);
   const { toast } = useToast();
   
   const productsCollectionRef = collection(db, 'products');
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   const seedDatabase = useCallback(async () => {
     const batch = writeBatch(db);
@@ -111,7 +106,43 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const allKeys = new Set<string>();
         productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
         allKeys.add('quoteTotal');
-        setRawKeys(Array.from(allKeys));
+        
+        const newRawKeys = Array.from(allKeys);
+        setRawKeys(newRawKeys);
+        
+        // This logic now runs whenever rawKeys changes, including the first time.
+        const storedColumnOrder = JSON.parse(localStorage.getItem('productKeysOrder') || '[]');
+        const adminVisibility = JSON.parse(localStorage.getItem('adminTableVisibleFields') || '{}');
+        const homeVisibility = JSON.parse(localStorage.getItem('homePageVisibleFields') || '{}');
+        const homeOrder = JSON.parse(localStorage.getItem('homePageFieldOrder') || '[]');
+        const storedHeaders = JSON.parse(localStorage.getItem('headerNames') || '{}');
+        
+        setHeaderNames(storedHeaders);
+
+        const validStoredOrder = storedColumnOrder.filter((k: string) => newRawKeys.includes(k));
+        const newKeysDetected = newRawKeys.filter(k => !validStoredOrder.includes(k));
+        const finalKeys = [...validStoredOrder, ...newKeysDetected];
+        setOrderedProductKeys(finalKeys);
+        
+        const newAdminVisibility: Record<string, boolean> = {};
+        newRawKeys.forEach(key => {
+            newAdminVisibility[key] = adminVisibility[key] !== false;
+        });
+        setAdminTableVisibleFields(newAdminVisibility);
+
+        const homePageConfigurableFields = newRawKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
+        
+        const validHomeOrder = homeOrder.filter((k: string) => homePageConfigurableFields.includes(k));
+        const newHomeFields = homePageConfigurableFields.filter(k => !validHomeOrder.includes(k));
+        setHomePageFieldOrder([...validHomeOrder, ...newHomeFields]);
+
+        const newHomeVisibility: Record<string, boolean> = {};
+        const defaultVisible = ['name', 'brand', 'category', 'price', 'status'];
+        homePageConfigurableFields.forEach(key => {
+            newHomeVisibility[key] = homeVisibility[key] ?? defaultVisible.includes(key);
+        });
+        setHomePageVisibleFields(newHomeVisibility);
+
       }
       setLoading(false);
     }, (error) => {
@@ -121,43 +152,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
     return () => unsubscribe();
   }, [seedDatabase]);
-  
-  useEffect(() => {
-    if (!isClient || loading || rawKeys.length === 0) return;
-
-    const storedColumnOrder = JSON.parse(localStorage.getItem('productKeysOrder') || '[]');
-    const adminVisibility = JSON.parse(localStorage.getItem('adminTableVisibleFields') || '{}');
-    const homeVisibility = JSON.parse(localStorage.getItem('homePageVisibleFields') || '{}');
-    const homeOrder = JSON.parse(localStorage.getItem('homePageFieldOrder') || '[]');
-    const storedHeaders = JSON.parse(localStorage.getItem('headerNames') || '{}');
-    
-    setHeaderNames(storedHeaders);
-
-    const validStoredOrder = storedColumnOrder.filter((k: string) => rawKeys.includes(k));
-    const newKeysDetected = rawKeys.filter(k => !validStoredOrder.includes(k));
-    const finalKeys = [...validStoredOrder, ...newKeysDetected];
-    setOrderedProductKeys(finalKeys);
-    
-    const newAdminVisibility: Record<string, boolean> = {};
-    rawKeys.forEach(key => {
-        newAdminVisibility[key] = adminVisibility[key] !== false;
-    });
-    setAdminTableVisibleFields(newAdminVisibility);
-
-    const homePageConfigurableFields = rawKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
-    
-    const validHomeOrder = homeOrder.filter((k: string) => homePageConfigurableFields.includes(k));
-    const newHomeFields = homePageConfigurableFields.filter(k => !validHomeOrder.includes(k));
-    setHomePageFieldOrder([...validHomeOrder, ...newHomeFields]);
-
-    const newHomeVisibility: Record<string, boolean> = {};
-    const defaultVisible = ['name', 'brand', 'category', 'price', 'status'];
-    homePageConfigurableFields.forEach(key => {
-        newHomeVisibility[key] = homeVisibility[key] ?? defaultVisible.includes(key);
-    });
-    setHomePageVisibleFields(newHomeVisibility);
-
-  }, [loading, rawKeys, isClient]);
 
 
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
@@ -269,40 +263,30 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const setColumnOrder = (order: string[]) => {
     setOrderedProductKeys(order);
-    if (isClient) {
-      localStorage.setItem('productKeysOrder', JSON.stringify(order));
-    }
+    localStorage.setItem('productKeysOrder', JSON.stringify(order));
   };
 
   const renameColumn = (columnKey: string, newName: string) => {
       const newHeaders = {...headerNames, [columnKey]: newName};
       setHeaderNames(newHeaders);
-      if (isClient) {
-        localStorage.setItem('headerNames', JSON.stringify(newHeaders));
-      }
+      localStorage.setItem('headerNames', JSON.stringify(newHeaders));
   }
   
   const setHomePageOrder = (order: string[]) => {
     setHomePageFieldOrder(order);
-    if (isClient) {
-      localStorage.setItem('homePageFieldOrder', JSON.stringify(order));
-    }
+    localStorage.setItem('homePageFieldOrder', JSON.stringify(order));
   };
 
   const toggleHomePageVisibility = (key: string) => {
     const newVisibility = {...homePageVisibleFields, [key]: !homePageVisibleFields[key]};
     setHomePageVisibleFields(newVisibility);
-    if (isClient) {
-      localStorage.setItem('homePageVisibleFields', JSON.stringify(newVisibility));
-    }
+    localStorage.setItem('homePageVisibleFields', JSON.stringify(newVisibility));
   };
   
   const toggleAdminTableFieldVisibility = (key: string) => {
     const newVisibility = {...adminTableVisibleFields, [key]: !adminTableVisibleFields[key]};
     setAdminTableVisibleFields(newVisibility);
-    if (isClient) {
-      localStorage.setItem('adminTableVisibleFields', JSON.stringify(newVisibility));
-    }
+    localStorage.setItem('adminTableVisibleFields', JSON.stringify(newVisibility));
   };
 
   const toggleProductSelection = useCallback((productId: string) => {
@@ -347,5 +331,3 @@ export function useProducts() {
   }
   return context;
 }
-
-    
