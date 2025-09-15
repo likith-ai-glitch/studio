@@ -142,7 +142,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [seedDatabase]);
+  }, [seedDatabase, productsCollectionRef]);
 
   // Update states and localStorage when rawKeys changes, only after hydration
   useEffect(() => {
