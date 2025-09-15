@@ -116,7 +116,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const allKeys = new Set<string>();
         productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
         allKeys.add('quoteTotal');
-        setAllProductKeys(Array.from(allKeys));
+        
+        // This is safe because it only updates state, no browser APIs
+        setAllProductKeys(currentKeys => {
+          const newKeys = Array.from(allKeys);
+          if (JSON.stringify(currentKeys) !== JSON.stringify(newKeys)) {
+            return newKeys;
+          }
+          return currentKeys;
+        });
       }
       
       setLoading(false);
@@ -129,7 +137,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [seedDatabase]);
   
-
   // Effect for initializing client-side settings from localStorage AFTER initial render and data load
   useEffect(() => {
     // This effect should only run on the client, and only after Firestore data has loaded.
