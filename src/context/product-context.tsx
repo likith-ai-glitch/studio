@@ -47,6 +47,15 @@ interface ProductContextType {
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
+const safeJsonParse = (item: string | null, fallback: any) => {
+    if (item === null) return fallback;
+    try {
+        return JSON.parse(item);
+    } catch (e) {
+        return fallback;
+    }
+}
+
 export function ProductProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [rawKeys, setRawKeys] = useState<string[]>([]);
@@ -74,6 +83,21 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       batch.set(docRef, productWithDates);
     });
     await batch.commit();
+  }, []);
+
+  // Hydrate from localStorage on client
+  useEffect(() => {
+    const storedColumnOrder = safeJsonParse(localStorage.getItem('productKeysOrder'), []);
+    const adminVisibility = safeJsonParse(localStorage.getItem('adminTableVisibleFields'), {});
+    const homeVisibility = safeJsonParse(localStorage.getItem('homePageVisibleFields'), {});
+    const homeOrder = safeJsonParse(localStorage.getItem('homePageFieldOrder'), []);
+    const storedHeaders = safeJsonParse(localStorage.getItem('headerNames'), {});
+
+    setHeaderNames(storedHeaders);
+    setOrderedProductKeys(storedColumnOrder);
+    setAdminTableVisibleFields(adminVisibility);
+    setHomePageVisibleFields(homeVisibility);
+    setHomePageFieldOrder(homeOrder);
   }, []);
 
   useEffect(() => {
@@ -106,43 +130,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const allKeys = new Set<string>();
         productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
         allKeys.add('quoteTotal');
-        
         const newRawKeys = Array.from(allKeys);
         setRawKeys(newRawKeys);
-        
-        // This logic now runs whenever rawKeys changes, including the first time.
-        const storedColumnOrder = JSON.parse(localStorage.getItem('productKeysOrder') || '[]');
-        const adminVisibility = JSON.parse(localStorage.getItem('adminTableVisibleFields') || '{}');
-        const homeVisibility = JSON.parse(localStorage.getItem('homePageVisibleFields') || '{}');
-        const homeOrder = JSON.parse(localStorage.getItem('homePageFieldOrder') || '[]');
-        const storedHeaders = JSON.parse(localStorage.getItem('headerNames') || '{}');
-        
-        setHeaderNames(storedHeaders);
-
-        const validStoredOrder = storedColumnOrder.filter((k: string) => newRawKeys.includes(k));
-        const newKeysDetected = newRawKeys.filter(k => !validStoredOrder.includes(k));
-        const finalKeys = [...validStoredOrder, ...newKeysDetected];
-        setOrderedProductKeys(finalKeys);
-        
-        const newAdminVisibility: Record<string, boolean> = {};
-        newRawKeys.forEach(key => {
-            newAdminVisibility[key] = adminVisibility[key] !== false;
-        });
-        setAdminTableVisibleFields(newAdminVisibility);
-
-        const homePageConfigurableFields = newRawKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
-        
-        const validHomeOrder = homeOrder.filter((k: string) => homePageConfigurableFields.includes(k));
-        const newHomeFields = homePageConfigurableFields.filter(k => !validHomeOrder.includes(k));
-        setHomePageFieldOrder([...validHomeOrder, ...newHomeFields]);
-
-        const newHomeVisibility: Record<string, boolean> = {};
-        const defaultVisible = ['name', 'brand', 'category', 'price', 'status'];
-        homePageConfigurableFields.forEach(key => {
-            newHomeVisibility[key] = homeVisibility[key] ?? defaultVisible.includes(key);
-        });
-        setHomePageVisibleFields(newHomeVisibility);
-
       }
       setLoading(false);
     }, (error) => {
@@ -152,6 +141,53 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
     return () => unsubscribe();
   }, [seedDatabase]);
+
+  // Update localStorage and states when rawKeys changes
+  useEffect(() => {
+    if (rawKeys.length === 0) return;
+
+    setOrderedProductKeys(prevOrder => {
+        const validStoredOrder = prevOrder.filter((k: string) => rawKeys.includes(k));
+        const newKeysDetected = rawKeys.filter(k => !validStoredOrder.includes(k));
+        const finalKeys = [...validStoredOrder, ...newKeysDetected];
+        if (JSON.stringify(finalKeys) !== JSON.stringify(prevOrder)) {
+            localStorage.setItem('productKeysOrder', JSON.stringify(finalKeys));
+        }
+        return finalKeys;
+    });
+
+    setAdminTableVisibleFields(prevVisibility => {
+        const newVisibility: Record<string, boolean> = {};
+        rawKeys.forEach(key => {
+            newVisibility[key] = prevVisibility[key] !== false;
+        });
+        localStorage.setItem('adminTableVisibleFields', JSON.stringify(newVisibility));
+        return newVisibility;
+    });
+
+    const homePageConfigurableFields = rawKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
+
+    setHomePageFieldOrder(prevOrder => {
+        const validHomeOrder = prevOrder.filter((k: string) => homePageConfigurableFields.includes(k));
+        const newHomeFields = homePageConfigurableFields.filter(k => !validHomeOrder.includes(k));
+        const finalOrder = [...validHomeOrder, ...newHomeFields];
+        if (JSON.stringify(finalOrder) !== JSON.stringify(prevOrder)) {
+            localStorage.setItem('homePageFieldOrder', JSON.stringify(finalOrder));
+        }
+        return finalOrder;
+    });
+
+    setHomePageVisibleFields(prevVisibility => {
+        const newVisibility: Record<string, boolean> = {};
+        const defaultVisible = ['name', 'brand', 'category', 'price', 'status'];
+        homePageConfigurableFields.forEach(key => {
+            newVisibility[key] = prevVisibility[key] ?? defaultVisible.includes(key);
+        });
+        localStorage.setItem('homePageVisibleFields', JSON.stringify(newVisibility));
+        return newVisibility;
+    });
+
+  }, [rawKeys]);
 
 
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
@@ -331,3 +367,5 @@ export function useProducts() {
   }
   return context;
 }
+
+    
