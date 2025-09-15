@@ -85,7 +85,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     await batch.commit();
   }, []);
 
-  // Hydrate from localStorage on client
+  // Hydrate from localStorage on client-side only
   useEffect(() => {
     const storedColumnOrder = safeJsonParse(localStorage.getItem('productKeysOrder'), []);
     const adminVisibility = safeJsonParse(localStorage.getItem('adminTableVisibleFields'), {});
