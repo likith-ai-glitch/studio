@@ -66,6 +66,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const [homePageVisibleFields, setHomePageVisibleFields] = useState<Record<string, boolean>>({});
   const [adminTableVisibleFields, setAdminTableVisibleFields] = useState<Record<string, boolean>>({});
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [isHydrated, setIsHydrated] = useState(false);
   const { toast } = useToast();
   
   const productsCollectionRef = collection(db, 'products');
@@ -85,7 +86,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     await batch.commit();
   }, []);
 
-  // Hydrate from localStorage on client-side only
+  // Client-side only effect for localStorage hydration
   useEffect(() => {
     const storedColumnOrder = safeJsonParse(localStorage.getItem('productKeysOrder'), []);
     const adminVisibility = safeJsonParse(localStorage.getItem('adminTableVisibleFields'), {});
@@ -93,11 +94,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const homeOrder = safeJsonParse(localStorage.getItem('homePageFieldOrder'), []);
     const storedHeaders = safeJsonParse(localStorage.getItem('headerNames'), {});
 
-    setHeaderNames(storedHeaders);
-    setOrderedProductKeys(storedColumnOrder);
-    setAdminTableVisibleFields(adminVisibility);
-    setHomePageVisibleFields(homeVisibility);
-    setHomePageFieldOrder(homeOrder);
+    if (storedColumnOrder.length > 0) setOrderedProductKeys(storedColumnOrder);
+    if (Object.keys(adminVisibility).length > 0) setAdminTableVisibleFields(adminVisibility);
+    if (Object.keys(homeVisibility).length > 0) setHomePageVisibleFields(homeVisibility);
+    if (homeOrder.length > 0) setHomePageFieldOrder(homeOrder);
+    if (Object.keys(storedHeaders).length > 0) setHeaderNames(storedHeaders);
+    
+    setIsHydrated(true);
   }, []);
 
   useEffect(() => {
@@ -142,17 +145,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [seedDatabase]);
 
-  // Update localStorage and states when rawKeys changes
+  // Update states and localStorage when rawKeys changes, only after hydration
   useEffect(() => {
-    if (rawKeys.length === 0) return;
+    if (!isHydrated || rawKeys.length === 0) return;
 
     setOrderedProductKeys(prevOrder => {
         const validStoredOrder = prevOrder.filter((k: string) => rawKeys.includes(k));
         const newKeysDetected = rawKeys.filter(k => !validStoredOrder.includes(k));
         const finalKeys = [...validStoredOrder, ...newKeysDetected];
-        if (JSON.stringify(finalKeys) !== JSON.stringify(prevOrder)) {
-            localStorage.setItem('productKeysOrder', JSON.stringify(finalKeys));
-        }
+        localStorage.setItem('productKeysOrder', JSON.stringify(finalKeys));
         return finalKeys;
     });
 
@@ -168,13 +169,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const homePageConfigurableFields = rawKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
 
     setHomePageFieldOrder(prevOrder => {
-        const validHomeOrder = prevOrder.filter((k: string) => homePageConfigurableFields.includes(k));
-        const newHomeFields = homePageConfigurableFields.filter(k => !validHomeOrder.includes(k));
-        const finalOrder = [...validHomeOrder, ...newHomeFields];
-        if (JSON.stringify(finalOrder) !== JSON.stringify(prevOrder)) {
-            localStorage.setItem('homePageFieldOrder', JSON.stringify(finalOrder));
+        if (prevOrder.length > 0) { // If order is already hydrated, respect it
+             const validHomeOrder = prevOrder.filter((k: string) => homePageConfigurableFields.includes(k));
+             const newHomeFields = homePageConfigurableFields.filter(k => !validHomeOrder.includes(k));
+             const finalOrder = [...validHomeOrder, ...newHomeFields];
+             localStorage.setItem('homePageFieldOrder', JSON.stringify(finalOrder));
+             return finalOrder;
         }
-        return finalOrder;
+        localStorage.setItem('homePageFieldOrder', JSON.stringify(homePageConfigurableFields));
+        return homePageConfigurableFields;
     });
 
     setHomePageVisibleFields(prevVisibility => {
@@ -187,7 +190,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         return newVisibility;
     });
 
-  }, [rawKeys]);
+  }, [rawKeys, isHydrated]);
 
 
   const addProduct = async (productData: ProductFormValues): Promise<void> => {
@@ -299,30 +302,30 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const setColumnOrder = (order: string[]) => {
     setOrderedProductKeys(order);
-    localStorage.setItem('productKeysOrder', JSON.stringify(order));
+    if(isHydrated) localStorage.setItem('productKeysOrder', JSON.stringify(order));
   };
 
   const renameColumn = (columnKey: string, newName: string) => {
       const newHeaders = {...headerNames, [columnKey]: newName};
       setHeaderNames(newHeaders);
-      localStorage.setItem('headerNames', JSON.stringify(newHeaders));
+      if(isHydrated) localStorage.setItem('headerNames', JSON.stringify(newHeaders));
   }
   
   const setHomePageOrder = (order: string[]) => {
     setHomePageFieldOrder(order);
-    localStorage.setItem('homePageFieldOrder', JSON.stringify(order));
+    if(isHydrated) localStorage.setItem('homePageFieldOrder', JSON.stringify(order));
   };
 
   const toggleHomePageVisibility = (key: string) => {
     const newVisibility = {...homePageVisibleFields, [key]: !homePageVisibleFields[key]};
     setHomePageVisibleFields(newVisibility);
-    localStorage.setItem('homePageVisibleFields', JSON.stringify(newVisibility));
+    if(isHydrated) localStorage.setItem('homePageVisibleFields', JSON.stringify(newVisibility));
   };
   
   const toggleAdminTableFieldVisibility = (key: string) => {
     const newVisibility = {...adminTableVisibleFields, [key]: !adminTableVisibleFields[key]};
     setAdminTableVisibleFields(newVisibility);
-    localStorage.setItem('adminTableVisibleFields', JSON.stringify(newVisibility));
+    if(isHydrated) localStorage.setItem('adminTableVisibleFields', JSON.stringify(newVisibility));
   };
 
   const toggleProductSelection = useCallback((productId: string) => {
@@ -344,7 +347,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   
   const clearSelection = useCallback(() => { setSelectedProducts([]); }, []);
 
-  const productKeys = orderedProductKeys.length > 0 ? orderedProductKeys : rawKeys;
+  const productKeys = isHydrated && orderedProductKeys.length > 0 ? orderedProductKeys : rawKeys;
 
   return (
     <ProductContext.Provider value={{ 
@@ -367,5 +370,3 @@ export function useProducts() {
   }
   return context;
 }
-
-    
