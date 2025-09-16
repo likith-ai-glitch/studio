@@ -50,7 +50,11 @@ const ProductContext = createContext<ProductContextType | undefined>(undefined);
 const safeJsonParse = (item: string | null, fallback: any) => {
     if (item === null) return fallback;
     try {
-        return JSON.parse(item);
+        const parsed = JSON.parse(item);
+        // Ensure empty objects or arrays from localStorage don't cause issues
+        if (typeof fallback === 'object' && fallback !== null && !Array.isArray(fallback) && Object.keys(parsed).length === 0) return fallback;
+        if (Array.isArray(fallback) && parsed.length === 0) return fallback;
+        return parsed;
     } catch (e) {
         return fallback;
     }
@@ -88,19 +92,21 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   // Client-side only effect for localStorage hydration
   useEffect(() => {
-    const storedColumnOrder = safeJsonParse(localStorage.getItem('productKeysOrder'), []);
-    const adminVisibility = safeJsonParse(localStorage.getItem('adminTableVisibleFields'), {});
-    const homeVisibility = safeJsonParse(localStorage.getItem('homePageVisibleFields'), {});
-    const homeOrder = safeJsonParse(localStorage.getItem('homePageFieldOrder'), []);
-    const storedHeaders = safeJsonParse(localStorage.getItem('headerNames'), {});
+    if (typeof window !== 'undefined') {
+        const storedColumnOrder = safeJsonParse(localStorage.getItem('productKeysOrder'), []);
+        const adminVisibility = safeJsonParse(localStorage.getItem('adminTableVisibleFields'), {});
+        const homeVisibility = safeJsonParse(localStorage.getItem('homePageVisibleFields'), {});
+        const homeOrder = safeJsonParse(localStorage.getItem('homePageFieldOrder'), []);
+        const storedHeaders = safeJsonParse(localStorage.getItem('headerNames'), {});
 
-    if (storedColumnOrder.length > 0) setOrderedProductKeys(storedColumnOrder);
-    if (Object.keys(adminVisibility).length > 0) setAdminTableVisibleFields(adminVisibility);
-    if (Object.keys(homeVisibility).length > 0) setHomePageVisibleFields(homeVisibility);
-    if (homeOrder.length > 0) setHomePageFieldOrder(homeOrder);
-    if (Object.keys(storedHeaders).length > 0) setHeaderNames(storedHeaders);
-    
-    setIsHydrated(true);
+        setOrderedProductKeys(storedColumnOrder);
+        setAdminTableVisibleFields(adminVisibility);
+        setHomePageVisibleFields(homeVisibility);
+        setHomePageFieldOrder(homeOrder);
+        setHeaderNames(storedHeaders);
+
+        setIsHydrated(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -169,15 +175,11 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const homePageConfigurableFields = rawKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
 
     setHomePageFieldOrder(prevOrder => {
-        if (prevOrder.length > 0) { // If order is already hydrated, respect it
-             const validHomeOrder = prevOrder.filter((k: string) => homePageConfigurableFields.includes(k));
-             const newHomeFields = homePageConfigurableFields.filter(k => !validHomeOrder.includes(k));
-             const finalOrder = [...validHomeOrder, ...newHomeFields];
-             localStorage.setItem('homePageFieldOrder', JSON.stringify(finalOrder));
-             return finalOrder;
-        }
-        localStorage.setItem('homePageFieldOrder', JSON.stringify(homePageConfigurableFields));
-        return homePageConfigurableFields;
+        const validHomeOrder = prevOrder.filter((k: string) => homePageConfigurableFields.includes(k));
+        const newHomeFields = homePageConfigurableFields.filter(k => !validHomeOrder.includes(k));
+        const finalOrder = [...validHomeOrder, ...newHomeFields];
+        localStorage.setItem('homePageFieldOrder', JSON.stringify(finalOrder));
+        return finalOrder;
     });
 
     setHomePageVisibleFields(prevVisibility => {
@@ -347,15 +349,27 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   
   const clearSelection = useCallback(() => { setSelectedProducts([]); }, []);
 
-  const productKeys = isHydrated && orderedProductKeys.length > 0 ? orderedProductKeys : rawKeys;
+  const productKeys = useMemo(() => {
+      if (!isHydrated || orderedProductKeys.length === 0) {
+        return rawKeys;
+      }
+      // Ensure the ordered keys are still present in rawKeys
+      const validOrderedKeys = orderedProductKeys.filter(k => rawKeys.includes(k));
+      const newKeys = rawKeys.filter(k => !validOrderedKeys.includes(k));
+      return [...validOrderedKeys, ...newKeys];
+  }, [isHydrated, orderedProductKeys, rawKeys]);
+
 
   return (
     <ProductContext.Provider value={{ 
         products, productKeys, headerNames, loading, addProduct, updateProduct, updateProductField,
         deleteProduct, getProduct, addColumn, deleteColumn, setColumnOrder, renameColumn,
-        homePageFieldOrder, setHomePageFieldOrder: setHomePageOrder,
-        homePageVisibleFields, toggleHomePageFieldVisibility: toggleHomePageVisibility,
-        adminTableVisibleFields, toggleAdminTableFieldVisibility: toggleAdminTableFieldVisibility,
+        homePageFieldOrder: isHydrated ? homePageFieldOrder : [], 
+        setHomePageFieldOrder: setHomePageOrder,
+        homePageVisibleFields: isHydrated ? homePageVisibleFields : {},
+        toggleHomePageFieldVisibility: toggleHomePageVisibility,
+        adminTableVisibleFields: isHydrated ? adminTableVisibleFields : {},
+        toggleAdminTableFieldVisibility: toggleAdminTableFieldVisibility,
         selectedProducts, toggleProductSelection, toggleSelectAllProducts, clearSelection,
     }}>
       {children}
@@ -370,3 +384,5 @@ export function useProducts() {
   }
   return context;
 }
+
+    
