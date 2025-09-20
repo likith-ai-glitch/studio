@@ -51,7 +51,6 @@ const safeJsonParse = (item: string | null, fallback: any) => {
     if (item === null) return fallback;
     try {
         const parsed = JSON.parse(item);
-        // Ensure empty objects or arrays from localStorage don't cause issues
         if (typeof fallback === 'object' && fallback !== null && !Array.isArray(fallback) && Object.keys(parsed).length === 0) return fallback;
         if (Array.isArray(fallback) && parsed.length === 0) return fallback;
         return parsed;
@@ -90,23 +89,20 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     await batch.commit();
   }, []);
 
-  // Client-side only effect for localStorage hydration
+  // Hydrate state from localStorage on the client side
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-        const storedColumnOrder = safeJsonParse(localStorage.getItem('productKeysOrder'), []);
-        const adminVisibility = safeJsonParse(localStorage.getItem('adminTableVisibleFields'), {});
-        const homeVisibility = safeJsonParse(localStorage.getItem('homePageVisibleFields'), {});
-        const homeOrder = safeJsonParse(localStorage.getItem('homePageFieldOrder'), []);
-        const storedHeaders = safeJsonParse(localStorage.getItem('headerNames'), {});
+    const storedColumnOrder = safeJsonParse(localStorage.getItem('productKeysOrder'), []);
+    const adminVisibility = safeJsonParse(localStorage.getItem('adminTableVisibleFields'), {});
+    const homeVisibility = safeJsonParse(localStorage.getItem('homePageVisibleFields'), {});
+    const homeOrder = safeJsonParse(localStorage.getItem('homePageFieldOrder'), []);
+    const storedHeaders = safeJsonParse(localStorage.getItem('headerNames'), {});
 
-        setOrderedProductKeys(storedColumnOrder);
-        setAdminTableVisibleFields(adminVisibility);
-        setHomePageVisibleFields(homeVisibility);
-        setHomePageFieldOrder(homeOrder);
-        setHeaderNames(storedHeaders);
-
-        setIsHydrated(true);
-    }
+    setHeaderNames(storedHeaders);
+    setOrderedProductKeys(storedColumnOrder);
+    setAdminTableVisibleFields(adminVisibility);
+    setHomePageVisibleFields(homeVisibility);
+    setHomePageFieldOrder(homeOrder);
+    setIsHydrated(true);
   }, []);
 
   useEffect(() => {
@@ -200,7 +196,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
-      throw new Error(`Product with ID "${productData.productId}" already exists.`);
+      throw new Error(\`Product with ID "\${productData.productId}" already exists.\`);
     }
 
     const newProduct: Record<string, any> = { ...productData, status: productData.status || 'Available', qtyForQuote: 0 };
@@ -220,7 +216,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const newDocRef = doc(db, 'products', productId);
         const oldDocRef = doc(db, 'products', originalProductId);
         const newDocSnap = await getDoc(newDocRef);
-        if (newDocSnap.exists()) throw new Error(`Product with new ID "${productId}" already exists.`);
+        if (newDocSnap.exists()) throw new Error(\`Product with new ID "\${productId}" already exists.\`);
         
         const oldDataSnap = await getDoc(oldDocRef);
         const oldData = oldDataSnap.data() || {};
@@ -255,10 +251,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const docRef = doc(db, 'products', productId);
     try {
         await updateDoc(docRef, { [field]: value });
-         toast({ title: 'Product Updated', description: `Successfully updated ${field}.` });
+         toast({ title: 'Product Updated', description: \`Successfully updated \${field}.\` });
     } catch (error) {
         console.error("Error updating product field: ", error);
-        toast({ title: 'Error', description: `Failed to update ${field}.`, variant: 'destructive' });
+        toast({ title: 'Error', description: \`Failed to update \${field}.\`, variant: 'destructive' });
     }
   }
 
@@ -267,7 +263,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     if (!productToDelete) return;
     
     await deleteDoc(doc(db, 'products', productId));
-    toast({ title: "Product Deleted", description: `"${productToDelete.name}" has been successfully deleted.`, variant: 'destructive' });
+    toast({ title: "Product Deleted", description: \`"\${productToDelete.name}" has been successfully deleted.\`, variant: 'destructive' });
   };
 
   const getProduct = async (productId: string): Promise<Product | undefined> => {
@@ -291,7 +287,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const snapshot = await getDocs(productsCollectionRef);
     snapshot.forEach(doc => batch.update(doc.ref, { [columnName]: '' }));
     await batch.commit();
-    toast({ title: 'Column Added', description: `The column "${columnName}" has been added.` });
+    toast({ title: 'Column Added', description: \`The column "\${columnName}" has been added.\` });
   }
 
   const deleteColumn = async (columnName: string) => {
@@ -299,35 +295,35 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const snapshot = await getDocs(productsCollectionRef);
     snapshot.forEach(document => batch.update(document.ref, { [columnName]: deleteField() }));
     await batch.commit();
-    toast({ title: 'Column Deleted', description: `The column "${columnName}" has been deleted.`, variant: 'destructive' });
+    toast({ title: 'Column Deleted', description: \`The column "\${columnName}" has been deleted.\`, variant: 'destructive' });
   };
 
   const setColumnOrder = (order: string[]) => {
     setOrderedProductKeys(order);
-    if(isHydrated) localStorage.setItem('productKeysOrder', JSON.stringify(order));
+    if (isHydrated) localStorage.setItem('productKeysOrder', JSON.stringify(order));
   };
 
   const renameColumn = (columnKey: string, newName: string) => {
       const newHeaders = {...headerNames, [columnKey]: newName};
       setHeaderNames(newHeaders);
-      if(isHydrated) localStorage.setItem('headerNames', JSON.stringify(newHeaders));
+      if (isHydrated) localStorage.setItem('headerNames', JSON.stringify(newHeaders));
   }
   
   const setHomePageOrder = (order: string[]) => {
     setHomePageFieldOrder(order);
-    if(isHydrated) localStorage.setItem('homePageFieldOrder', JSON.stringify(order));
+    if (isHydrated) localStorage.setItem('homePageFieldOrder', JSON.stringify(order));
   };
 
   const toggleHomePageVisibility = (key: string) => {
     const newVisibility = {...homePageVisibleFields, [key]: !homePageVisibleFields[key]};
     setHomePageVisibleFields(newVisibility);
-    if(isHydrated) localStorage.setItem('homePageVisibleFields', JSON.stringify(newVisibility));
+    if (isHydrated) localStorage.setItem('homePageVisibleFields', JSON.stringify(newVisibility));
   };
   
   const toggleAdminTableFieldVisibility = (key: string) => {
     const newVisibility = {...adminTableVisibleFields, [key]: !adminTableVisibleFields[key]};
     setAdminTableVisibleFields(newVisibility);
-    if(isHydrated) localStorage.setItem('adminTableVisibleFields', JSON.stringify(newVisibility));
+    if (isHydrated) localStorage.setItem('adminTableVisibleFields', JSON.stringify(newVisibility));
   };
 
   const toggleProductSelection = useCallback((productId: string) => {
@@ -350,27 +346,38 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const clearSelection = useCallback(() => { setSelectedProducts([]); }, []);
 
   const productKeys = useMemo(() => {
-      if (!isHydrated || orderedProductKeys.length === 0) {
-        return rawKeys;
-      }
-      // Ensure the ordered keys are still present in rawKeys
-      const validOrderedKeys = orderedProductKeys.filter(k => rawKeys.includes(k));
-      const newKeys = rawKeys.filter(k => !validOrderedKeys.includes(k));
-      return [...validOrderedKeys, ...newKeys];
+    if (!isHydrated) return rawKeys;
+    const validOrderedKeys = orderedProductKeys.filter(k => rawKeys.includes(k));
+    const newKeys = rawKeys.filter(k => !validOrderedKeys.includes(k));
+    return [...validOrderedKeys, ...newKeys];
   }, [isHydrated, orderedProductKeys, rawKeys]);
 
 
   return (
     <ProductContext.Provider value={{ 
-        products, productKeys, headerNames, loading, addProduct, updateProduct, updateProductField,
-        deleteProduct, getProduct, addColumn, deleteColumn, setColumnOrder, renameColumn,
+        products, 
+        productKeys, 
+        headerNames, 
+        loading, 
+        addProduct, 
+        updateProduct, 
+        updateProductField,
+        deleteProduct, 
+        getProduct, 
+        addColumn, 
+        deleteColumn, 
+        setColumnOrder, 
+        renameColumn,
         homePageFieldOrder: isHydrated ? homePageFieldOrder : [], 
         setHomePageFieldOrder: setHomePageOrder,
         homePageVisibleFields: isHydrated ? homePageVisibleFields : {},
         toggleHomePageFieldVisibility: toggleHomePageVisibility,
         adminTableVisibleFields: isHydrated ? adminTableVisibleFields : {},
         toggleAdminTableFieldVisibility: toggleAdminTableFieldVisibility,
-        selectedProducts, toggleProductSelection, toggleSelectAllProducts, clearSelection,
+        selectedProducts, 
+        toggleProductSelection, 
+        toggleSelectAllProducts, 
+        clearSelection,
     }}>
       {children}
     </ProductContext.Provider>
