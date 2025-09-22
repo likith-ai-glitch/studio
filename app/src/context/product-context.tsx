@@ -74,6 +74,25 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   
   const productsCollectionRef = collection(db, 'products');
 
+  // Hydrate state from localStorage on the client side only
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedColumnOrder = safeJsonParse(localStorage.getItem('productKeysOrder'), []);
+      const adminVisibility = safeJsonParse(localStorage.getItem('adminTableVisibleFields'), {});
+      const homeVisibility = safeJsonParse(localStorage.getItem('homePageVisibleFields'), {});
+      const homeOrder = safeJsonParse(localStorage.getItem('homePageFieldOrder'), []);
+      const storedHeaders = safeJsonParse(localStorage.getItem('headerNames'), {});
+
+      if (storedHeaders) setHeaderNames(storedHeaders);
+      if (storedColumnOrder.length > 0) setOrderedProductKeys(storedColumnOrder);
+      if (Object.keys(adminVisibility).length > 0) setAdminTableVisibleFields(adminVisibility);
+      if (Object.keys(homeVisibility).length > 0) setHomePageVisibleFields(homeVisibility);
+      if (homeOrder.length > 0) setHomePageFieldOrder(homeOrder);
+      
+      setIsHydrated(true);
+    }
+  }, []);
+
   const seedDatabase = useCallback(async () => {
     const batch = writeBatch(db);
     initialProducts.forEach((product) => {
@@ -87,24 +106,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       batch.set(docRef, productWithDates);
     });
     await batch.commit();
-  }, []);
-
-  // Hydrate state from localStorage on the client side only
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedColumnOrder = safeJsonParse(localStorage.getItem('productKeysOrder'), []);
-      const adminVisibility = safeJsonParse(localStorage.getItem('adminTableVisibleFields'), {});
-      const homeVisibility = safeJsonParse(localStorage.getItem('homePageVisibleFields'), {});
-      const homeOrder = safeJsonParse(localStorage.getItem('homePageFieldOrder'), []);
-      const storedHeaders = safeJsonParse(localStorage.getItem('headerNames'), {});
-
-      setHeaderNames(storedHeaders);
-      setOrderedProductKeys(storedColumnOrder);
-      setAdminTableVisibleFields(adminVisibility);
-      setHomePageVisibleFields(homeVisibility);
-      setHomePageFieldOrder(homeOrder);
-      setIsHydrated(true);
-    }
   }, []);
 
   useEffect(() => {
@@ -147,7 +148,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [seedDatabase, productsCollectionRef]);
+  }, [seedDatabase]);
 
   // Update states and localStorage when rawKeys changes, only after hydration
   useEffect(() => {
