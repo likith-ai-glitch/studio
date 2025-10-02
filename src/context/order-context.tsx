@@ -10,7 +10,7 @@ import { generateOrderConfirmation } from '@/ai/flows/notification-flow';
 
 interface OrderContextType {
   orders: Order[];
-  addOrder: (customer: Omit<Order['customer'], 'id'>, items: Order['items'], total: number) => void;
+  addOrder: (customer: Omit<Order['customer'], 'id'>, items: Omit<Order['items'][0], 'id'>[], total: number) => void;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
 }
@@ -41,7 +41,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  const addOrder = async (customer: Omit<Order['customer'], 'id'>, items: Order['items'], total: number) => {
+  const addOrder = async (customer: Omit<Order['customer'], 'id'>, items: Omit<Order['items'][0], 'id'>[], total: number) => {
     try {
         await addDoc(ordersCollectionRef, {
             customer,

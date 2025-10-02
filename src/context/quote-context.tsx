@@ -89,6 +89,9 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   };
 
   const buyNow = (item: QuoteItem) => {
+    // This function can be used for other checkout flows if needed,
+    // but the primary "Buy Now" is now handled in ProductCard.
+    // For now, it will just open the quote sheet with the item.
     addItemToQuote(item);
     setIsQuoteSheetOpen(true);
   }

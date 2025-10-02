@@ -12,6 +12,19 @@ import { useProducts } from '@/context/product-context';
 import { useToast } from '@/hooks/use-toast';
 import { useQuote } from '@/context/quote-context';
 import { useAuth } from '@/context/auth-context';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { AddressForm, AddressFormValues } from './address-form';
+import { useState } from 'react';
+import { useOrders } from '@/context/order-context';
 
 
 interface ProductCardProps {
@@ -22,7 +35,11 @@ export function ProductCard({ product }: ProductCardProps) {
   const { user } = useAuth();
   const { headerNames, homePageFieldOrder, homePageVisibleFields } = useProducts();
   const { toast } = useToast();
-  const { addItemToQuote, buyNow, setIsQuoteSheetOpen } = useQuote();
+  const { addItemToQuote, setIsQuoteSheetOpen, buyNow: buyNowFromContext } = useQuote();
+  const { addOrder } = useOrders();
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isBuyNowDialogOpen, setBuyNowDialogOpen] = useState(false);
+
   const isUnavailable = product.status === 'Unavailable';
 
   const productDetails = homePageFieldOrder
@@ -53,20 +70,27 @@ export function ProductCard({ product }: ProductCardProps) {
     });
     setIsQuoteSheetOpen(true);
   }
-
-  const handleBuyNow = () => {
-    if (isUnavailable) return;
-     buyNow({
+  
+  const handlePlaceOrder = (customerData: AddressFormValues) => {
+    addOrder(customerData, [{
         id: product.productId,
-        productId: product.productId,
         name: product.name,
-        price: Number(product.price) || 99.99, // Fallback price
+        price: Number(product.price) || 99.99,
         quantity: 1,
         brand: product.brand,
         category: product.category,
-        colour: product.colour,
-        partName: product.partName,
+    }], Number(product.price) || 99.99);
+
+    toast({
+        title: "Order Placed!",
+        description: "Thank you for your purchase. Your order is being processed."
     });
+    setIsCheckoutOpen(false);
+    setBuyNowDialogOpen(false);
+  }
+
+  const handleProceedToCheckout = () => {
+    setIsCheckoutOpen(true);
   }
 
   return (
@@ -101,10 +125,48 @@ export function ProductCard({ product }: ProductCardProps) {
                 Add to Quote
             </Button>
            )}
-            <Button className="w-full" disabled={isUnavailable} onClick={handleBuyNow}>
-                <ShoppingCart className="mr-2 h-4 w-4" />
-                Buy Now
-            </Button>
+            <Dialog open={isBuyNowDialogOpen} onOpenChange={(open) => {
+              setBuyNowDialogOpen(open);
+              if (!open) setIsCheckoutOpen(false); // Reset checkout state on close
+            }}>
+                <DialogTrigger asChild>
+                    <Button className="w-full" disabled={isUnavailable}>
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        Buy Now
+                    </Button>
+                </DialogTrigger>
+                <DialogContent>
+                    {!isCheckoutOpen ? (
+                        <>
+                          <DialogHeader>
+                              <DialogTitle>Item Added</DialogTitle>
+                              <DialogDescription>
+                                  {product.name} has been added to your cart.
+                              </DialogDescription>
+                          </DialogHeader>
+                          <div className="py-4">
+                            <p>Would you like to continue shopping or proceed to checkout?</p>
+                          </div>
+                          <DialogFooter className="sm:justify-between">
+                              <DialogClose asChild>
+                                <Button variant="outline">Continue Shopping</Button>
+                              </DialogClose>
+                              <Button onClick={handleProceedToCheckout}>Proceed to Checkout</Button>
+                          </DialogFooter>
+                        </>
+                    ) : (
+                        <>
+                          <DialogHeader>
+                            <DialogTitle>Shipping Information</DialogTitle>
+                            <DialogDescription>
+                              Provide your address to place the order for {product.name}.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <AddressForm onSubmit={handlePlaceOrder} />
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
         </CardFooter>
     </Card>
   );
