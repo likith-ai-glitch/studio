@@ -215,12 +215,12 @@ export function QuoteSheet() {
                       <TableRow key={item.id}>
                         <TableCell className="px-6">
                           <div className="font-medium text-base mb-2">{item.name}</div>
-                          <dl className="text-xs text-muted-foreground grid grid-cols-[max-content_1fr] gap-x-2 gap-y-1">
-                            {item.productId && (<><dt className="font-semibold">ID:</dt><dd>{item.productId}</dd></>)}
-                            {item.brand && (<><dt className="font-semibold">Brand:</dt><dd>{item.brand}</dd></>)}
-                            {item.category && (<><dt className="font-semibold">Category:</dt><dd>{item.category}</dd></>)}
-                            {item.partName && (<><dt className="font-semibold">Part Name:</dt><dd>{item.partName}</dd></>)}
-                            {item.colour && (<><dt className="font-semibold">Colour:</dt><dd>{item.colour}</dd></>)}
+                           <dl className="text-xs text-muted-foreground grid grid-cols-[max-content_1fr] gap-x-2 gap-y-1">
+                            {item.productId && (<><dt className="font-semibold">ID:</dt><dd className="truncate">{item.productId}</dd></>)}
+                            {item.brand && (<><dt className="font-semibold">Brand:</dt><dd className="truncate">{item.brand}</dd></>)}
+                            {item.category && (<><dt className="font-semibold">Category:</dt><dd className="truncate">{item.category}</dd></>)}
+                            {item.partName && (<><dt className="font-semibold">Part Name:</dt><dd className="truncate">{item.partName}</dd></>)}
+                            {item.colour && (<><dt className="font-semibold">Colour:</dt><dd className="truncate">{item.colour}</dd></>)}
                           </dl>
                         </TableCell>
                         <TableCell className="text-center">
@@ -316,3 +316,5 @@ export function QuoteSheet() {
     </Sheet>
   );
 }
+
+    
