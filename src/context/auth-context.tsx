@@ -6,8 +6,11 @@ import { User, onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/a
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 
+const ADMIN_EMAIL = 'likithknml@gmail.com';
+
 interface AuthContextType {
   user: User | null;
+  isAdmin: boolean;
   loading: boolean;
   logout: () => Promise<void>;
 }
@@ -16,12 +19,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
+      setIsAdmin(user?.email === ADMIN_EMAIL);
       setLoading(false);
     });
 
@@ -34,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, logout }}>
+    <AuthContext.Provider value={{ user, loading, logout, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );
