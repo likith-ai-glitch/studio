@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -10,10 +9,10 @@ import {
   signInWithEmailAndPassword,
   RecaptchaVerifier,
   signInWithPhoneNumber,
-  ConfirmationResult
+  ConfirmationResult,
+  createUserWithEmailAndPassword,
 } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,6 +36,11 @@ const otpFormSchema = z.object({
     otp: z.string().min(6, { message: 'OTP must be 6 digits.'}),
 });
 
+const signupFormSchema = z.object({
+  email: z.string().email({ message: 'Please enter a valid email.' }),
+  password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+});
+
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -46,12 +50,16 @@ export default function LoginPage() {
   const [showOtpInput, setShowOtpInput] = useState(false);
   
   useEffect(() => {
-    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+    // It's possible for this to run after the component has unmounted
+    // if the user navigates away quickly. Check if the container exists.
+    if (document.getElementById('recaptcha-container')) {
+       window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
         'size': 'invisible',
         'callback': (response: any) => {
           // reCAPTCHA solved - not much to do here if it's invisible
         }
-    });
+      });
+    }
   }, []);
 
 
@@ -71,6 +79,14 @@ export default function LoginPage() {
   const otpForm = useForm<z.infer<typeof otpFormSchema>>({
     resolver: zodResolver(otpFormSchema),
     defaultValues: { otp: '' },
+  });
+
+  const signupForm = useForm<z.infer<typeof signupFormSchema>>({
+    resolver: zodResolver(signupFormSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
   });
 
   async function onEmailSubmit(values: z.infer<typeof emailFormSchema>) {
@@ -93,7 +109,6 @@ export default function LoginPage() {
         setIsLoading(false);
     }
   }
-
 
   async function onPhoneSubmit(values: z.infer<typeof phoneFormSchema>) {
     setIsLoading(true);
@@ -148,19 +163,39 @@ export default function LoginPage() {
     }
   }
 
+  async function onSignupSubmit(values: z.infer<typeof signupFormSchema>) {
+    setIsLoading(true);
+    try {
+      await createUserWithEmailAndPassword(auth, values.email, values.password);
+      toast({
+        title: 'Account Created',
+        description: "You've successfully signed up!",
+      });
+      router.push('/admin');
+    } catch (error: any) {
+      toast({
+        title: 'Sign-up Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold font-headline">Welcome Back</CardTitle>
-          <CardDescription>Enter your credentials to access your account</CardDescription>
+          <CardTitle className="text-2xl font-bold font-headline">Welcome to Shopstream</CardTitle>
+          <CardDescription>Select a method to sign in or create an account</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="email" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="email">Email</TabsTrigger>
               <TabsTrigger value="phone">Phone</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
             </TabsList>
             <TabsContent value="email">
               <Form {...emailForm}>
@@ -193,7 +228,7 @@ export default function LoginPage() {
                   />
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Log In
+                    Log In with Email
                   </Button>
                 </form>
               </Form>
@@ -243,14 +278,44 @@ export default function LoginPage() {
                 </Form>
               )}
             </TabsContent>
+            <TabsContent value="signup">
+               <Form {...signupForm}>
+                <form onSubmit={signupForm.handleSubmit(onSignupSubmit)} className="space-y-4 pt-4">
+                   <FormField
+                    control={signupForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input placeholder="you@example.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={signupForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="••••••••" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Create Account
+                  </Button>
+                </form>
+              </Form>
+            </TabsContent>
           </Tabs>
           <div id="recaptcha-container"></div>
-          <div className="mt-4 text-center text-sm">
-            Don&apos;t have an account?{' '}
-            <Link href="/signup" className="underline">
-              Sign up
-            </Link>
-          </div>
         </CardContent>
       </Card>
     </div>
