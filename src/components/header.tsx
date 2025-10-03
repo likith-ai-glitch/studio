@@ -9,7 +9,7 @@ import { useQuote } from '@/context/quote-context';
 import { Badge } from '@/components/ui/badge';
 
 export function Header() {
-  const { user, logout, loading } = useAuth();
+  const { user, logout, loading, isAppUser } = useAuth();
   const { quote, setIsQuoteSheetOpen } = useQuote();
   
   const totalItems = quote.items.reduce((sum, item) => sum + item.quantity, 0);
@@ -31,7 +31,7 @@ export function Header() {
                 <span className="hidden md:inline">Home</span>
               </Link>
             </Button>
-            {user && (
+            {isAppUser && (
               <>
                 <Button variant="ghost" asChild>
                   <Link href="/admin" className="flex items-center gap-1">
