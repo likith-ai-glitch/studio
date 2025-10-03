@@ -11,16 +11,22 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useAuth();
+  const { user, isAppUser, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
+    if (!loading) {
+      if (!user) {
+        // If not logged in at all, go to login page
+        router.push('/login');
+      } else if (!isAppUser) {
+        // If logged in but not an admin/app user, go to home page
+        router.push('/');
+      }
     }
-  }, [user, loading, router]);
+  }, [user, isAppUser, loading, router]);
 
-  if (loading || !user) {
+  if (loading || !user || !isAppUser) {
     return (
       <div className="flex items-center justify-center h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />

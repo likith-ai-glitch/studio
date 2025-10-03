@@ -23,8 +23,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { createUserWithEmailAndPassword, signOut, signInWithEmailAndPassword } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { Loader2, UserPlus } from 'lucide-react';
 
@@ -35,7 +36,7 @@ const addUserSchema = z.object({
 
 export default function AuditLogPage() {
   const { events } = useEvents();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user: adminUser } = useAuth();
   const { toast } = useToast();
   const [isAddUserOpen, setAddUserOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,21 +54,45 @@ export default function AuditLogPage() {
 
   const handleAddUser = async (values: z.infer<typeof addUserSchema>) => {
     setIsSubmitting(true);
+    // In a real app, this would be a Cloud Function.
+    // For this prototype, we have to create a temporary auth instance.
+    // This is NOT secure and is for demonstration purposes only.
     try {
-      // We can't directly use the main `auth` instance to create users
-      // while being logged in. A backend function is needed for robust user management.
-      // For this prototype, we'll alert the concept.
-      // In a real app, this would be a call to a serverless function.
-       await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const originalAdminUser = auth.currentUser;
+      if (!originalAdminUser) {
+        throw new Error("Admin user not authenticated.");
+      }
+      
+      const adminEmail = originalAdminUser.email;
+      const adminPassword = prompt("For this prototype, please re-enter your admin password to continue:");
 
-      toast({
-        title: 'User Creation Pending',
-        description: 'In a real app, a temporary auth instance or a backend function would create the user. User creation is mocked here.',
+      if (!adminPassword) {
+        toast({ title: 'Password required', description: 'Admin password is required for this action.', variant: 'destructive'});
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Create the new user
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const newUser = userCredential.user;
+      
+      // Add a 'user' role to the new user in Firestore
+      await setDoc(doc(db, "users", newUser.uid), {
+        email: newUser.email,
+        role: 'user'
       });
-       // This is a temporary solution for the prototype. It will create a user on the client side.
+
+      // Sign out the new user
+      await signOut(auth);
+
+      // Sign the admin back in
+      if (adminEmail) {
+        await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+      }
+      
       toast({
-        title: "User Created (Prototype)",
-        description: `User ${values.email} has been created. They can now log in.`,
+        title: "User Created",
+        description: `User ${values.email} has been created with the 'user' role.`,
       });
       form.reset();
       setAddUserOpen(false);
@@ -77,6 +102,16 @@ export default function AuditLogPage() {
         description: error.message,
         variant: 'destructive',
       });
+       // If the process fails, try to sign the admin back in to avoid a logged-out state
+      if (auth.currentUser?.email !== adminUser?.email) {
+          await signOut(auth).catch(); // Sign out any intermediate user
+          if (adminUser) {
+              const reauthPassword = prompt("An error occurred. Please re-enter your password to re-login:");
+              if(reauthPassword && adminUser.email) {
+                  await signInWithEmailAndPassword(auth, adminUser.email, reauthPassword).catch(e => console.error("Re-login failed", e));
+              }
+          }
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -102,7 +137,7 @@ export default function AuditLogPage() {
                  <DialogHeader>
                     <DialogTitle>Create a New User</DialogTitle>
                     <DialogDescription>
-                        Enter the email and a temporary password for the new user. They will be able to log in immediately.
+                        Enter the email and a temporary password for the new user. They will be able to log in immediately with app user privileges.
                     </DialogDescription>
                  </DialogHeader>
                  <Form {...form}>
