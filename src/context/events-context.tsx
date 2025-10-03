@@ -42,16 +42,27 @@ export function EventsProvider({ children }: { children: ReactNode }) {
             ...eventData,
             timestamp: serverTimestamp(),
         });
-        if (eventData.type === 'login') {
-           toast({
-            title: "User Logged In",
-            description: `${eventData.userEmail} just signed in.`,
-          });
-        }
+        // The toast notification is now triggered by the real-time listener
     } catch (error) {
         console.error("Error logging event: ", error);
     }
   };
+  
+  // Effect to show toast on new login events
+  useEffect(() => {
+    if (events.length > 0) {
+      const latestEvent = events[0];
+      // Only show toast for recent events to avoid spam on initial load
+      const isRecent = (new Date().getTime() - latestEvent.timestamp.getTime()) < 5000;
+      if (latestEvent.type === 'login' && isRecent) {
+        toast({
+          title: "User Logged In",
+          description: `${latestEvent.userEmail} just signed in.`,
+        });
+      }
+    }
+  }, [events, toast]);
+
 
   return (
     <EventsContext.Provider value={{ events, logEvent }}>

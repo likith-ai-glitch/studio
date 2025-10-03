@@ -5,20 +5,19 @@ import { useEvents } from '@/context/events-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
+import { Loader2 } from 'lucide-react';
 
 export default function AuditLogPage() {
   const { events } = useEvents();
 
-  // Filter for login events and sort them from most recent to oldest
-  const loginEvents = events
-    .filter(event => event.type === 'login')
-    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  // The events are already sorted from the context
+  const loginEvents = events.filter(event => event.type === 'login');
 
   return (
     <div className="space-y-8">
       <header>
         <h1 className="text-4xl font-bold font-headline">Audit Log</h1>
-        <p className="text-lg text-muted-foreground mt-2">A log of important events happening in your application.</p>
+        <p className="text-lg text-muted-foreground mt-2">A real-time log of user login events in your application.</p>
       </header>
       
       <Card>
