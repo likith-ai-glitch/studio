@@ -1,4 +1,7 @@
 
+
+import type { Quote } from '@/context/quote-context';
+
 export interface Product {
   productId: string;
   name: string;

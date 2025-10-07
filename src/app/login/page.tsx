@@ -1,16 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { auth } from '@/lib/firebase';
 import { 
   signInWithEmailAndPassword,
+<<<<<<< HEAD
   RecaptchaVerifier,
   signInWithPhoneNumber,
   ConfirmationResult,
   createUserWithEmailAndPassword,
+=======
+>>>>>>> 66a26ccb951e999da078b1ca7532af7f9ca9bd78
 } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 
@@ -21,20 +24,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '@/hooks/use-toast';
 import { useEvents } from '@/context/events-context';
 import { Loader2 } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const emailFormSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
 });
 
-const phoneFormSchema = z.object({
-    phone: z.string().min(10, { message: 'Please enter a valid phone number including country code.' }).startsWith('+', {message: 'Phone number must start with a country code (+).'}),
-});
-
-const otpFormSchema = z.object({
-    otp: z.string().min(6, { message: 'OTP must be 6 digits.'}),
-});
 
 const signupFormSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -46,6 +41,7 @@ export default function LoginPage() {
   const { toast } = useToast();
   const { logEvent } = useEvents();
   const [isLoading, setIsLoading] = useState(false);
+<<<<<<< HEAD
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [showOtpInput, setShowOtpInput] = useState(false);
   
@@ -62,6 +58,8 @@ export default function LoginPage() {
     }
   }, []);
 
+=======
+>>>>>>> 66a26ccb951e999da078b1ca7532af7f9ca9bd78
 
   const emailForm = useForm<z.infer<typeof emailFormSchema>>({
     resolver: zodResolver(emailFormSchema),
@@ -71,15 +69,6 @@ export default function LoginPage() {
     },
   });
 
-  const phoneForm = useForm<z.infer<typeof phoneFormSchema>>({
-    resolver: zodResolver(phoneFormSchema),
-    defaultValues: { phone: '+' },
-  });
-
-  const otpForm = useForm<z.infer<typeof otpFormSchema>>({
-    resolver: zodResolver(otpFormSchema),
-    defaultValues: { otp: '' },
-  });
 
   const signupForm = useForm<z.infer<typeof signupFormSchema>>({
     resolver: zodResolver(signupFormSchema),
@@ -98,7 +87,7 @@ export default function LoginPage() {
         title: 'Login Successful',
         description: 'Welcome back!',
       });
-      router.push('/admin');
+      router.push('/admin/dashboard');
     } catch (error: any) {
       toast({
         title: 'Login Failed',
@@ -110,6 +99,7 @@ export default function LoginPage() {
     }
   }
 
+<<<<<<< HEAD
   async function onPhoneSubmit(values: z.infer<typeof phoneFormSchema>) {
     setIsLoading(true);
     try {
@@ -182,6 +172,8 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   }
+=======
+>>>>>>> 66a26ccb951e999da078b1ca7532af7f9ca9bd78
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
@@ -191,6 +183,7 @@ export default function LoginPage() {
           <CardDescription>Select a method to sign in or create an account</CardDescription>
         </CardHeader>
         <CardContent>
+<<<<<<< HEAD
           <Tabs defaultValue="email" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="email">Email</TabsTrigger>
@@ -316,14 +309,50 @@ export default function LoginPage() {
             </TabsContent>
           </Tabs>
           <div id="recaptcha-container"></div>
+=======
+            <Form {...emailForm}>
+            <form onSubmit={emailForm.handleSubmit(onEmailSubmit)} className="space-y-4 pt-4">
+                <FormField
+                control={emailForm.control}
+                name="email"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                        <Input placeholder="you@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+                <FormField
+                control={emailForm.control}
+                name="password"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                        <Input type="password" placeholder="••••••••" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Log In
+                </Button>
+            </form>
+            </Form>
+          <div className="mt-4 text-center text-sm">
+            Don&apos;t have an account?{' '}
+            <Link href="/signup" className="underline">
+              Sign up
+            </Link>
+          </div>
+>>>>>>> 66a26ccb951e999da078b1ca7532af7f9ca9bd78
         </CardContent>
       </Card>
     </div>
   );
-}
-
-declare global {
-  interface Window {
-    recaptchaVerifier?: RecaptchaVerifier;
-  }
 }

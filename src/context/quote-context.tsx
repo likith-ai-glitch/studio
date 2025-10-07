@@ -1,10 +1,9 @@
-
 'use client';
 
-import { createContext, useContext, useState, ReactNode, useMemo } from 'react';
+import { createContext, useContext, useState, ReactNode, useMemo, useCallback } from 'react';
 
 export interface QuoteItem {
-  id: string; // Internal ID for the quote item, typically same as productId
+  id: string; 
   productId: string;
   name: string;
   price: number;
@@ -26,14 +25,14 @@ export interface IndicativePricing {
 }
 
 export interface Quote {
-  quoteNumber: string;
+  quoteId: string;
   items: QuoteItem[];
   status: QuoteStatus;
   type: QuoteType;
   approvalStatus: QuoteApprovalStatus;
   indicativePricing: IndicativePricing;
   discount: number;
-  tax: number; // Represents GST %
+  tax: number; 
 }
 
 interface QuoteContextType {
@@ -41,20 +40,25 @@ interface QuoteContextType {
   isQuoteSheetOpen: boolean;
   setIsQuoteSheetOpen: (isOpen: boolean) => void;
   addItemToQuote: (item: QuoteItem) => void;
-  buyNow: (item: QuoteItem) => void;
   updateItemQuantity: (itemId: string, quantity: number) => void;
-  removeItemFromQuote: (itemId: string) => void;
+  removeItemFromQuote: (itemId:string) => void;
   clearQuote: () => void;
   subTotal: number;
   grandTotal: number;
-  updateQuoteField: (field: keyof Omit<Quote, 'items' | 'indicativePricing'>, value: any) => void;
+  updateQuoteField: (field: keyof Omit<Quote, 'items' | 'indicativePricing' | 'quoteId'>, value: any) => void;
   updateIndicativePricingField: (field: keyof IndicativePricing, value: number) => void;
 }
 
 const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
 
-const initialQuoteState: Quote = {
-    quoteNumber: 'TQ-',
+const generateNewQuoteId = () => {
+    const timestamp = Date.now().toString(36);
+    const randomPart = Math.random().toString(36).substring(2, 9);
+    return `Q-${timestamp}-${randomPart}`.toUpperCase();
+}
+
+const createInitialQuoteState = (): Quote => ({
+    quoteId: generateNewQuoteId(),
     items: [],
     status: 'Draft',
     type: 'Transaction',
@@ -65,29 +69,29 @@ const initialQuoteState: Quote = {
     },
     discount: 0,
     tax: 0,
-}
+});
+
 
 export function QuoteProvider({ children }: { children: ReactNode }) {
-  const [quote, setQuote] = useState<Quote>(initialQuoteState);
+  const [quote, setQuote] = useState<Quote>(createInitialQuoteState());
   const [isQuoteSheetOpen, setIsQuoteSheetOpen] = useState(false);
-
+  
   const addItemToQuote = (itemToAdd: QuoteItem) => {
     setQuote(prevQuote => {
       const existingItem = prevQuote.items.find(item => item.id === itemToAdd.id);
       if (existingItem) {
-        // Item exists, update quantity
         const updatedItems = prevQuote.items.map(item =>
           item.id === itemToAdd.id ? { ...item, quantity: item.quantity + itemToAdd.quantity } : item
         );
         return { ...prevQuote, items: updatedItems };
       } else {
-        // Item does not exist, add it
         const newItems = [...prevQuote.items, itemToAdd];
         return { ...prevQuote, items: newItems };
       }
     });
   };
 
+<<<<<<< HEAD
   const buyNow = (item: QuoteItem) => {
     // This function can be used for other checkout flows if needed,
     // but the primary "Buy Now" is now handled in ProductCard.
@@ -96,6 +100,8 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
     setIsQuoteSheetOpen(true);
   }
 
+=======
+>>>>>>> 66a26ccb951e999da078b1ca7532af7f9ca9bd78
   const updateItemQuantity = (itemId: string, quantity: number) => {
     if (quantity <= 0) {
       removeItemFromQuote(itemId);
@@ -107,21 +113,9 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const updateQuoteField = (field: keyof Omit<Quote, 'items' | 'indicativePricing'>, value: any) => {
-    setQuote(prevQuote => {
-      const newQuote = { ...prevQuote, [field]: value };
-      if (field === 'type') {
-        const prefix = value === 'Master' ? 'MQ-' : 'TQ-';
-        const currentNumber = newQuote.quoteNumber;
-        if (currentNumber.startsWith('MQ-') || currentNumber.startsWith('TQ-')) {
-            newQuote.quoteNumber = prefix + currentNumber.substring(3);
-        } else {
-            newQuote.quoteNumber = prefix + currentNumber;
-        }
-      }
-      return newQuote;
-    });
-  };
+  const updateQuoteField = useCallback((field: keyof Omit<Quote, 'items' | 'indicativePricing' | 'quoteId'>, value: any) => {
+    setQuote(prevQuote => ({ ...prevQuote, [field]: value }));
+  }, []);
   
   const updateIndicativePricingField = (field: keyof IndicativePricing, value: number) => {
     setQuote(prevQuote => ({
@@ -141,7 +135,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   };
   
   const clearQuote = () => {
-    setQuote(initialQuoteState);
+    setQuote(createInitialQuoteState());
   }
 
   const subTotal = useMemo(() => {
@@ -162,10 +156,9 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
         isQuoteSheetOpen, 
         setIsQuoteSheetOpen, 
         addItemToQuote, 
-        buyNow, 
         updateItemQuantity, 
         removeItemFromQuote, 
-        clearQuote, 
+        clearQuote,
         subTotal, 
         grandTotal,
         updateQuoteField,

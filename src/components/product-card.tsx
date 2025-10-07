@@ -12,6 +12,10 @@ import { useProducts } from '@/context/product-context';
 import { useToast } from '@/hooks/use-toast';
 import { useQuote } from '@/context/quote-context';
 import { useAuth } from '@/context/auth-context';
+<<<<<<< HEAD
+=======
+import { useState } from 'react';
+>>>>>>> 66a26ccb951e999da078b1ca7532af7f9ca9bd78
 import {
   Dialog,
   DialogContent,
@@ -19,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+<<<<<<< HEAD
   DialogClose,
   DialogFooter,
 } from '@/components/ui/dialog';
@@ -26,6 +31,11 @@ import { AddressForm, AddressFormValues } from './address-form';
 import { useState } from 'react';
 import { useOrders } from '@/context/order-context';
 
+=======
+} from '@/components/ui/dialog';
+import { AddressForm, type AddressFormValues } from './address-form';
+import { useOrders } from '@/context/order-context';
+>>>>>>> 66a26ccb951e999da078b1ca7532af7f9ca9bd78
 
 interface ProductCardProps {
   product: Product;
@@ -35,12 +45,19 @@ export function ProductCard({ product }: ProductCardProps) {
   const { user } = useAuth();
   const { headerNames, homePageFieldOrder, homePageVisibleFields } = useProducts();
   const { toast } = useToast();
+<<<<<<< HEAD
   const { addItemToQuote, setIsQuoteSheetOpen, buyNow: buyNowFromContext } = useQuote();
   const { addOrder } = useOrders();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isBuyNowDialogOpen, setBuyNowDialogOpen] = useState(false);
 
+=======
+  const { addItemToQuote, setIsQuoteSheetOpen } = useQuote();
+  const { addOrder } = useOrders();
+>>>>>>> 66a26ccb951e999da078b1ca7532af7f9ca9bd78
   const isUnavailable = product.status === 'Unavailable';
+
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
   const productDetails = homePageFieldOrder
     .filter(key => homePageVisibleFields[key] && product[key] && !['productId', 'name', 'brand', 'status', 'startDate', 'lastUpdatedDate'].includes(key) )
@@ -72,6 +89,7 @@ export function ProductCard({ product }: ProductCardProps) {
   }
   
   const handlePlaceOrder = (customerData: AddressFormValues) => {
+<<<<<<< HEAD
     addOrder(customerData, [{
         id: product.productId,
         name: product.name,
@@ -90,6 +108,26 @@ export function ProductCard({ product }: ProductCardProps) {
   }
 
   const handleProceedToCheckout = () => {
+=======
+    const item = {
+      id: product.productId,
+      name: product.name,
+      price: Number(product.price) || 99.99,
+      quantity: 1,
+      brand: product.brand,
+      category: product.category,
+    };
+    addOrder(customerData, [item], item.price);
+    toast({
+      title: "Order Placed!",
+      description: "Thank you for your purchase. Your order is being processed."
+    });
+    setIsCheckoutOpen(false);
+  };
+
+  const handleBuyNow = () => {
+    if (isUnavailable) return;
+>>>>>>> 66a26ccb951e999da078b1ca7532af7f9ca9bd78
     setIsCheckoutOpen(true);
   }
 
@@ -125,6 +163,7 @@ export function ProductCard({ product }: ProductCardProps) {
                 Add to Quote
             </Button>
            )}
+<<<<<<< HEAD
             <Dialog open={isBuyNowDialogOpen} onOpenChange={(open) => {
               setBuyNowDialogOpen(open);
               if (!open) setIsCheckoutOpen(false); // Reset checkout state on close
@@ -167,6 +206,25 @@ export function ProductCard({ product }: ProductCardProps) {
                     )}
                 </DialogContent>
             </Dialog>
+=======
+           <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
+            <DialogTrigger asChild>
+                <Button className="w-full" disabled={isUnavailable} onClick={handleBuyNow}>
+                    <ShoppingCart className="mr-2 h-4 w-4" />
+                    Buy Now
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                <DialogTitle>Buy: {product.name}</DialogTitle>
+                <DialogDescription>
+                    Enter your shipping information to place your order.
+                </DialogDescription>
+                </DialogHeader>
+                <AddressForm onSubmit={handlePlaceOrder} />
+            </DialogContent>
+           </Dialog>
+>>>>>>> 66a26ccb951e999da078b1ca7532af7f9ca9bd78
         </CardFooter>
     </Card>
   );

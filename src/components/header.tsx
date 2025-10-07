@@ -2,6 +2,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Store, Wrench, LogIn, LogOut, ShieldCheck, Package, Home, FileText, FileArchive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/auth-context';
@@ -11,8 +12,11 @@ import { Badge } from '@/components/ui/badge';
 export function Header() {
   const { user, logout, loading, isAppUser } = useAuth();
   const { quote, setIsQuoteSheetOpen } = useQuote();
+  const pathname = usePathname();
   
   const totalItems = quote.items.reduce((sum, item) => sum + item.quantity, 0);
+
+  const isPublicQuotePage = pathname.startsWith('/quote/');
 
   return (
     <header className="bg-card shadow-md sticky top-0 z-40">
@@ -31,7 +35,12 @@ export function Header() {
                 <span className="hidden md:inline">Home</span>
               </Link>
             </Button>
+<<<<<<< HEAD
             {isAppUser && (
+=======
+            
+            {!isPublicQuotePage && user && (
+>>>>>>> 66a26ccb951e999da078b1ca7532af7f9ca9bd78
               <>
                 <Button variant="ghost" asChild>
                   <Link href="/admin" className="flex items-center gap-1">
@@ -66,7 +75,8 @@ export function Header() {
                 </Button>
               </>
             )}
-             {!loading && (
+
+            {!isPublicQuotePage && !loading && (
               user ? (
                 <Button variant="ghost" onClick={logout} className="flex items-center gap-1">
                   <LogOut className="h-5 w-5" />

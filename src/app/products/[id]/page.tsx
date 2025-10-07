@@ -7,6 +7,7 @@ import { notFound, useParams } from 'next/navigation';
 import { ProductCard } from '@/components/product-card';
 import { useEffect, useState } from 'react';
 import { Loader2, Package } from 'lucide-react';
+import Link from 'next/link';
 
 export default function ProductDetailPage() {
   const params = useParams();

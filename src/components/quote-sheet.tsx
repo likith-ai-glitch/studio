@@ -38,7 +38,7 @@ import { AddressForm, type AddressFormValues } from './address-form';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { sendQuote } from '@/ai/flows/send-quote-flow';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, doc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export function QuoteSheet() {
@@ -58,7 +58,6 @@ export function QuoteSheet() {
   const { toast } = useToast();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const notificationsCollectionRef = collection(db, 'notifications');
 
 
   const handlePlaceOrder = (customerData: AddressFormValues) => {
@@ -77,27 +76,37 @@ export function QuoteSheet() {
     setIsSending(true);
     const { id: toastId } = toast({
       title: 'Generating Document...',
-      description: 'Generating quote details and preparing document.',
+      description: 'Please wait while we prepare the quote.',
     });
     try {
+      // 1. Generate the email content from the AI flow
       const emailContent = await sendQuote(quote);
+      
+      // 2. Save the full quote object to the 'quotes' collection with the correct ID.
+      // Convert the quote object to a plain JS object to ensure serializability.
+      const plainQuoteObject = JSON.parse(JSON.stringify(quote));
+      const quoteDocRef = doc(db, 'quotes', quote.quoteId);
+      await setDoc(quoteDocRef, plainQuoteObject);
 
-      await addDoc(notificationsCollectionRef, {
+      // 3. Save the notification, which now links to a valid quote document
+      await addDoc(collection(db, 'notifications'), {
         customer: {
-          email: 'customer@example.com', // Placeholder email
+          email: 'customer@example.com', // Placeholder customer
+          phone: '555-123-4567',
         },
         emailSubject: emailContent.emailSubject,
         emailBody: emailContent.emailBody,
         sentAt: serverTimestamp(),
-        quoteId: `quote_${Date.now()}`,
+        quoteId: quote.quoteId, 
       });
 
+      // 4. Update local state and notify user
       updateQuoteField('approvalStatus', 'SentForApproval');
       
       toast({
         id: toastId,
         title: 'Document Generated!',
-        description: 'The quote document has been generated and logged.',
+        description: 'The quote document has been saved and can now be shared.',
       });
 
     } catch (error) {
@@ -105,7 +114,7 @@ export function QuoteSheet() {
       toast({
         id: toastId,
         title: 'Error',
-        description: 'Could not generate the document.',
+        description: 'Could not generate the document. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -123,16 +132,15 @@ export function QuoteSheet() {
         {quote.items && quote.items.length > 0 ? (
            <>
             <div className="flex-1 overflow-hidden flex flex-col gap-4">
-              {/* Quote Management Section */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-1">
                  <div className="space-y-2">
-                    <Label htmlFor="quoteNumber">Quote Number</Label>
+                    <Label htmlFor="quoteId">Quote ID</Label>
                     <Input
-                      id="quoteNumber"
+                      id="quoteId"
                       type="text"
-                      value={quote.quoteNumber}
-                      onChange={(e) => updateQuoteField('quoteNumber', e.target.value)}
-                      placeholder="e.g. Q-12345"
+                      value={quote.quoteId}
+                      readOnly
+                      className="font-mono bg-muted"
                     />
                  </div>
                  <div className="space-y-2">

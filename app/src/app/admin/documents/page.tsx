@@ -10,19 +10,10 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { format } from 'date-fns';
-<<<<<<< HEAD
-import { FileText, Mail, FileDown, Loader2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { useRef, useState } from 'react';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
-=======
 import { FileText, Mail, Copy, MessageCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
->>>>>>> 66a26ccb951e999da078b1ca7532af7f9ca9bd78
 
 // A simple SVG for the WhatsApp icon
 const WhatsAppIcon = () => (
@@ -32,11 +23,7 @@ const WhatsAppIcon = () => (
 
 export default function DocumentsPage() {
   const { notifications } = useNotifications();
-<<<<<<< HEAD
-  const [isConverting, setIsConverting] = useState(false);
-=======
   const { toast } = useToast();
->>>>>>> 66a26ccb951e999da078b1ca7532af7f9ca9bd78
   
   // Helper to strip HTML for plain text versions
   const stripHtml = (html: string) => {
@@ -47,64 +34,6 @@ export default function DocumentsPage() {
     return html.replace(/<[^>]*>/g, ''); // Fallback for server
   }
 
-<<<<<<< HEAD
-  const handleConvertToPdf = async (htmlContent: string, fileName: string) => {
-    setIsConverting(true);
-    try {
-        const contentElement = document.createElement('div');
-        contentElement.innerHTML = htmlContent;
-        // The element needs to be in the DOM to be rendered by html2canvas, but it can be off-screen
-        contentElement.style.position = 'absolute';
-        contentElement.style.left = '-9999px';
-        contentElement.style.width = '794px'; // A4 width in pixels at 96 DPI
-        contentElement.style.padding = '20px';
-        contentElement.style.backgroundColor = 'white';
-        contentElement.style.color = 'black';
-        document.body.appendChild(contentElement);
-
-        const canvas = await html2canvas(contentElement, {
-            scale: 2, // Increase resolution
-            useCORS: true, 
-        });
-        
-        document.body.removeChild(contentElement);
-
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF({
-            orientation: 'p',
-            unit: 'mm',
-            format: 'a4',
-        });
-        
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const canvasWidth = canvas.width;
-        const canvasHeight = canvas.height;
-        const ratio = canvasWidth / canvasHeight;
-        
-        let imgWidth = pdfWidth - 20; // with margin
-        let imgHeight = imgWidth / ratio;
-        
-        // If image is too high, scale based on height instead
-        if (imgHeight > pdfHeight - 20) {
-            imgHeight = pdfHeight - 20;
-            imgWidth = imgHeight * ratio;
-        }
-        
-        const x = (pdfWidth - imgWidth) / 2;
-        const y = 10; // top margin
-        
-        pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
-        pdf.save(`${fileName}.pdf`);
-    } catch (error) {
-        console.error("Error converting to PDF:", error);
-    } finally {
-        setIsConverting(false);
-    }
-  };
-
-
-=======
   const handleCopyLink = (quoteId: string) => {
     const link = `${window.location.origin}/quote/${quoteId}`;
     navigator.clipboard.writeText(link).then(() => {
@@ -121,7 +50,6 @@ export default function DocumentsPage() {
     });
   };
 
->>>>>>> 66a26ccb951e999da078b1ca7532af7f9ca9bd78
   return (
     <div className="space-y-8">
       <header>
@@ -156,7 +84,7 @@ export default function DocumentsPage() {
                         <CardTitle>Email Content</CardTitle>
                     </CardHeader>
                     <CardContent>
-                         <div 
+                        <div 
                             className="prose dark:prose-invert max-w-none p-4 border rounded-lg bg-muted/20"
                             dangerouslySetInnerHTML={{ __html: notification.emailBody }} 
                         />
@@ -173,18 +101,6 @@ export default function DocumentsPage() {
                         Copy Share Link
                       </Button>
                     )}
-                    <Button
-                        variant="outline"
-                        onClick={() => handleConvertToPdf(notification.emailBody, notification.quoteId || `doc_${notification.id}`)}
-                        disabled={isConverting}
-                    >
-                        {isConverting ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <FileDown className="mr-2 h-4 w-4" />
-                        )}
-                        Convert to PDF
-                    </Button>
                     <Button
                         variant="outline"
                         asChild
