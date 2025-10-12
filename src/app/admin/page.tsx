@@ -312,12 +312,16 @@ export default function AdminPage() {
   }
 
   const handleExport = () => {
+    const productsToExport = selectedProducts.length > 0
+      ? products.filter(p => selectedProducts.includes(p.productId))
+      : products;
+
     const fieldsToExport = productKeys.filter(key => exportFields[key]);
     const header = fieldsToExport.map(key => headerNames[key] || key);
     
     const csvRows = [
       header.join(','),
-      ...products.map(product => 
+      ...productsToExport.map(product => 
         fieldsToExport.map(field => {
           let value = product[field as keyof Product] as any;
           if (value === null || value === undefined) {
@@ -665,7 +669,11 @@ export default function AdminPage() {
                 <DialogHeader>
                   <DialogTitle>Export Products</DialogTitle>
                   <DialogDescription>
-                    Select the fields you want to export to the CSV file.
+                    {selectedProducts.length > 0
+                      ? `You are about to export ${selectedProducts.length} selected product(s). `
+                      : `You are about to export all ${products.length} products. `
+                    }
+                    Select the fields you want to include in the CSV file.
                   </DialogDescription>
                 </DialogHeader>
                 <ScrollArea className="max-h-80 my-4">
