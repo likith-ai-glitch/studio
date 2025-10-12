@@ -107,6 +107,11 @@ export default function AdminPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importStep, setImportStep] = useState<'selectFile' | 'mapFields'>('selectFile');
+  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+  const [csvData, setCsvData] = useState<any[]>([]);
+  const [fieldMapping, setFieldMapping] = useState<Record<string, string>>({});
+
 
   useEffect(() => {
     setLocalColumnOrder(productKeys);
@@ -341,52 +346,92 @@ export default function AdminPage() {
     setExportDialogOpen(false);
   };
   
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files) {
-      setImportFile(event.target.files[0]);
+  const resetImportState = () => {
+    setImportFile(null);
+    setCsvHeaders([]);
+    setCsvData([]);
+    setFieldMapping({});
+    setImportStep('selectFile');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
-  const handleImport = () => {
-    if (!importFile) return;
-    setIsImporting(true);
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      const file = event.target.files[0];
+      setImportFile(file);
+      setIsImporting(true);
 
-    Papa.parse(importFile, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        try {
-          // @ts-ignore
-          await addProductsBulk(results.data);
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          if (results.meta.fields) {
+            setCsvHeaders(results.meta.fields);
+            setCsvData(results.data);
+            
+            const initialMapping: Record<string, string> = {};
+            const productKeysLower = productKeys.map(k => k.toLowerCase());
+            results.meta.fields.forEach(header => {
+              const headerLower = header.toLowerCase();
+              const matchIndex = productKeysLower.indexOf(headerLower);
+              if (matchIndex > -1) {
+                initialMapping[header] = productKeys[matchIndex];
+              } else {
+                initialMapping[header] = 'none';
+              }
+            });
+            setFieldMapping(initialMapping);
+            setImportStep('mapFields');
+          }
+          setIsImporting(false);
+        },
+        error: (error: any) => {
           toast({
-            title: "Import Successful",
-            description: `${results.data.length} products have been imported or updated.`,
-          });
-        } catch (error: any) {
-          toast({
-            title: "Import Failed",
-            description: error.message || "An unexpected error occurred.",
+            title: "CSV Parsing Failed",
+            description: error.message,
             variant: "destructive",
           });
-        } finally {
           setIsImporting(false);
-          setImportFile(null);
-          setImportDialogOpen(false);
-          if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-          }
         }
-      },
-      error: (error: any) => {
-        toast({
-          title: "Import Failed",
-          description: `CSV Parsing Error: ${error.message}`,
-          variant: "destructive",
-        });
-        setIsImporting(false);
-      }
-    });
+      });
+    }
   };
+
+  const handleImport = async () => {
+    setIsImporting(true);
+
+    const mappedData = csvData.map(row => {
+      const newRow: Record<string, any> = {};
+      for (const csvHeader in fieldMapping) {
+        const productField = fieldMapping[csvHeader];
+        if (productField && productField !== 'none' && row[csvHeader] !== undefined) {
+          newRow[productField] = row[csvHeader];
+        }
+      }
+      return newRow;
+    });
+
+    try {
+      await addProductsBulk(mappedData);
+      toast({
+        title: "Import Successful",
+        description: `${mappedData.length} products have been imported or updated.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Import Failed",
+        description: error.message || "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImporting(false);
+      resetImportState();
+      setImportDialogOpen(false);
+    }
+  };
+
 
   const renderHeader = (key: string) => {
     const headerText = headerNames[key] || (key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'));
@@ -530,32 +575,81 @@ export default function AdminPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full sm:w-auto md:w-48"
               />
-             <Dialog open={isImportDialogOpen} onOpenChange={setImportDialogOpen}>
+            <Dialog open={isImportDialogOpen} onOpenChange={(isOpen) => { setImportDialogOpen(isOpen); if (!isOpen) resetImportState(); }}>
               <DialogTrigger asChild>
                 <Button size="sm" variant="outline">
                   <Upload className="mr-2 h-4 w-4" />
                   Import
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-4xl">
                 <DialogHeader>
                   <DialogTitle>Import Products</DialogTitle>
-                  <DialogDescription>
-                    Upload a CSV file to add products in bulk. The CSV must have a header row with field names matching the product columns (e.g., productId, name, price).
-                  </DialogDescription>
+                  {importStep === 'selectFile' && (
+                    <DialogDescription>
+                      Upload a CSV file to add or update products. The first row must be headers.
+                    </DialogDescription>
+                  )}
+                  {importStep === 'mapFields' && (
+                    <DialogDescription>
+                      Map the columns from your CSV file to the corresponding product fields. Unmapped fields will be ignored.
+                    </DialogDescription>
+                  )}
                 </DialogHeader>
-                <div className="py-4">
-                  <Input type="file" accept=".csv" onChange={handleFileSelect} ref={fileInputRef} />
-                  {importFile && <p className="text-sm text-muted-foreground mt-2">Selected: {importFile.name}</p>}
-                </div>
+
+                {importStep === 'selectFile' ? (
+                  <div className="py-4 flex flex-col items-center justify-center border-2 border-dashed rounded-lg h-48">
+                    <Input type="file" accept=".csv" onChange={handleFileSelect} ref={fileInputRef} className="hidden" id="csv-upload" />
+                    <Label htmlFor="csv-upload" className="cursor-pointer">
+                      <div className="text-center">
+                        <Upload className="mx-auto h-10 w-10 text-muted-foreground" />
+                        {isImporting ? <p className="mt-2">Analyzing file...</p> : (importFile ? <p className="mt-2 font-medium">{importFile.name}</p> : <p className="mt-2">Click to browse or drag & drop CSV file</p>)}
+                      </div>
+                    </Label>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="font-semibold">Map your fields:</p>
+                    <ScrollArea className="h-64">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-1">
+                      {csvHeaders.map(header => (
+                        <div key={header} className="space-y-2">
+                          <Label htmlFor={`map-${header}`}>{header}</Label>
+                          <Select
+                            value={fieldMapping[header]}
+                            onValueChange={(value) => setFieldMapping(prev => ({ ...prev, [header]: value }))}
+                          >
+                            <SelectTrigger id={`map-${header}`}>
+                              <SelectValue placeholder="Select a field" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Ignore this field</SelectItem>
+                              <DropdownMenuSeparator />
+                              {productKeys.filter(k => k !== 'quoteTotal').map(key => (
+                                <SelectItem key={key} value={key}>{headerNames[key] || key}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground truncate">
+                            Preview: {csvData[0]?.[header]}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    </ScrollArea>
+                  </div>
+                )}
+
                 <DialogFooter>
                   <DialogClose asChild>
                     <Button variant="outline" disabled={isImporting}>Cancel</Button>
                   </DialogClose>
-                  <Button onClick={handleImport} disabled={!importFile || isImporting}>
-                    {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Import
-                  </Button>
+                  {importStep === 'mapFields' && (
+                    <Button onClick={handleImport} disabled={isImporting}>
+                      {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Import Data
+                    </Button>
+                  )}
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -580,7 +674,7 @@ export default function AdminPage() {
                       <div key={key} className="flex items-center gap-2">
                         <Checkbox
                           id={`export-${key}`}
-                          checked={exportFields[key]}
+                          checked={!!exportFields[key]}
                           onCheckedChange={(checked) => setExportFields(prev => ({...prev, [key]: !!checked}))}
                         />
                         <Label htmlFor={`export-${key}`} className="font-normal">{headerNames[key] || key}</Label>
@@ -934,3 +1028,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    

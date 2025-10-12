@@ -25,7 +25,7 @@ interface ProductContextType {
   headerNames: Record<string, string>;
   loading: boolean;
   addProduct: (productData: ProductFormValues) => Promise<void>;
-  addProductsBulk: (productData: ProductFormValues[]) => Promise<void>;
+  addProductsBulk: (productData: Record<string, any>[]) => Promise<void>;
   updateProduct: (productData: ProductFormValues, originalProductId?: string) => Promise<void>;
   updateProductField: (productId: string, field: string, value: any) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
@@ -202,12 +202,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     await setDoc(docRef, newProduct);
   };
   
-  const addProductsBulk = async (productsData: ProductFormValues[]): Promise<void> => {
+  const addProductsBulk = async (productsData: Record<string, any>[]): Promise<void> => {
     const batch = writeBatch(db);
 
     for (const productData of productsData) {
       if (!productData.productId) {
-        throw new Error('Some rows are missing the required "productId" field.');
+        throw new Error('Some rows are missing the required "productId" field. Please map it and try again.');
       }
       
       const docRef = doc(db, "products", productData.productId);
@@ -234,7 +234,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       });
       
       if (!newProduct.status) newProduct.status = 'Available';
-      if (!newProduct.qtyForQuote) newProduct.qtyForQuote = 0;
+      if (newProduct.qtyForQuote === undefined) newProduct.qtyForQuote = 0;
 
       batch.set(docRef, newProduct, { merge: true });
     }
@@ -547,3 +547,5 @@ export function useProducts() {
   }
   return context;
 }
+
+    
