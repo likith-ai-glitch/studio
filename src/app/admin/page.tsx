@@ -323,7 +323,13 @@ export default function AdminPage() {
       header.join(','),
       ...productsToExport.map(product => 
         fieldsToExport.map(field => {
-          let value = product[field as keyof Product] as any;
+          let value;
+          if (field === 'quoteTotal') {
+            value = (product.qtyForQuote || 0) * (product.price || 0);
+          } else {
+            value = product[field as keyof Product] as any;
+          }
+          
           if (value === null || value === undefined) {
             value = '';
           } else if (typeof value === 'string' && value.includes(',')) {
