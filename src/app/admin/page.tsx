@@ -1,14 +1,14 @@
 
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useProducts } from '@/context/product-context';
 import { useOrders } from '@/context/order-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings, View, Copy, FilePlus } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings, View, Copy, FilePlus, Upload, Download } from 'lucide-react';
 import Link from 'next/link';
 import {
     DropdownMenu,
@@ -47,6 +47,8 @@ import { Label } from '@/components/ui/label';
 import { ProductCompare } from '@/components/product-compare';
 import { useQuote } from '@/context/quote-context';
 import { useToast } from '@/hooks/use-toast';
+import Papa from 'papaparse';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function AdminPage() {
   const { 
@@ -70,6 +72,7 @@ export default function AdminPage() {
     toggleProductSelection,
     toggleSelectAllProducts,
     clearSelection,
+    addProductsBulk,
   } = useProducts();
   const { orders } = useOrders();
   const { addItemToQuote, setIsQuoteSheetOpen } = useQuote();
@@ -96,16 +99,24 @@ export default function AdminPage() {
   const [localHomePageOrder, setLocalHomePageOrder] = useState(homePageFieldOrder);
   
   const [isCompareDialogOpen, setCompareDialogOpen] = useState(false);
+  
+  const [isExportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportFields, setExportFields] = useState<Record<string, boolean>>({});
+  
+  const [isImportDialogOpen, setImportDialogOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setLocalColumnOrder(productKeys);
+    setExportFields(productKeys.reduce((acc, key) => ({ ...acc, [key]: true }), {}));
   }, [productKeys]);
 
   useEffect(() => {
     setLocalHomePageOrder(homePageFieldOrder);
   }, [homePageFieldOrder]);
 
-  // Clear selection when navigating away or data reloads
   useEffect(() => {
     return () => {
       clearSelection();
@@ -295,6 +306,88 @@ export default function AdminPage() {
     setIsQuoteSheetOpen(true);
   }
 
+  const handleExport = () => {
+    const fieldsToExport = productKeys.filter(key => exportFields[key]);
+    const header = fieldsToExport.map(key => headerNames[key] || key);
+    
+    const csvRows = [
+      header.join(','),
+      ...products.map(product => 
+        fieldsToExport.map(field => {
+          let value = product[field as keyof Product] as any;
+          if (value === null || value === undefined) {
+            value = '';
+          } else if (typeof value === 'string' && value.includes(',')) {
+            value = `"${value}"`;
+          } else if (value instanceof Date) {
+            value = value.toISOString();
+          }
+          return value;
+        }).join(',')
+      )
+    ];
+
+    const csvString = csvRows.join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'products.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setExportDialogOpen(false);
+  };
+  
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files) {
+      setImportFile(event.target.files[0]);
+    }
+  };
+
+  const handleImport = () => {
+    if (!importFile) return;
+    setIsImporting(true);
+
+    Papa.parse(importFile, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        try {
+          // @ts-ignore
+          await addProductsBulk(results.data);
+          toast({
+            title: "Import Successful",
+            description: `${results.data.length} products have been imported or updated.`,
+          });
+        } catch (error: any) {
+          toast({
+            title: "Import Failed",
+            description: error.message || "An unexpected error occurred.",
+            variant: "destructive",
+          });
+        } finally {
+          setIsImporting(false);
+          setImportFile(null);
+          setImportDialogOpen(false);
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+        }
+      },
+      error: (error: any) => {
+        toast({
+          title: "Import Failed",
+          description: `CSV Parsing Error: ${error.message}`,
+          variant: "destructive",
+        });
+        setIsImporting(false);
+      }
+    });
+  };
+
   const renderHeader = (key: string) => {
     const headerText = headerNames[key] || (key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'));
     const isCalculated = key === 'quoteTotal';
@@ -346,7 +439,7 @@ export default function AdminPage() {
   const visibleFilteredProductIds = useMemo(() => sortedAndFilteredProducts.map(p => p.productId), [sortedAndFilteredProducts]);
 
   const allVisibleSelected = useMemo(() => {
-    if (selectedProducts.length === 0) return false;
+    if (selectedProducts.length === 0 || visibleFilteredProductIds.length === 0) return false;
     return visibleFilteredProductIds.every(id => selectedProducts.includes(id));
   }, [selectedProducts, visibleFilteredProductIds]);
 
@@ -437,6 +530,72 @@ export default function AdminPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full sm:w-auto md:w-48"
               />
+             <Dialog open={isImportDialogOpen} onOpenChange={setImportDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Import Products</DialogTitle>
+                  <DialogDescription>
+                    Upload a CSV file to add products in bulk. The CSV must have a header row with field names matching the product columns (e.g., productId, name, price).
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  <Input type="file" accept=".csv" onChange={handleFileSelect} ref={fileInputRef} />
+                  {importFile && <p className="text-sm text-muted-foreground mt-2">Selected: {importFile.name}</p>}
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline" disabled={isImporting}>Cancel</Button>
+                  </DialogClose>
+                  <Button onClick={handleImport} disabled={!importFile || isImporting}>
+                    {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Import
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={isExportDialogOpen} onOpenChange={setExportDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                  <Download className="mr-2 h-4 w-4" />
+                  Export
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Export Products</DialogTitle>
+                  <DialogDescription>
+                    Select the fields you want to export to the CSV file.
+                  </DialogDescription>
+                </DialogHeader>
+                <ScrollArea className="max-h-80 my-4">
+                  <div className="space-y-2 pr-6">
+                    {productKeys.map(key => (
+                      <div key={key} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`export-${key}`}
+                          checked={exportFields[key]}
+                          onCheckedChange={(checked) => setExportFields(prev => ({...prev, [key]: !!checked}))}
+                        />
+                        <Label htmlFor={`export-${key}`} className="font-normal">{headerNames[key] || key}</Label>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline">Cancel</Button>
+                  </DialogClose>
+                  <Button onClick={handleExport}>Export CSV</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <Dialog open={isCompareDialogOpen} onOpenChange={setCompareDialogOpen}>
               <DialogTrigger asChild>
                   <Button size="sm" variant="outline" disabled={selectedProducts.length === 0}>

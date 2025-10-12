@@ -25,6 +25,7 @@ interface ProductContextType {
   headerNames: Record<string, string>;
   loading: boolean;
   addProduct: (productData: ProductFormValues) => Promise<void>;
+  addProductsBulk: (productData: ProductFormValues[]) => Promise<void>;
   updateProduct: (productData: ProductFormValues, originalProductId?: string) => Promise<void>;
   updateProductField: (productId: string, field: string, value: any) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
@@ -199,6 +200,46 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     });
     
     await setDoc(docRef, newProduct);
+  };
+  
+  const addProductsBulk = async (productsData: ProductFormValues[]): Promise<void> => {
+    const batch = writeBatch(db);
+
+    for (const productData of productsData) {
+      if (!productData.productId) {
+        throw new Error('Some rows are missing the required "productId" field.');
+      }
+      
+      const docRef = doc(db, "products", productData.productId);
+      const newProduct: Record<string, any> = { ...productData };
+
+      Object.keys(newProduct).forEach(key => {
+        const value = newProduct[key];
+        if (value === '' || value === null || value === undefined) {
+          delete newProduct[key];
+          return;
+        }
+        if (key === 'startDate' || key === 'lastUpdatedDate') {
+          const date = new Date(value);
+          if (!isNaN(date.getTime())) {
+            newProduct[key] = Timestamp.fromDate(date);
+          } else {
+             delete newProduct[key]; // Don't import invalid dates
+          }
+        }
+        if (key === 'price' || key === 'qtyForQuote'){
+            const num = parseFloat(value);
+            newProduct[key] = isNaN(num) ? 0 : num;
+        }
+      });
+      
+      if (!newProduct.status) newProduct.status = 'Available';
+      if (!newProduct.qtyForQuote) newProduct.qtyForQuote = 0;
+
+      batch.set(docRef, newProduct, { merge: true });
+    }
+
+    await batch.commit();
   };
 
   const updateProduct = async (productData: ProductFormValues, originalProductId?: string): Promise<void> => {
@@ -474,6 +515,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         headerNames, 
         loading, 
         addProduct, 
+        addProductsBulk,
         updateProduct, 
         updateProductField,
         deleteProduct, 
