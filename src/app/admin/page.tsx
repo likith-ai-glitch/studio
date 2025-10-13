@@ -52,7 +52,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { debounce } from 'lodash';
 
 function PriceBookTable() {
-  const { products, loading, updateProductField } = useProducts();
+  const { products, loading, updateProductField, headerNames } = useProducts();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -1167,3 +1167,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    
