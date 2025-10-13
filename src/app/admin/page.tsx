@@ -266,9 +266,14 @@ export default function AdminPage() {
     return productKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
   }, [productKeys]);
   
+  const masterTableKeys = useMemo(() => {
+    const priceListColumns = ['priceList1', 'priceList2', 'priceList3', 'priceList4', 'priceList5'];
+    return productKeys.filter(key => !priceListColumns.includes(key));
+  }, [productKeys]);
+
   const visibleProductKeys = useMemo(() => {
-    return productKeys.filter(key => adminTableVisibleFields[key]);
-  }, [productKeys, adminTableVisibleFields]);
+    return masterTableKeys.filter(key => adminTableVisibleFields[key]);
+  }, [masterTableKeys, adminTableVisibleFields]);
 
 
   const sortedAndFilteredProducts = useMemo(() => {
@@ -854,7 +859,7 @@ export default function AdminPage() {
               <DropdownMenuContent>
                 <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {productKeys.map(key => (
+                {masterTableKeys.map(key => (
                   <DropdownMenuCheckboxItem
                     key={key}
                     checked={!!adminTableVisibleFields[key]}
