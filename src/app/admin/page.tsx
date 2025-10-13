@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, 'useState', useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useProducts } from '@/context/product-context';
 import { useOrders } from '@/context/order-context';
 import { Button } from '@/components/ui/button';
@@ -1224,6 +1224,8 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    
 
     
 
