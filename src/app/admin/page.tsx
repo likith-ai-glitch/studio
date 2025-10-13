@@ -1,14 +1,14 @@
 
 'use client';
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, 'useState', useMemo, useEffect, useRef } from 'react';
 import { useProducts } from '@/context/product-context';
 import { useOrders } from '@/context/order-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings, View, Copy, FilePlus, Upload, Download, BookCopy } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings, View, Copy, FilePlus, Upload, Download, BookCopy, Percent } from 'lucide-react';
 import Link from 'next/link';
 import {
     DropdownMenu,
@@ -55,6 +55,7 @@ function PriceBookTable() {
   const { products, loading, updateProductField, headerNames } = useProducts();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
+  const [percentages, setPercentages] = useState<Record<string, Record<string, number>>>({});
 
   const priceFields: (keyof typeof products[0])[] = useMemo(() => 
     ['priceList1', 'priceList2', 'priceList3', 'priceList4', 'priceList5'], 
@@ -66,6 +67,28 @@ function PriceBookTable() {
       (product.productId && product.productId.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [products, searchTerm]);
+
+  useEffect(() => {
+    const newPercentages: Record<string, Record<string, number>> = {};
+    products.forEach(product => {
+      newPercentages[product.productId] = {};
+      const basePrice = product.priceList1 || 0;
+      if (basePrice > 0) {
+        for (let i = 2; i <= 5; i++) {
+          const field = `priceList${i}` as keyof Product;
+          const price = product[field] || 0;
+          const percentage = (price / basePrice * 100) - 100;
+          newPercentages[product.productId][field] = parseFloat(percentage.toFixed(2));
+        }
+      } else {
+         for (let i = 2; i <= 5; i++) {
+            const field = `priceList${i}` as keyof Product;
+            newPercentages[product.productId][field] = 0;
+         }
+      }
+    });
+    setPercentages(newPercentages);
+  }, [products]);
 
   const debouncedUpdate = useMemo(
     () =>
@@ -83,11 +106,7 @@ function PriceBookTable() {
     [updateProductField, toast]
   );
 
-  const handlePriceChange = (
-    productId: string,
-    field: string,
-    value: string
-  ) => {
+  const handlePriceChange = (productId: string, field: string, value: string) => {
     const price = parseFloat(value);
     if (!isNaN(price) && price >= 0) {
       debouncedUpdate(productId, field, price);
@@ -95,6 +114,24 @@ function PriceBookTable() {
       debouncedUpdate(productId, field, 0);
     }
   };
+  
+  const handlePercentageChange = (productId: string, field: string, percentageStr: string) => {
+    const percentage = parseFloat(percentageStr);
+    const product = products.find(p => p.productId === productId);
+    if (!product || isNaN(percentage)) return;
+
+    setPercentages(prev => ({
+        ...prev,
+        [productId]: {
+            ...prev[productId],
+            [field]: percentage
+        }
+    }));
+    
+    const basePrice = product.priceList1 || 0;
+    const newPrice = basePrice * (1 + percentage / 100);
+    debouncedUpdate(productId, field, parseFloat(newPrice.toFixed(2)));
+  }
 
   return (
     <Card>
@@ -123,9 +160,10 @@ function PriceBookTable() {
                 <TableRow>
                   <TableHead className="min-w-[150px]">Product ID</TableHead>
                   <TableHead className="min-w-[250px]">Name</TableHead>
-                  {priceFields.map((field, index) => (
-                    <TableHead key={field} className="text-right min-w-[150px]">
-                      {headerNames[field] || `Price List ${index + 1}`}
+                  <TableHead className="text-right min-w-[150px]">{headerNames['priceList1'] || 'Standard Price'}</TableHead>
+                  {priceFields.slice(1).map((field, index) => (
+                    <TableHead key={field} className="text-right min-w-[200px]">
+                      {headerNames[field] || `Price List ${index + 2}`}
                     </TableHead>
                   ))}
                 </TableRow>
@@ -136,17 +174,36 @@ function PriceBookTable() {
                     <TableRow key={product.productId}>
                       <TableCell className="font-mono text-xs">{product.productId}</TableCell>
                       <TableCell className="font-medium">{product.name}</TableCell>
-                      {priceFields.map((field) => (
-                        <TableCell key={field} className="text-right">
+                      <TableCell className="text-right">
                           <Input
                             type="number"
-                            defaultValue={product[field] || '0'}
-                            onChange={(e) => handlePriceChange(product.productId, field, e.target.value)}
+                            defaultValue={product.priceList1 || '0'}
+                            onChange={(e) => handlePriceChange(product.productId, 'priceList1', e.target.value)}
                             className="w-28 text-right ml-auto"
                             placeholder="0.00"
                             min="0"
                             step="0.01"
                           />
+                        </TableCell>
+                      {priceFields.slice(1).map((field) => (
+                        <TableCell key={field} className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <span className="font-medium">
+                                ₹{Number(product[field] || '0').toFixed(2)}
+                            </span>
+                            <div className="relative w-24">
+                               <Input
+                                type="number"
+                                value={percentages[product.productId]?.[field] ?? '0'}
+                                onChange={(e) => handlePercentageChange(product.productId, field, e.target.value)}
+                                className="w-full text-right pr-6"
+                                placeholder="0"
+                                step="0.1"
+                                disabled={!product.priceList1 || product.priceList1 <= 0}
+                               />
+                               <Percent className="absolute right-1.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            </div>
+                          </div>
                         </TableCell>
                       ))}
                     </TableRow>
@@ -1167,5 +1224,7 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    
 
     
