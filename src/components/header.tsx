@@ -40,12 +40,6 @@ export function Header() {
                   </Link>
                 </Button>
                  <Button variant="ghost" asChild>
-                  <Link href="/admin/price-book" className="flex items-center gap-1">
-                    <BookCopy className="h-5 w-5" />
-                    <span className="hidden md:inline">Price Book</span>
-                  </Link>
-                </Button>
-                 <Button variant="ghost" asChild>
                   <Link href="/admin/orders" className="flex items-center gap-1">
                     <Package className="h-5 w-5" />
                     <span className="hidden md:inline">Orders</span>

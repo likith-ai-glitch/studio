@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings, View, Copy, FilePlus, Upload, Download } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings, View, Copy, FilePlus, Upload, Download, BookCopy } from 'lucide-react';
 import Link from 'next/link';
 import {
     DropdownMenu,
@@ -49,6 +49,124 @@ import { useQuote } from '@/context/quote-context';
 import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { debounce } from 'lodash';
+
+function PriceBookTable() {
+  const { products, loading, updateProductField } = useProducts();
+  const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const priceFields: (keyof typeof products[0])[] = useMemo(() => 
+    ['priceList1', 'priceList2', 'priceList3', 'priceList4', 'priceList5'], 
+  []);
+
+  const filteredProducts = useMemo(() => {
+    return products.filter((product) =>
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (product.productId && product.productId.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [products, searchTerm]);
+
+  const debouncedUpdate = useMemo(
+    () =>
+      debounce(async (productId: string, field: string, value: number) => {
+        try {
+          await updateProductField(productId, field, value);
+        } catch (error: any) {
+          toast({
+            title: 'Error updating price',
+            description: error.message,
+            variant: 'destructive',
+          });
+        }
+      }, 500),
+    [updateProductField, toast]
+  );
+
+  const handlePriceChange = (
+    productId: string,
+    field: string,
+    value: string
+  ) => {
+    const price = parseFloat(value);
+    if (!isNaN(price) && price >= 0) {
+      debouncedUpdate(productId, field, price);
+    } else if (value === '') {
+      debouncedUpdate(productId, field, 0);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <CardTitle className="flex items-center gap-2">
+            <BookCopy className="h-6 w-6"/> Price Book
+          </CardTitle>
+          <Input
+            placeholder="Filter products..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full sm:w-auto md:w-64"
+          />
+        </div>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="flex justify-center items-center h-48">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="relative w-full overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[150px]">Product ID</TableHead>
+                  <TableHead className="min-w-[250px]">Name</TableHead>
+                  {priceFields.map((field, index) => (
+                    <TableHead key={field} className="text-right min-w-[150px]">
+                      Price List {index + 1}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredProducts.length > 0 ? (
+                  filteredProducts.map((product) => (
+                    <TableRow key={product.productId}>
+                      <TableCell className="font-mono text-xs">{product.productId}</TableCell>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      {priceFields.map((field) => (
+                        <TableCell key={field} className="text-right">
+                          <Input
+                            type="number"
+                            defaultValue={product[field] || ''}
+                            onChange={(e) => handlePriceChange(product.productId, field, e.target.value)}
+                            className="w-28 text-right ml-auto"
+                            placeholder="0.00"
+                            min="0"
+                            step="0.01"
+                          />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={priceFields.length + 2} className="text-center h-24">
+                      No products found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 
 export default function AdminPage() {
   const { 
@@ -1039,8 +1157,8 @@ export default function AdminPage() {
             )}
         </CardContent>
       </Card>
+      
+      <PriceBookTable />
     </div>
   );
 }
-
-    
