@@ -5,6 +5,8 @@ export interface Product {
   brand: string;
   category: string;
   status: string;
+  price: number;
+  activePriceList: string;
   priceList1?: number;
   priceList2?: number;
   priceList3?: number;

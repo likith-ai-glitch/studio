@@ -50,6 +50,7 @@ import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { debounce } from 'lodash';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 function PriceBookTable() {
   const { products, loading, updateProductField, headerNames } = useProducts();
@@ -57,7 +58,7 @@ function PriceBookTable() {
   const [searchTerm, setSearchTerm] = useState('');
   const [percentages, setPercentages] = useState<Record<string, Record<string, number>>>({});
 
-  const priceFields: (keyof typeof products[0])[] = useMemo(() => 
+  const priceFields: (keyof Product)[] = useMemo(() => 
     ['priceList1', 'priceList2', 'priceList3', 'priceList4', 'priceList5'], 
   []);
 
@@ -76,7 +77,7 @@ function PriceBookTable() {
       if (basePrice > 0) {
         for (let i = 2; i <= 5; i++) {
           const field = `priceList${i}` as keyof Product;
-          const price = product[field] || 0;
+          const price = product[field] as number || 0;
           const percentage = (price / basePrice * 100) - 100;
           newPercentages[product.productId][field] = parseFloat(percentage.toFixed(2));
         }
@@ -133,6 +134,16 @@ function PriceBookTable() {
     debouncedUpdate(productId, field, parseFloat(newPrice.toFixed(2)));
   }
 
+  const handleActivePriceChange = async (productId: string, activePriceList: string) => {
+    const product = products.find(p => p.productId === productId);
+    if (!product) return;
+
+    const newPrice = product[activePriceList as keyof Product] as number || 0;
+
+    await updateProductField(productId, 'price', newPrice);
+    await updateProductField(productId, 'activePriceList', activePriceList);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -160,10 +171,10 @@ function PriceBookTable() {
                 <TableRow>
                   <TableHead className="min-w-[150px]">Product ID</TableHead>
                   <TableHead className="min-w-[250px]">Name</TableHead>
-                  <TableHead className="text-right min-w-[150px]">{headerNames['priceList1'] || 'Standard Price'}</TableHead>
+                  <TableHead className="text-right min-w-[200px]">{headerNames['priceList1'] || 'Standard Price'}</TableHead>
                   {priceFields.slice(1).map((field, index) => (
-                    <TableHead key={field} className="text-right min-w-[200px]">
-                      {headerNames[field] || `Price List ${index + 2}`}
+                    <TableHead key={field} className="text-right min-w-[250px]">
+                      {headerNames[field as string] || `Price List ${index + 2}`}
                     </TableHead>
                   ))}
                 </TableRow>
@@ -175,35 +186,43 @@ function PriceBookTable() {
                       <TableCell className="font-mono text-xs">{product.productId}</TableCell>
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell className="text-right">
-                          <Input
-                            type="number"
-                            defaultValue={product.priceList1 || '0'}
-                            onChange={(e) => handlePriceChange(product.productId, 'priceList1', e.target.value)}
-                            className="w-28 text-right ml-auto"
-                            placeholder="0.00"
-                            min="0"
-                            step="0.01"
-                          />
-                        </TableCell>
-                      {priceFields.slice(1).map((field) => (
-                        <TableCell key={field} className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <span className="font-medium">
-                                ₹{Number(product[field] || '0').toFixed(2)}
-                            </span>
-                            <div className="relative w-24">
-                               <Input
+                          <RadioGroup value={product.activePriceList || 'priceList1'} onValueChange={(value) => handleActivePriceChange(product.productId, value)}>
+                            <div className="flex items-center justify-end gap-2">
+                              <RadioGroupItem value="priceList1" id={`${product.productId}-pl1`} />
+                              <Input
                                 type="number"
-                                value={percentages[product.productId]?.[field] ?? '0'}
-                                onChange={(e) => handlePercentageChange(product.productId, field, e.target.value)}
-                                className="w-full text-right pr-6"
-                                placeholder="0"
-                                step="0.1"
-                                disabled={!product.priceList1 || product.priceList1 <= 0}
-                               />
-                               <Percent className="absolute right-1.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                defaultValue={product.priceList1 || '0'}
+                                onChange={(e) => handlePriceChange(product.productId, 'priceList1', e.target.value)}
+                                className="w-28 text-right"
+                                placeholder="0.00"
+                                min="0"
+                                step="0.01"
+                              />
                             </div>
-                          </div>
+                          </RadioGroup>
+                      </TableCell>
+                      {priceFields.slice(1).map((field) => (
+                        <TableCell key={field as string} className="text-right">
+                           <RadioGroup value={product.activePriceList || 'priceList1'} onValueChange={(value) => handleActivePriceChange(product.productId, value)}>
+                            <div className="flex items-center justify-end gap-2">
+                              <RadioGroupItem value={field as string} id={`${product.productId}-${field as string}`} />
+                              <span className="font-medium w-24 text-left">
+                                  ₹{Number(product[field as keyof Product] || '0').toFixed(2)}
+                              </span>
+                              <div className="relative w-24">
+                                <Input
+                                  type="number"
+                                  value={percentages[product.productId]?.[field as string] ?? '0'}
+                                  onChange={(e) => handlePercentageChange(product.productId, field as string, e.target.value)}
+                                  className="w-full text-right pr-6"
+                                  placeholder="0"
+                                  step="0.1"
+                                  disabled={!product.priceList1 || product.priceList1 <= 0}
+                                />
+                                <Percent className="absolute right-1.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              </div>
+                            </div>
+                           </RadioGroup>
                         </TableCell>
                       ))}
                     </TableRow>
@@ -324,7 +343,7 @@ export default function AdminPage() {
   }, [productKeys]);
   
   const masterTableKeys = useMemo(() => {
-    const priceListColumns = ['priceList1', 'priceList2', 'priceList3', 'priceList4', 'priceList5'];
+    const priceListColumns = ['priceList1', 'priceList2', 'priceList3', 'priceList4', 'priceList5', 'activePriceList'];
     return productKeys.filter(key => !priceListColumns.includes(key));
   }, [productKeys]);
 
@@ -1224,9 +1243,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-    
-
-    
-
-    

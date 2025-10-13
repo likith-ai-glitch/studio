@@ -104,12 +104,24 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             initialProducts.forEach((product) => {
                 const docRef = doc(db, "products", product.productId);
                 const { ...productData} = product;
-                const productWithDates: Record<string, any> = { ...productData, qtyForQuote: 0 };
+                const productWithDates: Record<string, any> = { 
+                  ...productData, 
+                  qtyForQuote: 0, 
+                  price: product.price || 0,
+                  activePriceList: 'priceList1',
+                };
                  Object.keys(productWithDates).forEach(key => {
                     if (key === 'startDate' || key === 'lastUpdatedDate') {
                         productWithDates[key] = productWithDates[key] ? Timestamp.fromDate(new Date(productWithDates[key])) : null;
                     }
-                });
+                 });
+                for (let i = 1; i <= 5; i++) {
+                    const priceField = `priceList${i}`;
+                    if (!productWithDates[priceField]) {
+                        productWithDates[priceField] = product.price || 0;
+                    }
+                }
+
                 batch.set(docRef, productWithDates);
             });
             try {
@@ -138,7 +150,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
             allKeys.add('quoteTotal');
             
-            const priceFields = ['priceList1', 'priceList2', 'priceList3', 'priceList4', 'priceList5'];
+            const priceFields = ['priceList1', 'priceList2', 'priceList3', 'priceList4', 'priceList5', 'activePriceList'];
             priceFields.forEach(field => allKeys.add(field));
 
             if (!allKeys.has('qtyForQuote')) {
@@ -202,11 +214,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       ...productData,
       status: productData.status || 'Available',
       qtyForQuote: 0,
-      priceList1: 0,
-      priceList2: 0,
-      priceList3: 0,
-      priceList4: 0,
-      priceList5: 0,
+      price: productData.price || 0,
+      activePriceList: 'priceList1',
     };
     
     Object.keys(newProduct).forEach(key => {
@@ -214,6 +223,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             newProduct[key] = Timestamp.fromDate(newProduct[key]);
         }
     });
+
+    for (let i = 1; i <= 5; i++) {
+        const priceField = `priceList${i}`;
+        if (newProduct[priceField] === undefined) {
+            newProduct[priceField] = newProduct.price || 0;
+        }
+    }
     
     await setDoc(docRef, newProduct);
   };
@@ -251,6 +267,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       
       if (!newProduct.status) newProduct.status = 'Available';
       if (newProduct.qtyForQuote === undefined) newProduct.qtyForQuote = 0;
+      if (!newProduct.activePriceList) newProduct.activePriceList = 'priceList1';
+      if(newProduct.price === undefined) newProduct.price = newProduct.priceList1 || 0;
+
 
       batch.set(docRef, newProduct, { merge: true });
     }
