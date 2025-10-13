@@ -125,7 +125,7 @@ function PriceBookTable() {
                   <TableHead className="min-w-[250px]">Name</TableHead>
                   {priceFields.map((field, index) => (
                     <TableHead key={field} className="text-right min-w-[150px]">
-                      Price List {index + 1}
+                      {headerNames[field] || `Price List ${index + 1}`}
                     </TableHead>
                   ))}
                 </TableRow>
@@ -140,7 +140,7 @@ function PriceBookTable() {
                         <TableCell key={field} className="text-right">
                           <Input
                             type="number"
-                            defaultValue={product[field] || ''}
+                            defaultValue={product[field] || '0'}
                             onChange={(e) => handlePriceChange(product.productId, field, e.target.value)}
                             className="w-28 text-right ml-auto"
                             placeholder="0.00"
