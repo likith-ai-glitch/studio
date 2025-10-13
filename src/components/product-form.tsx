@@ -82,7 +82,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting }: ProductForm
   const isValueValidDate = (value: any): value is Date =>
     value instanceof Date && !isNaN(value.getTime());
 
-  const filteredKeys = productKeys.filter(key => key !== 'id');
+  const filteredKeys = productKeys.filter(key => key !== 'id' && key !== 'quoteTotal' && !key.startsWith('priceList'));
 
   return (
     <Form {...form}>

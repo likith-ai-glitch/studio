@@ -5,6 +5,11 @@ export interface Product {
   brand: string;
   category: string;
   status: string;
+  priceList1?: number;
+  priceList2?: number;
+  priceList3?: number;
+  priceList4?: number;
+  priceList5?: number;
   [key: string]: any;
 }
 

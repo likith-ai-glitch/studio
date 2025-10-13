@@ -85,7 +85,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       }
     };
     
-    setHeaderNames(safelyParseJSON(HEADER_NAMES_STORAGE_KEY, {'qtyForQuote': 'Qty for Quote', 'quoteTotal': 'Quote Total'}));
+    setHeaderNames(safelyParseJSON(HEADER_NAMES_STORAGE_KEY, {
+        'qtyForQuote': 'Qty for Quote', 
+        'quoteTotal': 'Quote Total',
+        'priceList1': 'Price List 1',
+        'priceList2': 'Price List 2',
+        'priceList3': 'Price List 3',
+        'priceList4': 'Price List 4',
+        'priceList5': 'Price List 5',
+    }));
     setHomePageVisibleFields(safelyParseJSON(HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY, { name: true, brand: true, category: true, price: true }));
 
     const unsubscribe = onSnapshot(productsCollectionRef, async (snapshot) => {
@@ -129,6 +137,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             const allKeys = new Set<string>();
             productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
             allKeys.add('quoteTotal');
+            
+            const priceFields = ['priceList1', 'priceList2', 'priceList3', 'priceList4', 'priceList5'];
+            priceFields.forEach(field => allKeys.add(field));
 
             if (!allKeys.has('qtyForQuote')) {
                 const batch = writeBatch(db);
@@ -140,7 +151,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
                 allKeys.add('qtyForQuote');
             }
 
-            const fixedOrder = ['productId', 'name', 'brand', 'category', 'status', 'price', 'qtyForQuote', 'quoteTotal', 'startDate', 'lastUpdatedDate'];
+            const fixedOrder = ['productId', 'name', 'brand', 'category', 'status', 'price', 'qtyForQuote', 'quoteTotal', ...priceFields, 'startDate', 'lastUpdatedDate'];
             
             const savedOrder = safelyParseJSON(COLUMN_ORDER_STORAGE_KEY, []);
             const validSavedOrder = savedOrder.filter((k: string) => allKeys.has(k) || k === 'qtyForQuote' || k === 'quoteTotal');
@@ -191,6 +202,11 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       ...productData,
       status: productData.status || 'Available',
       qtyForQuote: 0,
+      priceList1: 0,
+      priceList2: 0,
+      priceList3: 0,
+      priceList4: 0,
+      priceList5: 0,
     };
     
     Object.keys(newProduct).forEach(key => {
@@ -227,7 +243,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
              delete newProduct[key]; // Don't import invalid dates
           }
         }
-        if (key === 'price' || key === 'qtyForQuote'){
+        if (key === 'price' || key === 'qtyForQuote' || key.startsWith('priceList')){
             const num = parseFloat(value);
             newProduct[key] = isNaN(num) ? 0 : num;
         }
@@ -315,6 +331,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             description: `Failed to update ${field}.`,
             variant: 'destructive',
         });
+        throw error;
     }
   }
 
@@ -547,5 +564,3 @@ export function useProducts() {
   }
   return context;
 }
-
-    

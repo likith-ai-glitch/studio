@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Store, Wrench, LogIn, LogOut, ShieldCheck, Package, Home, FileText, FileArchive } from 'lucide-react';
+import { Store, Wrench, LogIn, LogOut, ShieldCheck, Package, Home, FileText, FileArchive, BookCopy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/auth-context';
 import { useQuote } from '@/context/quote-context';
@@ -37,6 +37,12 @@ export function Header() {
                   <Link href="/admin" className="flex items-center gap-1">
                     <Wrench className="h-5 w-5" />
                     <span className="hidden md:inline">Admin</span>
+                  </Link>
+                </Button>
+                 <Button variant="ghost" asChild>
+                  <Link href="/admin/price-book" className="flex items-center gap-1">
+                    <BookCopy className="h-5 w-5" />
+                    <span className="hidden md:inline">Price Book</span>
                   </Link>
                 </Button>
                  <Button variant="ghost" asChild>
