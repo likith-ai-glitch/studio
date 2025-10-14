@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuote } from '@/context/quote-context';
 import { useOrders } from '@/context/order-context';
 import {
@@ -40,6 +40,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { sendQuote } from '@/ai/flows/send-quote-flow';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useProducts } from '@/context/product-context';
 
 export function QuoteSheet() {
   const { 
@@ -53,12 +54,15 @@ export function QuoteSheet() {
     clearQuote,
     updateQuoteField,
     updateIndicativePricingField,
+    applyPriceList,
   } = useQuote();
+  const { products, headerNames } = useProducts();
   const { addOrder } = useOrders();
   const { toast } = useToast();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const notificationsCollectionRef = collection(db, 'notifications');
+  const [selectedPriceList, setSelectedPriceList] = useState('none');
 
 
   const handlePlaceOrder = (customerData: AddressFormValues) => {
@@ -112,6 +116,24 @@ export function QuoteSheet() {
       setIsSending(false);
     }
   }
+
+  const handlePriceListChange = (priceListKey: string) => {
+    setSelectedPriceList(priceListKey);
+    applyPriceList(priceListKey, products);
+  }
+
+  const priceListOptions = useMemo(() => {
+    return [
+      'priceList1',
+      'priceList2',
+      'priceList3',
+      'priceList4',
+      'priceList5',
+    ].map(key => ({
+      key,
+      name: headerNames[key] || key,
+    }));
+  }, [headerNames]);
 
   return (
     <Sheet open={isQuoteSheetOpen} onOpenChange={setIsQuoteSheetOpen}>
@@ -197,6 +219,20 @@ export function QuoteSheet() {
                       placeholder="e.g. 18"
                     />
                  </div>
+                 <div className="space-y-2 md:col-span-3">
+                    <Label>Apply Price Book</Label>
+                    <Select value={selectedPriceList} onValueChange={handlePriceListChange}>
+                        <SelectTrigger><SelectValue placeholder="Select a price list" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="none">Default Prices</SelectItem>
+                             {priceListOptions.map(option => (
+                                <SelectItem key={option.key} value={option.key}>
+                                    {option.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                 </div>
               </div>
               <Separator />
               <ScrollArea className="h-full -mx-6">
@@ -211,36 +247,49 @@ export function QuoteSheet() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {quote.items.map(item => (
-                      <TableRow key={item.id}>
-                        <TableCell className="px-6">
-                          <div className="font-medium text-base mb-2">{item.name}</div>
-                           <dl className="text-xs text-muted-foreground grid grid-cols-[max-content_1fr] gap-x-2 gap-y-1">
-                            {item.productId && (<><dt className="font-semibold">ID:</dt><dd className="truncate">{item.productId}</dd></>)}
-                            {item.brand && (<><dt className="font-semibold">Brand:</dt><dd className="truncate">{item.brand}</dd></>)}
-                            {item.category && (<><dt className="font-semibold">Category:</dt><dd className="truncate">{item.category}</dd></>)}
-                            {item.partName && (<><dt className="font-semibold">Part Name:</dt><dd className="truncate">{item.partName}</dd></>)}
-                            {item.colour && (<><dt className="font-semibold">Colour:</dt><dd className="truncate">{item.colour}</dd></>)}
-                          </dl>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Input
-                            type="number"
-                            min="1"
-                            value={item.quantity}
-                            onChange={(e) => updateItemQuantity(item.id, parseInt(e.target.value) || 1)}
-                            className="w-16 h-8 mx-auto"
-                          />
-                        </TableCell>
-                        <TableCell className="text-right">₹{Number(item.price).toFixed(2)}</TableCell>
-                        <TableCell className="text-right">₹{(Number(item.price) * item.quantity).toFixed(2)}</TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeItemFromQuote(item.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {quote.items.map(item => {
+                      const product = products.find(p => p.productId === item.productId);
+                      const standardPrice = product?.priceList1 || item.price;
+                      const percentageDiff = standardPrice > 0 ? ((item.price / standardPrice) - 1) * 100 : 0;
+
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell className="px-6">
+                            <div className="font-medium text-base mb-2">{item.name}</div>
+                            <dl className="text-xs text-muted-foreground grid grid-cols-[max-content_1fr] gap-x-2 gap-y-1">
+                              {item.productId && (<><dt className="font-semibold">ID:</dt><dd className="truncate">{item.productId}</dd></>)}
+                              {item.brand && (<><dt className="font-semibold">Brand:</dt><dd className="truncate">{item.brand}</dd></>)}
+                              {item.category && (<><dt className="font-semibold">Category:</dt><dd className="truncate">{item.category}</dd></>)}
+                              {item.partName && (<><dt className="font-semibold">Part Name:</dt><dd className="truncate">{item.partName}</dd></>)}
+                              {item.colour && (<><dt className="font-semibold">Colour:</dt><dd className="truncate">{item.colour}</dd></>)}
+                            </dl>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.quantity}
+                              onChange={(e) => updateItemQuantity(item.id, parseInt(e.target.value) || 1)}
+                              className="w-16 h-8 mx-auto"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                             <div>₹{Number(item.price).toFixed(2)}</div>
+                             {selectedPriceList !== 'none' && standardPrice !== item.price && (
+                                <div className={`text-xs ${percentageDiff < 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    ({percentageDiff.toFixed(2)}%)
+                                </div>
+                             )}
+                          </TableCell>
+                          <TableCell className="text-right">₹{(Number(item.price) * item.quantity).toFixed(2)}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeItemFromQuote(item.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </ScrollArea>
@@ -316,5 +365,3 @@ export function QuoteSheet() {
     </Sheet>
   );
 }
-
-    

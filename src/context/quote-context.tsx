@@ -2,6 +2,7 @@
 'use client';
 
 import { createContext, useContext, useState, ReactNode, useMemo } from 'react';
+import type { Product } from '@/lib/types';
 
 export interface QuoteItem {
   id: string; // Internal ID for the quote item, typically same as productId
@@ -49,6 +50,7 @@ interface QuoteContextType {
   grandTotal: number;
   updateQuoteField: (field: keyof Omit<Quote, 'items' | 'indicativePricing'>, value: any) => void;
   updateIndicativePricingField: (field: keyof IndicativePricing, value: number) => void;
+  applyPriceList: (priceListKey: string, allProducts: Product[]) => void;
 }
 
 const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
@@ -144,6 +146,39 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
     setQuote(initialQuoteState);
   }
 
+  const applyPriceList = (priceListKey: string, allProducts: Product[]) => {
+    setQuote(prevQuote => {
+      if (priceListKey === 'none') {
+        // Revert to original prices
+        const updatedItems = prevQuote.items.map(item => {
+          const product = allProducts.find(p => p.productId === item.productId);
+          return { ...item, price: product?.price || item.price };
+        });
+        return { ...prevQuote, items: updatedItems, discount: 0 };
+      }
+
+      let newTotal = 0;
+      let standardTotal = 0;
+
+      const updatedItems = prevQuote.items.map(item => {
+        const product = allProducts.find(p => p.productId === item.productId);
+        if (product) {
+          const newPrice = product[priceListKey as keyof Product] as number || product.price;
+          const standardPrice = product.priceList1 || product.price;
+          newTotal += newPrice * item.quantity;
+          standardTotal += standardPrice * item.quantity;
+          return { ...item, price: newPrice };
+        }
+        return item;
+      });
+      
+      const overallDiscount = standardTotal > 0 ? ((standardTotal - newTotal) / standardTotal) * 100 : 0;
+
+      return { ...prevQuote, items: updatedItems, discount: parseFloat(overallDiscount.toFixed(2)) };
+    });
+  };
+
+
   const subTotal = useMemo(() => {
     const itemsTotal = quote.items.reduce((total, item) => total + Number(item.price) * item.quantity, 0);
     const indicativeTotal = Object.values(quote.indicativePricing).reduce((sum, value) => sum + (Number(value) || 0), 0);
@@ -170,6 +205,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
         grandTotal,
         updateQuoteField,
         updateIndicativePricingField,
+        applyPriceList,
     }}>
       {children}
     </QuoteContext.Provider>
