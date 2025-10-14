@@ -307,14 +307,14 @@ export function QuoteSheet() {
                 </div>
                 {quote.discount > 0 && (
                    <div className="flex justify-between text-sm text-muted-foreground">
-                    <p>Discount ({quote.discount || 0}%)</p>
-                    <p>- ₹{totalDiscountAmount.toFixed(2)}</p>
+                    <p>Discount</p>
+                    <p>{quote.discount || 0}%</p>
                   </div>
                 )}
                 {quote.tax > 0 && (
                    <div className="flex justify-between text-sm text-muted-foreground">
                     <p>GST ({quote.tax || 0}%)</p>
-                    <p>+ ₹{(subTotal * (1 - (quote.discount || 0) / 100) * ((quote.tax || 0) / 100)).toFixed(2)}</p>
+                    <p>+ ₹{(subTotal * ((quote.tax || 0) / 100)).toFixed(2)}</p>
                   </div>
                 )}
                  <Separator />

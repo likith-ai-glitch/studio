@@ -191,10 +191,9 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   }, [quote.items, quote.indicativePricing]);
 
   const grandTotal = useMemo(() => {
-    const totalAfterDiscount = subTotal * (1 - ((quote.discount || 0) / 100));
-    const taxAmount = totalAfterDiscount * ((quote.tax || 0) / 100);
-    return totalAfterDiscount + taxAmount;
-  }, [subTotal, quote.discount, quote.tax]);
+    const taxAmount = subTotal * ((quote.tax || 0) / 100);
+    return subTotal + taxAmount;
+  }, [subTotal, quote.tax]);
 
   return (
     <QuoteContext.Provider value={{ 
