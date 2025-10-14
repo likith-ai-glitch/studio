@@ -53,10 +53,13 @@ import { debounce } from 'lodash';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 function PriceBookTable() {
-  const { products, loading, updateProductField, headerNames } = useProducts();
+  const { products, loading, updateProductField, headerNames, renameColumn } = useProducts();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [percentages, setPercentages] = useState<Record<string, Record<string, number>>>({});
+  const [columnToRename, setColumnToRename] = useState<string | null>(null);
+  const [newHeaderName, setNewHeaderName] = useState('');
+
 
   const priceFields: (keyof Product)[] = useMemo(() => 
     ['priceList1', 'priceList2', 'priceList3', 'priceList4', 'priceList5'], 
@@ -143,6 +146,56 @@ function PriceBookTable() {
     await updateProductField(productId, 'price', newPrice);
     await updateProductField(productId, 'activePriceList', activePriceList);
   };
+  
+  const handleRenameColumn = () => {
+    if (columnToRename && newHeaderName.trim()) {
+      renameColumn(columnToRename, newHeaderName.trim());
+      setColumnToRename(null);
+      setNewHeaderName('');
+    }
+  };
+
+  const renderPriceHeader = (field: string, defaultName: string) => {
+    const headerText = headerNames[field] || defaultName;
+    return (
+        <TableHead key={field} className="text-right min-w-[250px]">
+            <div className="flex items-center justify-end gap-2">
+                <span>{headerText}</span>
+                <Dialog open={columnToRename === field} onOpenChange={(isOpen) => !isOpen && setColumnToRename(null)}>
+                    <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
+                            setColumnToRename(field);
+                            setNewHeaderName(headerText);
+                        }}>
+                            <Pencil className="h-3 w-3" />
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Rename Column</DialogTitle>
+                            <DialogDescription>
+                                Change the display name for the &quot;{field}&quot; column.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <Input
+                                value={newHeaderName}
+                                onChange={(e) => setNewHeaderName(e.target.value)}
+                                placeholder="Enter new column name"
+                            />
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild>
+                                <Button variant="outline">Cancel</Button>
+                            </DialogClose>
+                            <Button onClick={handleRenameColumn}>Save</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
+        </TableHead>
+    );
+  };
 
   return (
     <Card>
@@ -171,12 +224,8 @@ function PriceBookTable() {
                 <TableRow>
                   <TableHead className="min-w-[150px]">Product ID</TableHead>
                   <TableHead className="min-w-[250px]">Name</TableHead>
-                  <TableHead className="text-right min-w-[200px]">{headerNames['priceList1'] || 'Standard Price'}</TableHead>
-                  {priceFields.slice(1).map((field, index) => (
-                    <TableHead key={field} className="text-right min-w-[250px]">
-                      {headerNames[field as string] || `Price List ${index + 2}`}
-                    </TableHead>
-                  ))}
+                  {renderPriceHeader('priceList1', 'Standard Price')}
+                  {priceFields.slice(1).map((field, index) => renderPriceHeader(field, `Price List ${index + 2}`))}
                 </TableRow>
               </TableHeader>
               <TableBody>
