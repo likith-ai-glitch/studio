@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A flow for generating a customer-facing quote email.
@@ -44,12 +45,10 @@ export async function sendQuote(input: Quote): Promise<QuoteOutput> {
   const itemsTotal = input.items.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const indicativeTotal = Object.values(input.indicativePricing || {}).reduce((acc, val) => acc + (Number(val) || 0), 0);
   const subTotal = itemsTotal + indicativeTotal;
-  const discountValue = subTotal * ((input.discount || 0) / 100);
-  const totalAfterDiscount = subTotal - discountValue;
-  const taxAmount = totalAfterDiscount * ((input.tax || 0) / 100);
-  const grandTotal = totalAfterDiscount + taxAmount;
+  const taxAmount = subTotal * ((input.tax || 0) / 100);
+  const grandTotal = subTotal + taxAmount;
 
-  const flowInput = { ...input, subTotal, grandTotal, taxAmount, totalAfterDiscount, discountValue };
+  const flowInput = { ...input, subTotal, grandTotal, taxAmount };
   return sendQuoteFlow(flowInput);
 }
 
@@ -57,8 +56,6 @@ const promptInputSchema = QuoteInputSchema.extend({
     subTotal: z.number(), 
     grandTotal: z.number(),
     taxAmount: z.number(),
-    totalAfterDiscount: z.number(),
-    discountValue: z.number(),
 });
 
 const prompt = ai.definePrompt({
@@ -88,10 +85,8 @@ const prompt = ai.definePrompt({
   The subtotal for the items and additional costs is: ₹{{subTotal}}
   
   {{#if discount}}
-  - Discount ({{discount}}%): -₹{{discountValue}}
+  - Discount: {{discount}}% (Informational)
   {{/if}}
-
-  - Total After Discount: ₹{{totalAfterDiscount}}
 
   {{#if tax}}
   - GST ({{tax}}%): +₹{{taxAmount}}
@@ -102,7 +97,7 @@ const prompt = ai.definePrompt({
   Generate the content for the email.
   - The subject line should be "Your Quote from Shopstream ({{{quoteNumber}}})".
   - The body should be a polite HTML message. Start by thanking the customer for their interest.
-  - Present the items, additional costs, discount, GST, and grand total in a clear, easy-to-read format. A table would be ideal.
+  - Present the items, additional costs, discount (as informational), GST, and grand total in a clear, easy-to-read format. A table would be ideal.
   - Clearly state the final grand total.
   - Mention the quote's status and type.
   - End with a friendly closing, letting them know you are available for any questions.
