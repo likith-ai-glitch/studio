@@ -224,7 +224,6 @@ function PriceBookTable() {
                 <TableRow>
                   <TableHead className="min-w-[150px]">Product ID</TableHead>
                   <TableHead className="min-w-[250px]">Name</TableHead>
-                  <TableHead className="text-right min-w-[150px]">Unit Price</TableHead>
                   {renderPriceHeader('priceList1', 'Standard Price')}
                   {priceFields.slice(1).map((field, index) => renderPriceHeader(field, `Price List ${index + 2}`))}
                 </TableRow>
@@ -235,7 +234,6 @@ function PriceBookTable() {
                     <TableRow key={product.productId}>
                       <TableCell className="font-mono text-xs">{product.productId}</TableCell>
                       <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell className="text-right font-medium">₹{Number(product.price || '0').toFixed(2)}</TableCell>
                       <TableCell className="text-right">
                           <RadioGroup value={product.activePriceList || 'priceList1'} onValueChange={(value) => handleActivePriceChange(product.productId, value)}>
                             <div className="flex items-center justify-end gap-2">
@@ -280,7 +278,7 @@ function PriceBookTable() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={priceFields.length + 3} className="text-center h-24">
+                    <TableCell colSpan={priceFields.length + 2} className="text-center h-24">
                       No products found.
                     </TableCell>
                   </TableRow>
