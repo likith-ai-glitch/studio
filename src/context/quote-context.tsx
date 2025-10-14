@@ -148,35 +148,40 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
 
   const applyPriceList = (priceListKey: string, allProducts: Product[]) => {
     setQuote(prevQuote => {
-      if (priceListKey === 'none') {
-        // Revert to original prices
         const updatedItems = prevQuote.items.map(item => {
-          const product = allProducts.find(p => p.productId === item.productId);
-          return { ...item, price: product?.price || item.price };
+            const product = allProducts.find(p => p.productId === item.productId);
+            if (product) {
+                const newPrice = priceListKey === 'none' 
+                    ? (product.price || 0)
+                    : (product[priceListKey as keyof Product] as number || product.price || 0);
+                return { ...item, price: newPrice };
+            }
+            return item;
         });
-        return { ...prevQuote, items: updatedItems, discount: 0 };
-      }
 
-      let newTotal = 0;
-      let standardTotal = 0;
+        // Calculate overall discount based on the new prices
+        let newTotal = 0;
+        let standardTotal = 0;
+        updatedItems.forEach(item => {
+            const product = allProducts.find(p => p.productId === item.productId);
+            if (product) {
+                const standardPrice = product.priceList1 || product.price || 0;
+                newTotal += item.price * item.quantity;
+                standardTotal += standardPrice * item.quantity;
+            }
+        });
 
-      const updatedItems = prevQuote.items.map(item => {
-        const product = allProducts.find(p => p.productId === item.productId);
-        if (product) {
-          const newPrice = product[priceListKey as keyof Product] as number || product.price;
-          const standardPrice = product.priceList1 || product.price;
-          newTotal += newPrice * item.quantity;
-          standardTotal += standardPrice * item.quantity;
-          return { ...item, price: newPrice };
-        }
-        return item;
-      });
-      
-      const overallDiscount = standardTotal > 0 ? ((standardTotal - newTotal) / standardTotal) * 100 : 0;
+        const overallDiscount = standardTotal > 0 
+            ? ((standardTotal - newTotal) / standardTotal) * 100 
+            : 0;
 
-      return { ...prevQuote, items: updatedItems, discount: parseFloat(overallDiscount.toFixed(2)) };
+        return { 
+            ...prevQuote, 
+            items: updatedItems,
+            discount: parseFloat(overallDiscount.toFixed(2))
+        };
     });
-  };
+};
 
 
   const subTotal = useMemo(() => {
