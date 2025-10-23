@@ -4,15 +4,31 @@ import jsforce from "jsforce";
 import { adminDb } from "@/lib/firebase-admin";
 import { Timestamp } from 'firebase-admin/firestore';
 
+async function logSyncEvent(data: {
+  objectType: string;
+  status: 'Success' | 'Failure';
+  message: string;
+  recordCount?: number;
+}) {
+  try {
+    await adminDb.collection('syncLogs').add({
+      ...data,
+      timestamp: Timestamp.now(),
+    });
+  } catch (error) {
+    console.error("FATAL: Could not write to syncLogs collection.", error);
+  }
+}
+
+
 export async function GET(
   request: Request,
   { params }: { params: { quoteId?: string[] } }
 ) {
   const quoteId = params.quoteId?.[0];
-  console.log("▶️ Starting Salesforce -> Firestore Quotes Sync...");
+  const objectType = "Quote";
+  console.log(`▶️ Starting Salesforce -> Firestore Sync for ${objectType}...`);
 
-  // 1. Establish Salesforce Connection
-  console.log("🔄 Connecting to Salesforce for Quotes...");
   const conn = new jsforce.Connection({
     clientId: process.env.SALESFORCE_CLIENT_ID,
     clientSecret: process.env.SALESFORCE_CLIENT_SECRET,
@@ -20,38 +36,37 @@ export async function GET(
   });
 
   try {
+    console.log(`🔄 Connecting to Salesforce for ${objectType}...`);
     await conn.login(
       process.env.SALESFORCE_USERNAME!,
       process.env.SALESFORCE_PASSWORD!
     );
-    console.log("✅ Salesforce connection successful for Quotes");
+    console.log(`✅ Salesforce connection successful for ${objectType}`);
 
-    // 2. Build and Execute SOQL Query
     let query =
       "SELECT Id, Name, Status, TotalPrice, AccountId, LastModifiedDate FROM Quote";
     if (quoteId) {
       query += ` WHERE Id = '${quoteId}'`;
     }
-    query += " LIMIT 500"; // Safeguard against excessive data fetching
+    query += " LIMIT 500";
 
     const result = await conn.query(query);
-    console.log(`🔹 Fetched ${result.records.length} quotes from Salesforce.`);
+    console.log(`🔹 Fetched ${result.records.length} records from ${objectType}.`);
 
     if (result.records.length === 0) {
+       const message = "No new records found to sync.";
+       await logSyncEvent({ objectType, status: 'Success', message, recordCount: 0 });
       return NextResponse.json({
         success: true,
-        message: "No new quotes found to sync.",
+        message,
         count: 0,
       });
     }
 
-    // Log a sample record for verification
-    console.log("📦 Sample Quote Record:", JSON.stringify(result.records[0], null, 2));
+    console.log("📦 Sample Record:", JSON.stringify(result.records[0], null, 2));
 
-    // 3. Sync to Firestore using Batch Write
     const batch = adminDb.batch();
     result.records.forEach((record: any) => {
-      // Convert Salesforce LastModifiedDate to Firestore Timestamp
       const firestoreRecord = {
         ...record,
         LastModifiedDate: record.LastModifiedDate ? Timestamp.fromDate(new Date(record.LastModifiedDate)) : null,
@@ -61,19 +76,19 @@ export async function GET(
     });
 
     await batch.commit();
-    const successMessage = `✅ Synced ${result.records.length} quotes to Firestore.`;
-    console.log(successMessage);
+    const successMessage = `Synced ${result.records.length} records to Firestore.`;
+    console.log(`✅ ${successMessage}`);
+    await logSyncEvent({ objectType, status: 'Success', message: successMessage, recordCount: result.records.length });
 
-    // 4. Return Success Response
     return NextResponse.json({
       success: true,
       message: successMessage,
       count: result.records.length,
     });
   } catch (err: any) {
-    // 5. Handle and Log Errors
-    const errorMessage = `❌ Failed to sync Quotes: ${err.message}`;
-    console.error(errorMessage);
+    const errorMessage = `Failed to sync ${objectType}: ${err.message}`;
+    console.error(`❌ ${errorMessage}`);
+    await logSyncEvent({ objectType, status: 'Failure', message: err.message });
     return NextResponse.json(
       { success: false, error: errorMessage },
       { status: 500 }
