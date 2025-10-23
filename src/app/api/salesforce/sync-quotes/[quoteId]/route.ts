@@ -1,6 +1,7 @@
+
 import { NextResponse } from "next/server";
 import jsforce from "jsforce";
-import { db } from "@/lib/firebaseAdmin";
+import { adminDb } from "@/lib/firebase-admin";
 
 export async function GET(
   request: Request,
@@ -47,14 +48,14 @@ export async function GET(
     console.log("📦 Sample Quote Record:", JSON.stringify(result.records[0], null, 2));
 
     // 3. Sync to Firestore using Batch Write
-    const batch = db.batch();
+    const batch = adminDb.batch();
     result.records.forEach((record: any) => {
       // Convert Salesforce LastModifiedDate to Firestore Timestamp
       const firestoreRecord = {
         ...record,
         LastModifiedDate: new Date(record.LastModifiedDate),
       };
-      const docRef = db.collection("quotes").doc(record.Id);
+      const docRef = adminDb.collection("quotes").doc(record.Id);
       batch.set(docRef, firestoreRecord, { merge: true });
     });
 
