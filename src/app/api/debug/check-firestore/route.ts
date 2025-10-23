@@ -1,11 +1,11 @@
 
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebaseAdmin';
+import { adminDb } from '@/lib/firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 
 async function checkCollection(collectionName: string, fields: string[]) {
   console.log(`\n\n🔍 Checking collection: "${collectionName}"...`);
-  const collectionRef = db.collection(collectionName);
+  const collectionRef = adminDb.collection(collectionName);
   
   try {
     const snapshot = await collectionRef.limit(5).get();
