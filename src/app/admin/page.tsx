@@ -1,14 +1,14 @@
 
 'use client';
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useProducts } from '@/context/product-context';
 import { useOrders } from '@/context/order-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings, View, Copy, FilePlus, Upload, Download, BookCopy, Percent } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings, View, Copy, FilePlus, Upload, Download, BookCopy, Percent, RefreshCw, AlertCircle, CheckCircle, DatabaseZap } from 'lucide-react';
 import Link from 'next/link';
 import {
     DropdownMenu,
@@ -51,6 +51,22 @@ import Papa from 'papaparse';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { debounce } from 'lodash';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { db } from '@/lib/firebase';
+import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+
+
+interface SyncLog {
+  id: string;
+  objectType: string;
+  status: 'Success' | 'Failure';
+  message: string;
+  timestamp: Date;
+  recordCount?: number;
+}
+
 
 function PriceBookTable() {
   const { products, loading, updateProductField, headerNames, renameColumn } = useProducts();
@@ -288,6 +304,128 @@ function PriceBookTable() {
           </div>
         )}
       </CardContent>
+    </Card>
+  );
+}
+
+function SyncStatusDashboard() {
+  const [logs, setLogs] = useState<SyncLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchLogs = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    
+    const logsCollection = collection(db, 'syncLogs');
+    const q = query(logsCollection, orderBy('timestamp', 'desc'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const logsData: SyncLog[] = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          objectType: data.objectType,
+          status: data.status,
+          message: data.message,
+          timestamp: (data.timestamp as Timestamp).toDate(),
+          recordCount: data.recordCount,
+        };
+      });
+      setLogs(logsData);
+      setLoading(false);
+    }, (err) => {
+      console.error("Error fetching sync logs:", err);
+      setError("Failed to fetch sync logs. Check permissions or connection.");
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = fetchLogs();
+    return () => unsubscribe();
+  }, [fetchLogs]);
+
+  const handleRefresh = () => {
+    fetchLogs();
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="flex items-center gap-2">
+            <DatabaseZap className="h-6 w-6"/> Salesforce Sync Status
+        </CardTitle>
+        <Button onClick={handleRefresh} disabled={loading} variant="outline" size="sm">
+          {loading ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="mr-2 h-4 w-4" />
+          )}
+          Refresh
+        </Button>
+      </CardHeader>
+      <CardContent>
+          {error && (
+            <div className="text-center py-10 text-destructive">
+              <AlertCircle className="mx-auto h-10 w-10 mb-2" />
+              <p className="font-semibold">An Error Occurred</p>
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
+          {!error && loading && (
+            <div className="flex items-center justify-center h-48">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          )}
+          {!error && !loading && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-24">Status</TableHead>
+                  <TableHead>Object</TableHead>
+                  <TableHead>Message</TableHead>
+                  <TableHead className="text-right">Records</TableHead>
+                  <TableHead className="text-right">Timestamp</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {logs.length > 0 ? (
+                  logs.map((log) => (
+                    <TableRow key={log.id} className={cn(
+                      log.status === 'Failure' && 'bg-red-50 dark:bg-red-900/20'
+                    )}>
+                      <TableCell>
+                        <Badge variant={log.status === 'Success' ? 'secondary' : 'destructive'}>
+                          {log.status === 'Success' ? (
+                              <CheckCircle className="mr-1 h-3 w-3 text-green-500"/>
+                          ) : (
+                              <AlertCircle className="mr-1 h-3 w-3"/>
+                          )}
+                          {log.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-medium">{log.objectType}</TableCell>
+                      <TableCell className="text-muted-foreground">{log.message}</TableCell>
+                      <TableCell className="text-right font-mono">{log.recordCount ?? 'N/A'}</TableCell>
+                      <TableCell className="text-right text-muted-foreground whitespace-nowrap">
+                        {format(log.timestamp, "PPP p")}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-16">
+                      No synchronization logs found yet.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
     </Card>
   );
 }
@@ -1289,6 +1427,8 @@ export default function AdminPage() {
       </Card>
       
       <PriceBookTable />
+
+      <SyncStatusDashboard />
     </div>
   );
 }
