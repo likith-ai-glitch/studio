@@ -22,17 +22,13 @@ if (!admin.apps.length) {
     console.log(`✅ Firebase Admin initialized successfully for project: ${process.env.FIREBASE_PROJECT_ID}`);
   } catch (error: any) {
     console.error('❌ Firebase Admin initialization failed:', error.message);
-    // In a real application, you might want to exit the process or handle this more gracefully.
   }
 }
 
-// Initialize services only if the app was initialized
 if (admin.apps.length > 0) {
   adminDb = admin.firestore();
   adminAuth = admin.auth();
 } else {
-  // Provide dummy objects or throw an error if not initialized, to prevent crashes.
-  // This ensures that attempting to use these exports will fail loudly if init failed.
   const errorMessage = 'Firebase Admin SDK not initialized. Check your credentials and server logs.';
   adminDb = new Proxy({}, { get: () => { throw new Error(errorMessage); } }) as any;
   adminAuth = new Proxy({}, { get: () => { throw new Error(errorMessage); } }) as any;
