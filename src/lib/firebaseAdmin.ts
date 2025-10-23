@@ -1,18 +1,35 @@
 import * as admin from 'firebase-admin';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Check if the app is already initialized to prevent re-initialization
 if (!admin.apps.length) {
   try {
-    // Initialize Firebase Admin with credentials from environment variables
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        // Replace escaped newlines in the private key
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      }),
-    });
-    console.log('✅ Firebase Admin initialized successfully');
+    const serviceAccountPath = path.resolve(process.cwd(), '.service-account.json');
+    
+    if (fs.existsSync(serviceAccountPath)) {
+      // Use service account file if it exists
+      const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+      console.log('✅ Firebase Admin initialized successfully using service account file.');
+    } else {
+      // Fallback to environment variables if the file doesn't exist
+      const firebasePrivateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+      if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && firebasePrivateKey) {
+        admin.initializeApp({
+          credential: admin.credential.cert({
+            projectId: process.env.FIREBASE_PROJECT_ID,
+            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+            privateKey: firebasePrivateKey,
+          }),
+        });
+        console.log('✅ Firebase Admin initialized successfully using environment variables.');
+      } else {
+        throw new Error('Firebase Admin credentials are not set in environment variables.');
+      }
+    }
   } catch (error: any) {
     console.error('❌ Firebase Admin initialization failed:', error.message);
   }
