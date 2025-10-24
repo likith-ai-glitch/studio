@@ -393,12 +393,12 @@ function SyncStatusDashboard() {
               </TableHeader>
               <TableBody>
                 {logs.length > 0 ? (
-                  logs.map((log) => (
+                  logs.slice(0, 20).map((log) => (
                     <TableRow key={log.id} className={cn(
                       log.status === 'Failure' && 'bg-red-50 dark:bg-red-900/20'
                     )}>
                       <TableCell>
-                        <Badge variant={log.status === 'Success' ? 'secondary' : 'destructive'}>
+                        <Badge variant={log.status === 'Success' ? 'secondary' : 'destructive'} className={cn(log.status === 'Success' && 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300')}>
                           {log.status === 'Success' ? (
                               <CheckCircle className="mr-1 h-3 w-3 text-green-500"/>
                           ) : (
