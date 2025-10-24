@@ -5,7 +5,7 @@ export async function GET(request: Request) {
   console.log("🚀 Starting Salesforce → Firestore sync for Quotes and Quote Line Items...");
   
   // Ensure we use the correct base URL, even in deployed environments
-  const host = request.headers.get('host') || 'localhost:9007';
+  const host = request.headers.get('host') || 'localhost:9011';
   const protocol = host.startsWith('localhost') ? 'http' : 'https';
   const baseUrl = `${protocol}://${host}`;
 

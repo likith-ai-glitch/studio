@@ -13,7 +13,7 @@ async function checkCollection(collectionName: string, fields: string[]) {
     if (snapshot.empty) {
       console.log(`⚠️  Collection "${collectionName}" is empty or does not exist.`);
       console.log('   - Cause: The Salesforce sync may not have run or failed.');
-      console.log('   - Action: Trigger the sync at http://localhost:9007/api/salesforce/sync-all');
+      console.log('   - Action: Trigger the sync at http://localhost:9011/api/salesforce/sync-all');
       return { count: 0 };
     }
     

@@ -2,6 +2,24 @@
 import { NextResponse } from "next/server";
 import jsforce from "jsforce";
 import { adminDb } from "@/lib/firebase-admin";
+import { Timestamp } from "firebase-admin/firestore";
+
+async function logSyncEvent(data: {
+  objectType: string;
+  status: 'Success' | 'Failure';
+  message: string;
+  recordCount?: number;
+}) {
+  try {
+    await adminDb.collection('syncLogs').add({
+      ...data,
+      timestamp: Timestamp.now(),
+    });
+  } catch (error) {
+    console.error("FATAL: Could not write to syncLogs collection.", error);
+  }
+}
+
 
 export async function GET(
   request: Request,
@@ -41,9 +59,11 @@ export async function GET(
     );
 
     if (result.records.length === 0) {
+      const message = "No new quote line items found to sync.";
+      await logSyncEvent({ objectType: 'QuoteLineItem', status: 'Success', message, recordCount: 0 });
       return NextResponse.json({
         success: true,
-        message: "No new quote line items found to sync.",
+        message,
         count: 0,
       });
     }
@@ -61,6 +81,7 @@ export async function GET(
     await batch.commit();
     const successMessage = `✅ Synced ${result.records.length} quote line items to Firestore.`;
     console.log(successMessage);
+    await logSyncEvent({ objectType: 'QuoteLineItem', status: 'Success', message: successMessage, recordCount: result.records.length });
 
     // 4. Return Success Response
     return NextResponse.json({
@@ -72,6 +93,7 @@ export async function GET(
     // 5. Handle and Log Errors
     const errorMessage = `❌ Failed to sync Quote Line Items: ${err.message}`;
     console.error(errorMessage);
+     await logSyncEvent({ objectType: 'QuoteLineItem', status: 'Failure', message: err.message });
     return NextResponse.json(
       { success: false, error: errorMessage },
       { status: 500 }
