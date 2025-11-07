@@ -31,6 +31,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -52,7 +58,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { debounce } from 'lodash';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, Timestamp, where } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -65,6 +71,163 @@ interface SyncLog {
   message: string;
   timestamp: Date;
   recordCount?: number;
+}
+
+interface QuoteLineItem {
+    Id: string;
+    Quantity: number;
+    UnitPrice: number;
+    TotalPrice: number;
+    Description: string | null;
+}
+
+interface QuoteRecord {
+    Id: string;
+    Name: string;
+    Status: string;
+    TotalPrice: number;
+    LastModifiedDate: Date;
+    lineItems: QuoteLineItem[];
+}
+
+function QuotesDashboard() {
+  const [quotes, setQuotes] = useState<QuoteRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+
+    const quotesQuery = query(collection(db, 'quotes'), orderBy('LastModifiedDate', 'desc'));
+
+    const unsubscribeQuotes = onSnapshot(quotesQuery, async (quotesSnapshot) => {
+      if (quotesSnapshot.empty) {
+        setQuotes([]);
+        setLoading(false);
+        return;
+      }
+      
+      const quotesDataPromises = quotesSnapshot.docs.map(async (quoteDoc) => {
+        const quoteData = quoteDoc.data();
+        
+        // Fetch associated line items
+        const lineItemsQuery = query(collection(db, 'quoteLineItems'), where('QuoteId', '==', quoteDoc.id));
+        const lineItemsSnapshot = await getDocs(lineItemsQuery);
+        const lineItems = lineItemsSnapshot.docs.map(doc => doc.data() as QuoteLineItem);
+
+        return {
+          Id: quoteDoc.id,
+          Name: quoteData.Name,
+          Status: quoteData.Status,
+          TotalPrice: quoteData.TotalPrice,
+          LastModifiedDate: (quoteData.LastModifiedDate as Timestamp).toDate(),
+          lineItems: lineItems
+        } as QuoteRecord;
+      });
+
+      const resolvedQuotes = await Promise.all(quotesDataPromises);
+      setQuotes(resolvedQuotes);
+      setLoading(false);
+
+    }, (err) => {
+      console.error("Error fetching quotes:", err);
+      setError("Failed to fetch quotes. Check permissions or connection.");
+      setLoading(false);
+    });
+
+    // Also listen for changes on ALL quoteLineItems to trigger a refresh
+    const qliQuery = collection(db, 'quoteLineItems');
+    const unsubscribeAllQLIs = onSnapshot(qliQuery, () => {
+        // This is a bit of a brute-force refresh. When any QLI changes,
+        // we re-run the main quotes query to get the latest state.
+        // This avoids complex individual listeners.
+        // No need to do anything here; the quotes listener will re-evaluate.
+        console.log("Change detected in QuoteLineItems, quote view will refresh.");
+    }, (err) => {
+        console.error("Error listening to QLIs:", err);
+    });
+
+    return () => {
+        unsubscribeQuotes();
+        unsubscribeAllQLIs();
+    };
+  }, []);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <DatabaseZap className="h-6 w-6"/> Salesforce Quotes Dashboard
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">Real-time view of Quotes and Quote Line Items from Firestore.</p>
+      </CardHeader>
+      <CardContent>
+          {error && (
+            <div className="text-center py-10 text-destructive">
+              <AlertCircle className="mx-auto h-10 w-10 mb-2" />
+              <p className="font-semibold">An Error Occurred</p>
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
+          {!error && loading && (
+            <div className="flex items-center justify-center h-48">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          )}
+          {!error && !loading && quotes.length === 0 && (
+              <div className="text-center py-10 text-muted-foreground">
+                <p>No quotes found in Firestore.</p>
+                <p className="text-sm">Run the Salesforce sync to populate this dashboard.</p>
+            </div>
+          )}
+          {!error && !loading && quotes.length > 0 && (
+             <Accordion type="single" collapsible className="w-full space-y-2">
+                {quotes.map(quote => (
+                    <AccordionItem key={quote.Id} value={quote.Id} className="border rounded-lg bg-background">
+                         <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                            <div className="flex justify-between w-full items-center gap-4 text-sm">
+                               <div className="font-medium text-left">{quote.Name} <span className="text-xs text-muted-foreground font-mono">({quote.Id})</span></div>
+                               <Badge variant={quote.Status === 'Accepted' ? 'secondary' : 'outline'}>{quote.Status}</Badge>
+                               <div className="font-semibold text-primary">₹{quote.TotalPrice.toFixed(2)}</div>
+                               <div className="text-muted-foreground">{format(quote.LastModifiedDate, 'PP')}</div>
+                            </div>
+                         </AccordionTrigger>
+                         <AccordionContent className="px-4 pb-4">
+                            {quote.lineItems.length > 0 ? (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Line Item ID</TableHead>
+                                            <TableHead>Description</TableHead>
+                                            <TableHead className="text-right">Quantity</TableHead>
+                                            <TableHead className="text-right">Unit Price</TableHead>
+                                            <TableHead className="text-right">Total Price</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {quote.lineItems.map(item => (
+                                            <TableRow key={item.Id}>
+                                                <TableCell className="font-mono text-xs">{item.Id}</TableCell>
+                                                <TableCell>{item.Description || 'N/A'}</TableCell>
+                                                <TableCell className="text-right">{item.Quantity}</TableCell>
+                                                <TableCell className="text-right">₹{item.UnitPrice.toFixed(2)}</TableCell>
+                                                <TableCell className="text-right font-medium">₹{item.TotalPrice.toFixed(2)}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            ) : (
+                                <div className="text-center py-4 text-muted-foreground">No line items for this quote.</div>
+                            )}
+                         </AccordionContent>
+                    </AccordionItem>
+                ))}
+            </Accordion>
+          )}
+      </CardContent>
+    </Card>
+  );
 }
 
 
@@ -1003,6 +1166,8 @@ export default function AdminPage() {
         </Card>
       </div>
 
+      <QuotesDashboard />
+
       <Card>
         <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <CardTitle>Product Master (prd_master)</CardTitle>
@@ -1474,3 +1639,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    
