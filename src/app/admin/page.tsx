@@ -58,20 +58,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { debounce } from 'lodash';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, Timestamp, where } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, Timestamp, where, getDocs } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-
-
-interface SyncLog {
-  id: string;
-  objectType: string;
-  status: 'Success' | 'Failure';
-  message: string;
-  timestamp: Date;
-  recordCount?: number;
-}
 
 interface QuoteLineItem {
     Id: string;
@@ -470,171 +460,6 @@ function PriceBookTable() {
     </Card>
   );
 }
-
-function SyncStatusDashboard() {
-  const [logs, setLogs] = useState<SyncLog[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchLogs = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    
-    const logsCollection = collection(db, 'syncLogs');
-    const q = query(logsCollection, orderBy('timestamp', 'desc'));
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const logsData: SyncLog[] = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          objectType: data.objectType,
-          status: data.status,
-          message: data.message,
-          timestamp: (data.timestamp as Timestamp).toDate(),
-          recordCount: data.recordCount,
-        };
-      });
-      setLogs(logsData);
-      setLoading(false);
-    }, (err) => {
-      console.error("Error fetching sync logs:", err);
-      setError("Failed to fetch sync logs. Check permissions or connection.");
-      setLoading(false);
-    });
-
-    return unsubscribe;
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = fetchLogs();
-    return () => unsubscribe();
-  }, [fetchLogs]);
-
-  const handleRefresh = () => {
-    fetchLogs();
-  };
-
-  const summary = useMemo(() => {
-    return {
-      totalSuccess: logs.filter(log => log.status === 'Success').length,
-      totalFailure: logs.filter(log => log.status === 'Failure').length,
-      lastSync: logs.length > 0 ? logs[0].timestamp : null,
-    }
-  }, [logs]);
-
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div className="space-y-1">
-          <CardTitle className="flex items-center gap-2">
-              <DatabaseZap className="h-6 w-6"/> Salesforce Sync Status
-          </CardTitle>
-           <p className="text-sm text-muted-foreground">Real-time logs for Salesforce to Firestore synchronization.</p>
-        </div>
-        <Button onClick={handleRefresh} disabled={loading} variant="outline" size="sm">
-          {loading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="mr-2 h-4 w-4" />
-          )}
-          Refresh
-        </Button>
-      </CardHeader>
-      <CardContent>
-          {error && (
-            <div className="text-center py-10 text-destructive">
-              <AlertCircle className="mx-auto h-10 w-10 mb-2" />
-              <p className="font-semibold">An Error Occurred</p>
-              <p className="text-sm">{error}</p>
-            </div>
-          )}
-          {!error && loading && (
-            <div className="flex items-center justify-center h-48">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          )}
-          {!error && !loading && (
-             <>
-              <div className="grid gap-4 md:grid-cols-3 mb-4 border-b pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-green-100 rounded-md dark:bg-green-900/50">
-                    <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Successful Syncs</div>
-                    <div className="text-2xl font-bold">{summary.totalSuccess}</div>
-                  </div>
-                </div>
-                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-red-100 rounded-md dark:bg-red-900/50">
-                    <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Failed Syncs</div>
-                    <div className="text-2xl font-bold">{summary.totalFailure}</div>
-                  </div>
-                </div>
-                 <div className="flex items-center gap-3">
-                   <div className="p-3 bg-blue-100 rounded-md dark:bg-blue-900/50">
-                    <RefreshCw className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Last Sync Time</div>
-                    <div className="text-lg font-semibold">{summary.lastSync ? format(summary.lastSync, 'Pp') : 'N/A'}</div>
-                  </div>
-                </div>
-              </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-24">Status</TableHead>
-                    <TableHead>Object</TableHead>
-                    <TableHead>Message</TableHead>
-                    <TableHead className="text-right">Records</TableHead>
-                    <TableHead className="text-right">Timestamp</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {logs.length > 0 ? (
-                    logs.slice(0, 20).map((log) => (
-                      <TableRow key={log.id} className={cn(
-                        log.status === 'Failure' ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30' : 'bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30'
-                      )}>
-                        <TableCell>
-                          <Badge variant={log.status === 'Success' ? 'secondary' : 'destructive'} className={cn(log.status === 'Success' && 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300')}>
-                            {log.status === 'Success' ? (
-                                <CheckCircle className="mr-1 h-3 w-3 text-green-500"/>
-                            ) : (
-                                <AlertCircle className="mr-1 h-3 w-3"/>
-                            )}
-                            {log.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-medium">{log.objectType}</TableCell>
-                        <TableCell className="text-muted-foreground text-xs">{log.message}</TableCell>
-                        <TableCell className="text-right font-mono">{log.recordCount ?? 'N/A'}</TableCell>
-                        <TableCell className="text-right text-muted-foreground whitespace-nowrap">
-                          {format(log.timestamp, "PPP p")}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground py-16">
-                        No synchronization logs found yet.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </>
-          )}
-        </CardContent>
-    </Card>
-  );
-}
-
 
 export default function AdminPage() {
   const { 
@@ -1634,8 +1459,6 @@ export default function AdminPage() {
       </Card>
       
       <PriceBookTable />
-
-      <SyncStatusDashboard />
     </div>
   );
 }
