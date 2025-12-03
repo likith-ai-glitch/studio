@@ -39,7 +39,7 @@ export default function Home() {
         </div>
          <div className="absolute inset-0 z-0 opacity-20">
             <Image
-                src="https://placehold.co/1200x400.png"
+                src="https://picsum.photos/seed/shop/1200/400"
                 alt="Shop background"
                 fill
                 className="object-cover"
@@ -94,5 +94,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
