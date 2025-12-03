@@ -1,5 +1,14 @@
-/** Minimal next.config.js to avoid invalid keys */
-module.exports = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   reactStrictMode: true,
-  // If you need experimental flags, add them carefully per Next.js docs.
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'picsum.photos',
+      },
+    ],
+  },
 };
+
+module.exports = nextConfig;
