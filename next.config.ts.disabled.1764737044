@@ -1,0 +1,10 @@
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  experimental: {
+    // allow Studio dev origin + localhost and network
+    allowedDevOrigins: ["http://localhost:9013", "http://9013-firebase-studio-1754066778009.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev", "http://10.88.0.3:9013"],
+  },
+};
+
+export default nextConfig;
