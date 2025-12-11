@@ -125,63 +125,6 @@ export default function AuditLogPage() {
             <h1 className="text-4xl font-bold font-headline">Audit Log</h1>
             <p className="text-lg text-muted-foreground mt-2">A real-time log of user login events in your application.</p>
         </div>
-        {isAdmin && (
-           <Dialog open={isAddUserOpen} onOpenChange={setAddUserOpen}>
-              <DialogTrigger asChild>
-                  <Button>
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Add User
-                  </Button>
-              </DialogTrigger>
-              <DialogContent>
-                 <DialogHeader>
-                    <DialogTitle>Create a New User</DialogTitle>
-                    <DialogDescription>
-                        Enter the email and a temporary password for the new user. They will be able to log in immediately with app user privileges.
-                    </DialogDescription>
-                 </DialogHeader>
-                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(handleAddUser)} className="space-y-4 py-4">
-                        <FormField
-                            control={form.control}
-                            name="email"
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Email</FormLabel>
-                                <FormControl>
-                                <Input placeholder="new.user@example.com" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="password"
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Password</FormLabel>
-                                <FormControl>
-                                <Input type="password" placeholder="••••••••" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                         <DialogFooter>
-                            <DialogClose asChild>
-                                <Button type="button" variant="outline" disabled={isSubmitting}>Cancel</Button>
-                            </DialogClose>
-                            <Button type="submit" disabled={isSubmitting}>
-                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Create User
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                 </Form>
-              </DialogContent>
-           </Dialog>
-        )}
       </header>
       
       <Card>
