@@ -32,7 +32,11 @@ const QuoteInputSchema = z.object({
   }).optional(),
   discount: z.number().optional(),
   tax: z.number().optional(), // Represents GST %
-});
+  // These fields were missing from the base schema, causing a validation error.
+  startDate: z.date().optional().nullable(),
+  lastUpdatedDate: z.date().optional().nullable(),
+}).catchall(z.any());
+
 
 const QuoteOutputSchema = z.object({
   emailSubject: z.string().describe('The subject line for the quote email.'),
@@ -43,7 +47,7 @@ export type QuoteOutput = z.infer<typeof QuoteOutputSchema>;
 
 export async function sendQuote(input: Quote): Promise<QuoteOutput> {
   const itemsTotal = input.items.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const indicativeTotal = Object.values(input.indicativePricing || {}).reduce((acc, val) => acc + (Number(val) || 0), 0);
+  const indicativeTotal = input.indicativePricing?.additionalCost || 0;
   const subTotal = itemsTotal + indicativeTotal;
   const taxAmount = subTotal * ((input.tax || 0) / 100);
   const grandTotal = subTotal + taxAmount;
@@ -52,8 +56,8 @@ export async function sendQuote(input: Quote): Promise<QuoteOutput> {
   return sendQuoteFlow(flowInput);
 }
 
-const promptInputSchema = QuoteInputSchema.extend({ 
-    subTotal: z.number(), 
+const promptInputSchema = QuoteInputSchema.extend({
+    subTotal: z.number(),
     grandTotal: z.number(),
     taxAmount: z.number(),
 });
