@@ -32,7 +32,6 @@ const QuoteInputSchema = z.object({
   }).optional(),
   discount: z.number().optional(),
   tax: z.number().optional(), // Represents GST %
-  // These fields were missing from the base schema, causing a validation error.
   startDate: z.date().optional().nullable(),
   lastUpdatedDate: z.date().optional().nullable(),
 }).catchall(z.any());
