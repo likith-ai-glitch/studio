@@ -28,13 +28,19 @@ const QuoteInputSchema = z.object({
   approvalStatus: z.enum(['Draft', 'SentForApproval', 'Approved']),
   indicativePricing: z.object({
     additionalCost: z.number(),
+    totalProductPrice: z.number(), // Added for completeness
   }).optional(),
   discount: z.number().optional(),
-  tax: z.number().optional(), // Represents GST %
+  tax: z.number().optional(),
+  // These fields are calculated but need to be in the schema for validation
   subTotal: z.number(),
   grandTotal: z.number(),
   taxAmount: z.number(),
-});
+  // Correcting date types
+  startDate: z.date().optional().nullable(),
+  lastUpdatedDate: z.date().optional().nullable(),
+}).catchall(z.any());
+
 
 const QuoteOutputSchema = z.object({
   emailSubject: z.string().describe('The subject line for the quote email.'),
@@ -51,7 +57,7 @@ const prompt = ai.definePrompt({
   **CRITICAL INSTRUCTIONS:**
   1.  The output for 'emailBody' MUST be a valid HTML document. Do not just return plain text.
   2.  Present the quote details in an HTML table. Use '<table>', '<thead>', '<tbody>', '<tr>', '<th>', and '<td>' tags.
-  3.  The item details section MUST be a table with columns: 'Description', 'Quantity', and 'Price'.
+  3.  The item details section MUST be a table with columns: 'Description', 'Quantity', and 'Unit Price'.
   4.  The financial summary (Subtotal, GST, Grand Total) MUST also be presented clearly in a two-column table layout.
   5.  Present all monetary values in Rupees. Use the format "₹{value}". Do not use any other currency symbol.
 
@@ -62,14 +68,14 @@ const prompt = ai.definePrompt({
   {{#each items}}
   - Name: {{name}} ({{brand}})
   - Quantity: {{quantity}}
-  - Unit Price: {{{price}}}
+  - Unit Price: ₹{{price}}
   {{/each}}
 
   **Financials:**
-  - Subtotal: {{{subTotal}}}
-  - Additional Cost: {{{indicativePricing.additionalCost}}}
-  - GST ({{tax}}%): +{{{taxAmount}}}
-  - Grand Total: {{{grandTotal}}}
+  - Subtotal: ₹{{{subTotal}}}
+  - Additional Cost: ₹{{{indicativePricing.additionalCost}}}
+  - GST ({{tax}}%): + ₹{{{taxAmount}}}
+  - Grand Total: ₹{{{grandTotal}}}
 
   **Metadata:**
   - Quote Status: {{status}}
@@ -89,13 +95,13 @@ export async function sendQuote(input: Quote): Promise<QuoteOutput> {
   const taxAmount = subTotal * ((input.tax || 0) / 100);
   const grandTotal = subTotal + taxAmount;
 
-  const flowInput = {
+  const promptInput = {
     ...input,
     subTotal,
     grandTotal,
     taxAmount,
   };
 
-  const { output } = await prompt(flowInput);
+  const { output } = await prompt(promptInput);
   return output!;
 }
