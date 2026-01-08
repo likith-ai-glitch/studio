@@ -28,18 +28,19 @@ const QuoteInputSchema = z.object({
   approvalStatus: z.enum(['Draft', 'SentForApproval', 'Approved']),
   indicativePricing: z.object({
     additionalCost: z.number(),
-    totalProductPrice: z.number(), // Added for completeness
+    totalProductPrice: z.number(),
   }).optional(),
   discount: z.number().optional(),
   tax: z.number().optional(),
-  // These fields are calculated but need to be in the schema for validation
-  subTotal: z.number(),
-  grandTotal: z.number(),
-  taxAmount: z.number(),
-  // Correcting date types
   startDate: z.date().optional().nullable(),
   lastUpdatedDate: z.date().optional().nullable(),
 }).catchall(z.any());
+
+const QuotePromptInputSchema = QuoteInputSchema.extend({
+  subTotal: z.number(),
+  grandTotal: z.number(),
+  taxAmount: z.number(),
+});
 
 
 const QuoteOutputSchema = z.object({
@@ -50,7 +51,7 @@ export type QuoteOutput = z.infer<typeof QuoteOutputSchema>;
 
 const prompt = ai.definePrompt({
   name: 'sendQuotePrompt',
-  input: { schema: QuoteInputSchema },
+  input: { schema: QuotePromptInputSchema }, // Use the extended schema
   output: { schema: QuoteOutputSchema },
   prompt: `You are an expert sales assistant for an e-commerce store called Shopstream. Your task is to generate a professional and friendly HTML email for a customer quote.
 
