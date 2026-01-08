@@ -17,8 +17,8 @@ const QuoteInputSchema = z.object({
   items: z.array(z.object({
     id: z.string(),
     name: z.string(),
-    price: z.number(),
-    quantity: z.number(),
+    price: z.number(), // Corrected from z.string()
+    quantity: z.number(), // Corrected from z.string()
     brand: z.string(),
     category: z.string(),
     colour: z.string().optional(),
@@ -36,9 +36,8 @@ const QuoteInputSchema = z.object({
   lastUpdatedDate: z.date().optional().nullable(),
   subTotal: z.number(),
   grandTotal: z.number(),
-  taxAmount: z.number(),
+  taxAmount: z_number(),
 });
-
 
 const QuoteOutputSchema = z.object({
   emailSubject: z.string().describe('The subject line for the quote email.'),
@@ -93,7 +92,6 @@ const prompt = ai.definePrompt({
   `,
 });
 
-
 export async function sendQuote(input: Quote): Promise<QuoteOutput> {
   const itemsTotal = input.items.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const indicativeTotal = input.indicativePricing?.additionalCost || 0;
@@ -101,13 +99,13 @@ export async function sendQuote(input: Quote): Promise<QuoteOutput> {
   const taxAmount = subTotal * ((input.tax || 0) / 100);
   const grandTotal = subTotal + taxAmount;
 
-  const promptInput = { 
-    ...input, 
-    subTotal, 
-    grandTotal, 
+  const flowInput = {
+    ...input,
+    subTotal,
+    grandTotal,
     taxAmount,
   };
-  
-  const { output } = await prompt(promptInput);
+
+  const { output } = await prompt(flowInput);
   return output!;
 }
