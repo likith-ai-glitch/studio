@@ -34,7 +34,10 @@ const QuoteInputSchema = z.object({
   tax: z.number().optional(), // Represents GST %
   startDate: z.date().optional().nullable(),
   lastUpdatedDate: z.date().optional().nullable(),
-}).catchall(z.any());
+  subTotal: z.number(),
+  grandTotal: z.number(),
+  taxAmount: z.number(),
+});
 
 
 const QuoteOutputSchema = z.object({
@@ -43,27 +46,9 @@ const QuoteOutputSchema = z.object({
 });
 export type QuoteOutput = z.infer<typeof QuoteOutputSchema>;
 
-
-export async function sendQuote(input: Quote): Promise<QuoteOutput> {
-  const itemsTotal = input.items.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const indicativeTotal = input.indicativePricing?.additionalCost || 0;
-  const subTotal = itemsTotal + indicativeTotal;
-  const taxAmount = subTotal * ((input.tax || 0) / 100);
-  const grandTotal = subTotal + taxAmount;
-
-  const flowInput = { ...input, subTotal, grandTotal, taxAmount, indicativePricing: input.indicativePricing };
-  return sendQuoteFlow(flowInput);
-}
-
-const promptInputSchema = QuoteInputSchema.extend({
-    subTotal: z.number(),
-    grandTotal: z.number(),
-    taxAmount: z.number(),
-});
-
 const prompt = ai.definePrompt({
   name: 'sendQuotePrompt',
-  input: { schema: promptInputSchema },
+  input: { schema: QuoteInputSchema },
   output: { schema: QuoteOutputSchema },
   prompt: `You are an expert sales assistant for an e-commerce store called Shopstream.
   
@@ -108,14 +93,21 @@ const prompt = ai.definePrompt({
   `,
 });
 
-const sendQuoteFlow = ai.defineFlow(
-  {
-    name: 'sendQuoteFlow',
-    inputSchema: promptInputSchema,
-    outputSchema: QuoteOutputSchema,
-  },
-  async (input) => {
-    const { output } = await prompt(input);
-    return output!;
-  }
-);
+
+export async function sendQuote(input: Quote): Promise<QuoteOutput> {
+  const itemsTotal = input.items.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  const indicativeTotal = input.indicativePricing?.additionalCost || 0;
+  const subTotal = itemsTotal + indicativeTotal;
+  const taxAmount = subTotal * ((input.tax || 0) / 100);
+  const grandTotal = subTotal + taxAmount;
+
+  const promptInput = { 
+    ...input, 
+    subTotal, 
+    grandTotal, 
+    taxAmount,
+  };
+  
+  const { output } = await prompt(promptInput);
+  return output!;
+}
