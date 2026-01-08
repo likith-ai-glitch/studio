@@ -48,7 +48,7 @@ export async function sendQuote(input: Quote): Promise<QuoteOutput> {
   const taxAmount = subTotal * ((input.tax || 0) / 100);
   const grandTotal = subTotal + taxAmount;
 
-  const flowInput = { ...input, subTotal, grandTotal, taxAmount };
+  const flowInput = { ...input, subTotal, grandTotal, taxAmount, indicativePricing: input.indicativePricing };
   return sendQuoteFlow(flowInput);
 }
 
