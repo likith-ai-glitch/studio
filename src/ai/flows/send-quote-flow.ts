@@ -17,8 +17,8 @@ const QuoteInputSchema = z.object({
   items: z.array(z.object({
     id: z.string(),
     name: z.string(),
-    price: z.number(), // Corrected from z.string()
-    quantity: z.number(), // Corrected from z.string()
+    price: z.number(),
+    quantity: z.number(),
     brand: z.string(),
     category: z.string(),
     colour: z.string().optional(),
@@ -32,11 +32,9 @@ const QuoteInputSchema = z.object({
   }).optional(),
   discount: z.number().optional(),
   tax: z.number().optional(), // Represents GST %
-  startDate: z.date().optional().nullable(),
-  lastUpdatedDate: z.date().optional().nullable(),
   subTotal: z.number(),
   grandTotal: z.number(),
-  taxAmount: z_number(),
+  taxAmount: z.number(),
 });
 
 const QuoteOutputSchema = z.object({
@@ -49,46 +47,39 @@ const prompt = ai.definePrompt({
   name: 'sendQuotePrompt',
   input: { schema: QuoteInputSchema },
   output: { schema: QuoteOutputSchema },
-  prompt: `You are an expert sales assistant for an e-commerce store called Shopstream.
-  
-  You are tasked with generating a professional and friendly email to a customer with their requested quote.
-  Present all monetary values in Rupees (e.g., "Rs. 500.00" or "₹500.00").
+  prompt: `You are an expert sales assistant for an e-commerce store called Shopstream. Your task is to generate a professional and friendly HTML email for a customer quote.
 
-  The quote details are as follows:
+  **CRITICAL INSTRUCTIONS:**
+  1.  The output for 'emailBody' MUST be a valid HTML document.
+  2.  Present the quote details in an HTML table. Use '<table>', '<thead>', '<tbody>', '<tr>', '<th>', and '<td>' tags.
+  3.  The item details section MUST be a table with columns: 'Description', 'Quantity', and 'Price'.
+  4.  The financial summary (Subtotal, GST, Grand Total) MUST also be presented clearly, preferably in a two-column layout. A table is suitable for this as well.
+  5.  Present all monetary values in Rupees. Use the format "₹{value}". Do not use any other currency symbol.
+
+  **Quote Details:**
   - Quote Number: {{{quoteNumber}}}
-  - Quote Status: {{{status}}}
-  - Quote Type: {{{type}}}
-  - Approval Status: {{{approvalStatus}}}
 
-  The items in the quote are:
+  **Items:**
   {{#each items}}
-  - {{quantity}} x {{name}} ({{brand}}) - {{price}} each
+  - Name: {{name}} ({{brand}})
+  - Quantity: {{quantity}}
+  - Unit Price: ₹{{price}}
   {{/each}}
 
-  {{#if indicativePricing.additionalCost}}
-  Additional Costs:
-  - Additional Cost: {{indicativePricing.additionalCost}}
-  {{/if}}
+  **Financials:**
+  - Subtotal: ₹{{subTotal}}
+  - Additional Cost: ₹{{indicativePricing.additionalCost}}
+  - GST ({{tax}}%): +₹{{taxAmount}}
+  - Grand Total: ₹{{grandTotal}}
 
-  The subtotal for the items and additional costs is: {{subTotal}}
-  
-  {{#if discount}}
-  - Discount: {{discount}}% (Informational)
-  {{/if}}
+  **Metadata:**
+  - Quote Status: {{status}}
+  - Quote Type: {{type}}
+  - Approval Status: {{approvalStatus}}
 
-  {{#if tax}}
-  - GST ({{tax}}%): +{{taxAmount}}
-  {{/if}}
-
-  The final Grand Total for the quote is: {{grandTotal}}
-
-  Generate the content for the email.
-  - The subject line should be "Your Quote from Shopstream ({{{quoteNumber}}})".
-  - The body should be a polite HTML message. Start by thanking the customer for their interest.
-  - Present the items, additional costs, discount (as informational), GST, and grand total in a clear, easy-to-read format. A table would be ideal.
-  - Clearly state the final grand total.
-  - Mention the quote's status and type.
-  - End with a friendly closing, letting them know you are available for any questions.
+  **EMAIL CONTENT TO GENERATE:**
+  - **emailSubject**: "Your Quote from Shopstream ({{{quoteNumber}}})"
+  - **emailBody**: Generate an HTML body. Start with a polite greeting. Then, display all the quote details inside a well-formatted HTML structure as per the critical instructions above. End with a friendly closing.
   `,
 });
 
