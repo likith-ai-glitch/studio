@@ -65,6 +65,7 @@ const prompt = ai.definePrompt({
   prompt: `You are an expert sales assistant for an e-commerce store called Shopstream.
   
   You are tasked with generating a professional and friendly email to a customer with their requested quote.
+  Present all monetary values in Rupees (e.g., "Rs. 500.00" or "₹500.00").
 
   The quote details are as follows:
   - Quote Number: {{{quoteNumber}}}
@@ -74,25 +75,25 @@ const prompt = ai.definePrompt({
 
   The items in the quote are:
   {{#each items}}
-  - {{quantity}} x {{name}} ({{brand}}) - ₹{{price}} each
+  - {{quantity}} x {{name}} ({{brand}}) - {{price}} each
   {{/each}}
 
   {{#if indicativePricing.additionalCost}}
   Additional Costs:
-  - Additional Cost: ₹{{indicativePricing.additionalCost}}
+  - Additional Cost: {{indicativePricing.additionalCost}}
   {{/if}}
 
-  The subtotal for the items and additional costs is: ₹{{subTotal}}
+  The subtotal for the items and additional costs is: {{subTotal}}
   
   {{#if discount}}
   - Discount: {{discount}}% (Informational)
   {{/if}}
 
   {{#if tax}}
-  - GST ({{tax}}%): +₹{{taxAmount}}
+  - GST ({{tax}}%): +{{taxAmount}}
   {{/if}}
 
-  The final Grand Total for the quote is: ₹{{grandTotal}}
+  The final Grand Total for the quote is: {{grandTotal}}
 
   Generate the content for the email.
   - The subject line should be "Your Quote from Shopstream ({{{quoteNumber}}})".
