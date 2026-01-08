@@ -34,7 +34,7 @@ const QuoteInputSchema = z.object({
   tax: z.number().optional(),
   startDate: z.date().optional().nullable(),
   lastUpdatedDate: z.date().optional().nullable(),
-}).catchall(z.any());
+});
 
 const QuotePromptInputSchema = QuoteInputSchema.extend({
   subTotal: z.number(),
