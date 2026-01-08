@@ -4,7 +4,6 @@
  * @fileOverview A flow for generating a customer-facing quote email.
  *
  * - sendQuote - Generates an email to send a quote to a customer.
- * - QuoteInput - The input type for the flow.
  * - QuoteOutput - The return type for the flow.
  */
 
@@ -50,10 +49,10 @@ const prompt = ai.definePrompt({
   prompt: `You are an expert sales assistant for an e-commerce store called Shopstream. Your task is to generate a professional and friendly HTML email for a customer quote.
 
   **CRITICAL INSTRUCTIONS:**
-  1.  The output for 'emailBody' MUST be a valid HTML document.
+  1.  The output for 'emailBody' MUST be a valid HTML document. Do not just return plain text.
   2.  Present the quote details in an HTML table. Use '<table>', '<thead>', '<tbody>', '<tr>', '<th>', and '<td>' tags.
   3.  The item details section MUST be a table with columns: 'Description', 'Quantity', and 'Price'.
-  4.  The financial summary (Subtotal, GST, Grand Total) MUST also be presented clearly, preferably in a two-column layout. A table is suitable for this as well.
+  4.  The financial summary (Subtotal, GST, Grand Total) MUST also be presented clearly in a two-column table layout.
   5.  Present all monetary values in Rupees. Use the format "₹{value}". Do not use any other currency symbol.
 
   **Quote Details:**
@@ -63,14 +62,14 @@ const prompt = ai.definePrompt({
   {{#each items}}
   - Name: {{name}} ({{brand}})
   - Quantity: {{quantity}}
-  - Unit Price: ₹{{price}}
+  - Unit Price: {{{price}}}
   {{/each}}
 
   **Financials:**
-  - Subtotal: ₹{{subTotal}}
-  - Additional Cost: ₹{{indicativePricing.additionalCost}}
-  - GST ({{tax}}%): +₹{{taxAmount}}
-  - Grand Total: ₹{{grandTotal}}
+  - Subtotal: {{{subTotal}}}
+  - Additional Cost: {{{indicativePricing.additionalCost}}}
+  - GST ({{tax}}%): +{{{taxAmount}}}
+  - Grand Total: {{{grandTotal}}}
 
   **Metadata:**
   - Quote Status: {{status}}
