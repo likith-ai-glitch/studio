@@ -1,4 +1,6 @@
 
+'use server';
+
 import { NextResponse } from "next/server";
 import jsforce from "jsforce";
 import { adminDb } from "@/lib/firebase-admin";
