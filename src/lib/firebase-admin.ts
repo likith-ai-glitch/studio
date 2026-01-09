@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import * as admin from 'firebase-admin';
 
 let adminDb: admin.firestore.Firestore;
@@ -29,9 +30,15 @@ if (admin.apps.length > 0) {
   adminDb = admin.firestore();
   adminAuth = admin.auth();
 } else {
+  // To prevent hard crashes, we'll assign a proxy that throws a clear error when used.
   const errorMessage = 'Firebase Admin SDK not initialized. Check your credentials and server logs.';
-  adminDb = new Proxy({}, { get: () => { throw new Error(errorMessage); } }) as any;
-  adminAuth = new Proxy({}, { get: () => { throw new Error(errorMessage); } }) as any;
+  const errorProxy = new Proxy({}, {
+    get: () => {
+      throw new Error(errorMessage);
+    }
+  });
+  adminDb = errorProxy as admin.firestore.Firestore;
+  adminAuth = errorProxy as admin.auth.Auth;
 }
 
 
