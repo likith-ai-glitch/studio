@@ -47,7 +47,7 @@ export type QuoteOutput = z.infer<typeof QuoteOutputSchema>;
 
 const prompt = ai.definePrompt({
   name: 'sendQuotePrompt',
-  input: { schema: QuoteInputSchema },
+  input: { schema: QuoteInputSchema.extend({ taxAmount: z.number() }) },
   output: { schema: QuoteOutputSchema },
   prompt: `You are an expert sales assistant for an e-commerce store called Shopstream. Your task is to generate a professional and friendly HTML email for a customer quote.
 
@@ -71,7 +71,7 @@ const prompt = ai.definePrompt({
   **Financials:**
   - Subtotal: ₹{{{subTotal}}}
   - Additional Cost: ₹{{{indicativePricing.additionalCost}}}
-  - GST ({{tax}}%): + ₹${(subTotal * (tax / 100)).toFixed(2)}
+  - GST ({{tax}}%): + ₹{{taxAmount}}
   - Grand Total: ₹{{{grandTotal}}}
 
   **Metadata:**
@@ -91,7 +91,7 @@ export async function sendQuote(input: Quote): Promise<QuoteOutput> {
   
   const promptInput = {
     ...input,
-    taxAmount,
+    taxAmount: parseFloat(taxAmount.toFixed(2)),
   };
 
   const { output } = await prompt(promptInput);
