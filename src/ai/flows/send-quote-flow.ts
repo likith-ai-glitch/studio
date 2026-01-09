@@ -22,6 +22,7 @@ const QuoteInputSchema = z.object({
     category: z.string(),
     colour: z.string().optional(),
     partName: z.string().optional(),
+    productId: z.string(),
   })),
   status: z.enum(['Draft', 'InProgress', 'Final']),
   type: z.enum(['Master', 'Transaction']),
@@ -29,9 +30,9 @@ const QuoteInputSchema = z.object({
   indicativePricing: z.object({
     additionalCost: z.number(),
     totalProductPrice: z.number(),
-  }).optional(),
-  discount: z.number().optional(),
-  tax: z.number().optional(),
+  }),
+  discount: z.number(),
+  tax: z.number(),
   startDate: z.date().optional().nullable(),
   lastUpdatedDate: z.date().optional().nullable(),
 });
