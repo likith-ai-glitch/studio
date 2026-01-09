@@ -35,6 +35,8 @@ export interface Quote {
   indicativePricing: IndicativePricing;
   discount: number;
   tax: number; // Represents GST %
+  subTotal?: number;
+  grandTotal?: number;
 }
 
 interface QuoteContextType {

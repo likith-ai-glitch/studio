@@ -35,14 +35,9 @@ const QuoteInputSchema = z.object({
   tax: z.number(),
   startDate: z.date().nullish(),
   lastUpdatedDate: z.date().nullish(),
-});
-
-const QuotePromptInputSchema = QuoteInputSchema.extend({
   subTotal: z.number(),
   grandTotal: z.number(),
-  taxAmount: z.number(),
 });
-
 
 const QuoteOutputSchema = z.object({
   emailSubject: z.string().describe('The subject line for the quote email.'),
@@ -52,7 +47,7 @@ export type QuoteOutput = z.infer<typeof QuoteOutputSchema>;
 
 const prompt = ai.definePrompt({
   name: 'sendQuotePrompt',
-  input: { schema: QuotePromptInputSchema },
+  input: { schema: QuoteInputSchema },
   output: { schema: QuoteOutputSchema },
   prompt: `You are an expert sales assistant for an e-commerce store called Shopstream. Your task is to generate a professional and friendly HTML email for a customer quote.
 
@@ -76,7 +71,7 @@ const prompt = ai.definePrompt({
   **Financials:**
   - Subtotal: ₹{{{subTotal}}}
   - Additional Cost: ₹{{{indicativePricing.additionalCost}}}
-  - GST ({{tax}}%): + ₹{{{taxAmount}}}
+  - GST ({{tax}}%): + ₹${(subTotal * (tax / 100)).toFixed(2)}
   - Grand Total: ₹{{{grandTotal}}}
 
   **Metadata:**
@@ -90,17 +85,12 @@ const prompt = ai.definePrompt({
   `,
 });
 
-export async function sendQuote(input: Quote): Promise<QuoteOutput> {
-  const itemsTotal = input.items.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const indicativeTotal = input.indicativePricing?.additionalCost || 0;
-  const subTotal = itemsTotal + indicativeTotal;
-  const taxAmount = subTotal * ((input.tax || 0) / 100);
-  const grandTotal = subTotal + taxAmount;
 
+export async function sendQuote(input: Quote): Promise<QuoteOutput> {
+  const taxAmount = (input.subTotal || 0) * ((input.tax || 0) / 100);
+  
   const promptInput = {
     ...input,
-    subTotal,
-    grandTotal,
     taxAmount,
   };
 

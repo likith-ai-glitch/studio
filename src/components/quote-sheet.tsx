@@ -84,7 +84,13 @@ export function QuoteSheet() {
       description: 'Generating quote details and preparing document.',
     });
     try {
-      const emailContent = await sendQuote(quote);
+      const quoteWithTotals = {
+        ...quote,
+        subTotal,
+        grandTotal,
+      };
+
+      const emailContent = await sendQuote(quoteWithTotals);
 
       await addDoc(notificationsCollectionRef, {
         customer: {
@@ -138,6 +144,10 @@ export function QuoteSheet() {
   const totalDiscountAmount = useMemo(() => {
       return subTotal * ((quote.discount || 0) / 100);
   }, [subTotal, quote.discount]);
+
+  const taxAmount = useMemo(() => {
+    return subTotal * ((quote.tax || 0) / 100);
+  }, [subTotal, quote.tax]);
 
   return (
     <Sheet open={isQuoteSheetOpen} onOpenChange={setIsQuoteSheetOpen}>
@@ -314,7 +324,7 @@ export function QuoteSheet() {
                 {quote.tax > 0 && (
                    <div className="flex justify-between text-sm text-muted-foreground">
                     <p>GST ({quote.tax || 0}%)</p>
-                    <p>+ ₹{(subTotal * ((quote.tax || 0) / 100)).toFixed(2)}</p>
+                    <p>+ ₹{taxAmount.toFixed(2)}</p>
                   </div>
                 )}
                  <Separator />
