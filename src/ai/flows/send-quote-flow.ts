@@ -39,6 +39,12 @@ const QuoteInputSchema = z.object({
   grandTotal: z.number(),
 });
 
+// Define a stable schema for the prompt input that includes the calculated tax amount.
+const QuotePromptInputSchema = QuoteInputSchema.extend({
+  taxAmount: z.number(),
+});
+
+
 const QuoteOutputSchema = z.object({
   emailSubject: z.string().describe('The subject line for the quote email.'),
   emailBody: z.string().describe('The HTML body content for the quote email.'),
@@ -47,7 +53,7 @@ export type QuoteOutput = z.infer<typeof QuoteOutputSchema>;
 
 const prompt = ai.definePrompt({
   name: 'sendQuotePrompt',
-  input: { schema: QuoteInputSchema.extend({ taxAmount: z.number() }) },
+  input: { schema: QuotePromptInputSchema }, // Use the stable, extended schema
   output: { schema: QuoteOutputSchema },
   prompt: `You are an expert sales assistant for an e-commerce store called Shopstream. Your task is to generate a professional and friendly HTML email for a customer quote.
 
