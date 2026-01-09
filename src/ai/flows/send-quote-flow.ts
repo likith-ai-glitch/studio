@@ -16,8 +16,8 @@ const QuoteInputSchema = z.object({
   items: z.array(z.object({
     id: z.string(),
     name: z.string(),
-    price: z.number(), // Corrected from z.string()
-    quantity: z.number(), // Corrected from z.string()
+    price: z.number(),
+    quantity: z.number(),
     brand: z.string(),
     category: z.string(),
     colour: z.string().optional(),
