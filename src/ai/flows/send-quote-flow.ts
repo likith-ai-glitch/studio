@@ -33,15 +33,8 @@ const QuoteInputSchema = z.object({
   }),
   discount: z.number(),
   tax: z.number(),
-  startDate: z.date().nullish(),
-  lastUpdatedDate: z.date().nullish(),
-  subTotal: z.number(),
-  grandTotal: z.number(),
-});
-
-// Define a stable schema for the prompt input that includes the calculated tax amount.
-const QuotePromptInputSchema = QuoteInputSchema.extend({
-  taxAmount: z.number(),
+  subTotal: z.number().optional(),
+  grandTotal: z.number().optional(),
 });
 
 
@@ -53,7 +46,7 @@ export type QuoteOutput = z.infer<typeof QuoteOutputSchema>;
 
 const prompt = ai.definePrompt({
   name: 'sendQuotePrompt',
-  input: { schema: QuotePromptInputSchema }, // Use the stable, extended schema
+  input: { schema: QuoteInputSchema },
   output: { schema: QuoteOutputSchema },
   prompt: `You are an expert sales assistant for an e-commerce store called Shopstream. Your task is to generate a professional and friendly HTML email for a customer quote.
 
@@ -62,7 +55,8 @@ const prompt = ai.definePrompt({
   2.  Present the quote details in an HTML table. Use '<table>', '<thead>', '<tbody>', '<tr>', '<th>', and '<td>' tags.
   3.  The item details section MUST be a table with columns: 'Description', 'Quantity', and 'Unit Price'.
   4.  The financial summary (Subtotal, GST, Grand Total) MUST also be presented clearly in a two-column table layout.
-  5.  Present all monetary values in Rupees. Use the format "₹{value}". Do not use any other currency symbol.
+  5.  Calculate the GST amount by applying the 'tax' percentage to the 'subTotal'.
+  6.  Present all monetary values in Rupees. Use the format "₹{value}". Do not use any other currency symbol.
 
   **Quote Details:**
   - Quote Number: {{{quoteNumber}}}
@@ -77,7 +71,7 @@ const prompt = ai.definePrompt({
   **Financials:**
   - Subtotal: ₹{{{subTotal}}}
   - Additional Cost: ₹{{{indicativePricing.additionalCost}}}
-  - GST ({{tax}}%): + ₹{{{taxAmount}}}
+  - GST Rate: {{tax}}%
   - Grand Total: ₹{{{grandTotal}}}
 
   **Metadata:**
@@ -93,13 +87,6 @@ const prompt = ai.definePrompt({
 
 
 export async function sendQuote(input: Quote): Promise<QuoteOutput> {
-  const taxAmount = (input.subTotal || 0) * ((input.tax || 0) / 100);
-  
-  const promptInput = {
-    ...input,
-    taxAmount: parseInt(taxAmount.toFixed(2)),
-  };
-
-  const { output } = await prompt(promptInput);
+  const { output } = await prompt(input);
   return output!;
 }
