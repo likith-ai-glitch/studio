@@ -97,7 +97,7 @@ export async function sendQuote(input: Quote): Promise<QuoteOutput> {
   
   const promptInput = {
     ...input,
-    taxAmount: parseFloat(taxAmount.toFixed(2)),
+    taxAmount: parseInt(taxAmount.toFixed(2)),
   };
 
   const { output } = await prompt(promptInput);
