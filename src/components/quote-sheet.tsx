@@ -84,13 +84,11 @@ export function QuoteSheet() {
       description: 'Generating quote details and preparing document.',
     });
     try {
-      const quoteWithTotals = {
+      const emailContent = await sendQuote({
         ...quote,
         subTotal,
         grandTotal,
-      };
-
-      const emailContent = await sendQuote(quoteWithTotals);
+      });
 
       await addDoc(notificationsCollectionRef, {
         customer: {
