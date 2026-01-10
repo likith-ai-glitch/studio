@@ -77,7 +77,7 @@ const prompt = ai.definePrompt({
   **Financials:**
   - Subtotal: ₹{{{subTotal}}}
   - Additional Cost: ₹{{{indicativePricing.additionalCost}}}
-  - GST ({{tax}}%): + ₹{{taxAmount}}
+  - GST ({{tax}}%): + ₹{{{taxAmount}}}
   - Grand Total: ₹{{{grandTotal}}}
 
   **Metadata:**
