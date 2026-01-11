@@ -28,7 +28,6 @@ const QuoteInputSchema = z.object({
   type: z.enum(['Master', 'Transaction']),
   approvalStatus: z.enum(['Draft', 'SentForApproval', 'Approved']),
   indicativePricing: z.object({
-    totalProductPrice: z.number(),
     additionalCost: z.number(),
   }),
   discount: z.number(),

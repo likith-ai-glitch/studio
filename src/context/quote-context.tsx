@@ -22,7 +22,6 @@ export type QuoteType = 'Master' | 'Transaction';
 export type QuoteApprovalStatus = 'Draft' | 'SentForApproval' | 'Approved';
 
 export interface IndicativePricing {
-    totalProductPrice: number;
     additionalCost: number;
 }
 
@@ -64,7 +63,6 @@ const initialQuoteState: Quote = {
     type: 'Transaction',
     approvalStatus: 'Draft',
     indicativePricing: {
-        totalProductPrice: 0,
         additionalCost: 0,
     },
     discount: 0,
@@ -179,14 +177,6 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
     const itemsTotal = quote.items.reduce((total, item) => total + Number(item.price) * item.quantity, 0);
     const indicativePricing = quote.indicativePricing;
     const additionalCost = Number(indicativePricing.additionalCost) || 0;
-    
-    // As per new logic, totalProductPrice from indicativePricing seems redundant if calculated from items.
-    // So we'll just use itemsTotal + additionalCost for subTotal.
-    // If totalProductPrice was meant to be an override, this logic might need revisiting.
-    // For now, let's keep it clean.
-    
-    // totalProductPrice is also updated to reflect the sum of item prices.
-    updateIndicativePricingField('totalProductPrice', itemsTotal);
     
     return itemsTotal + additionalCost;
   }, [quote.items, quote.indicativePricing.additionalCost]);
