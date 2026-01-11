@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -37,12 +36,12 @@ import {
 import { AddressForm, type AddressFormValues } from './address-form';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { generateDocument } from '@/ai/flows/generate-document-flow';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useProducts } from '@/context/product-context';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { generateDocumentAction } from '@/app/actions';
 
 export function QuoteSheet() {
   const { 
@@ -89,18 +88,14 @@ export function QuoteSheet() {
     try {
       const quoteData = {
         quoteNumber: quote.quoteNumber,
-        items: quote.items.map(item => ({ 
-          name: item.name, 
-          price: Number(item.price), 
-          quantity: Number(item.quantity) 
-        })),
+        items: quote.items.map(item => ({ name: item.name, price: Number(item.price), quantity: Number(item.quantity) })),
         subTotal: subTotal,
         discount: quote.discount,
         tax: quote.tax,
         grandTotal: grandTotal,
       };
 
-      const emailContent = await generateDocument(quoteData);
+      const emailContent = await generateDocumentAction(quoteData);
 
       await addDoc(notificationsCollectionRef, {
         customer: {
@@ -143,18 +138,14 @@ export function QuoteSheet() {
     try {
         const quoteData = {
             quoteNumber: quote.quoteNumber,
-            items: quote.items.map(item => ({ 
-              name: item.name, 
-              price: Number(item.price), 
-              quantity: Number(item.quantity) 
-            })),
+            items: quote.items.map(item => ({ name: item.name, price: Number(item.price), quantity: Number(item.quantity) })),
             subTotal: subTotal,
             discount: quote.discount,
             tax: quote.tax,
             grandTotal: grandTotal,
         };
 
-        const { emailBody: htmlContent } = await generateDocument(quoteData);
+        const { emailBody: htmlContent } = await generateDocumentAction(quoteData);
 
         const contentElement = document.createElement('div');
         contentElement.innerHTML = htmlContent;

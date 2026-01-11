@@ -12,11 +12,7 @@ import {z} from 'zod';
 
 const DocumentInputSchema = z.object({
   quoteNumber: z.string(),
-  items: z.array(z.object({
-    name: z.string(),
-    price: z.number(),
-    quantity: z.number(),
-  })),
+  items: z.array(z.any()), // Keep this flexible
   subTotal: z.number(),
   discount: z.number(),
   tax: z.number(),
