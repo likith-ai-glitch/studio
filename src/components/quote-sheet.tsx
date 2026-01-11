@@ -89,7 +89,7 @@ export function QuoteSheet() {
     try {
       const quoteData = {
         quoteNumber: quote.quoteNumber,
-        items: quote.items,
+        items: quote.items.map(item => ({ name: item.name, price: item.price, quantity: item.quantity })),
         subTotal: subTotal,
         discount: quote.discount,
         tax: quote.tax,
@@ -139,7 +139,7 @@ export function QuoteSheet() {
     try {
         const quoteData = {
             quoteNumber: quote.quoteNumber,
-            items: quote.items,
+            items: quote.items.map(item => ({ name: item.name, price: item.price, quantity: item.quantity })),
             subTotal: subTotal,
             discount: quote.discount,
             tax: quote.tax,
