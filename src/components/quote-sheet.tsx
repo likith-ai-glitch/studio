@@ -90,10 +90,10 @@ export function QuoteSheet() {
       const quoteData = {
         quoteNumber: quote.quoteNumber,
         items: quote.items,
-        subTotal,
+        subTotal: subTotal,
         discount: quote.discount,
         tax: quote.tax,
-        grandTotal,
+        grandTotal: grandTotal,
       };
 
       const emailContent = await generateDocument(quoteData);
@@ -140,10 +140,10 @@ export function QuoteSheet() {
         const quoteData = {
             quoteNumber: quote.quoteNumber,
             items: quote.items,
-            subTotal,
+            subTotal: subTotal,
             discount: quote.discount,
             tax: quote.tax,
-            grandTotal,
+            grandTotal: grandTotal,
         };
 
         const { emailBody: htmlContent } = await generateDocument(quoteData);
