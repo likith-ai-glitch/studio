@@ -138,7 +138,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
         ...prevQuote,
         indicativePricing: {
             ...prevQuote.indicativePricing,
-            [field]: value,
+            [field]: parseFloat(String(value)) || 0,
         }
     }));
   };
