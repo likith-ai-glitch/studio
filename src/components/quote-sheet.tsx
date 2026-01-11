@@ -25,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, FileText, ShoppingCart, Loader2 } from 'lucide-react';
+import { Trash2, FileText, ShoppingCart, Loader2, FileDown } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -41,6 +41,8 @@ import { sendQuote } from '@/ai/flows/send-quote-flow';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useProducts } from '@/context/product-context';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export function QuoteSheet() {
   const { 
@@ -61,6 +63,7 @@ export function QuoteSheet() {
   const { toast } = useToast();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isConvertingPdf, setIsConvertingPdf] = useState(false);
   const notificationsCollectionRef = collection(db, 'notifications');
   const [selectedPriceList, setSelectedPriceList] = useState('none');
 
@@ -97,7 +100,7 @@ export function QuoteSheet() {
         emailSubject: emailContent.emailSubject,
         emailBody: emailContent.emailBody,
         sentAt: serverTimestamp(),
-        quoteId: `quote_${Date.now()}`,
+        quoteId: quote.quoteNumber || `quote_${Date.now()}`,
       });
 
       updateQuoteField('approvalStatus', 'SentForApproval');
@@ -120,6 +123,82 @@ export function QuoteSheet() {
       setIsSending(false);
     }
   }
+
+  const handleDownloadPdf = async () => {
+    setIsConvertingPdf(true);
+     const { id: toastId } = toast({
+      title: 'Generating PDF...',
+      description: 'Please wait while we create your document.',
+    });
+
+    try {
+        const { emailBody: htmlContent } = await sendQuote({
+            ...quote,
+            subTotal,
+            grandTotal,
+        });
+
+        const contentElement = document.createElement('div');
+        contentElement.innerHTML = htmlContent;
+        // The element needs to be in the DOM to be rendered by html2canvas, but it can be off-screen
+        contentElement.style.position = 'absolute';
+        contentElement.style.left = '-9999px';
+        contentElement.style.width = '794px'; // A4 width in pixels at 96 DPI
+        contentElement.style.padding = '20px';
+        contentElement.style.backgroundColor = 'white';
+        contentElement.style.color = 'black';
+        document.body.appendChild(contentElement);
+
+        const canvas = await html2canvas(contentElement, {
+            scale: 2,
+            useCORS: true, 
+        });
+        
+        document.body.removeChild(contentElement);
+
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({
+            orientation: 'p',
+            unit: 'mm',
+            format: 'a4',
+        });
+        
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        const ratio = canvasWidth / canvasHeight;
+        
+        let imgWidth = pdfWidth - 20; // with margin
+        let imgHeight = imgWidth / ratio;
+        
+        if (imgHeight > pdfHeight - 20) {
+            imgHeight = pdfHeight - 20;
+            imgWidth = imgHeight * ratio;
+        }
+        
+        const x = (pdfWidth - imgWidth) / 2;
+        const y = 10; // top margin
+        
+        pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
+        pdf.save(`${quote.quoteNumber || 'quote'}.pdf`);
+
+        toast.update(toastId, {
+            title: 'PDF Downloaded',
+            description: 'Your quote has been successfully converted to a PDF.',
+        });
+
+    } catch (error) {
+        console.error("Error converting to PDF:", error);
+        toast.update(toastId, {
+            title: 'Error',
+            description: 'Could not generate the PDF document.',
+            variant: 'destructive',
+        });
+    } finally {
+        setIsConvertingPdf(false);
+    }
+  };
 
   const handlePriceListChange = (priceListKey: string) => {
     setSelectedPriceList(priceListKey);
@@ -331,18 +410,26 @@ export function QuoteSheet() {
                   <p>₹{grandTotal.toFixed(2)}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <Button onClick={handleSendQuote} disabled={isSending}>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <Button onClick={handleSendQuote} disabled={isSending || isConvertingPdf} className="md:col-span-1">
                     {isSending ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
                         <FileText className="mr-2 h-4 w-4" />
                     )}
-                    GENERATE DOCUMENT
+                    Generate
+                </Button>
+                <Button onClick={handleDownloadPdf} disabled={isConvertingPdf || isSending} className="md:col-span-1">
+                    {isConvertingPdf ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                        <FileDown className="mr-2 h-4 w-4" />
+                    )}
+                    Download PDF
                 </Button>
                 <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
                     <DialogTrigger asChild>
-                      <Button>
+                      <Button className="md:col-span-1" disabled={isSending || isConvertingPdf}>
                         <ShoppingCart className="mr-2 h-4 w-4" />
                         Create Order
                       </Button>
