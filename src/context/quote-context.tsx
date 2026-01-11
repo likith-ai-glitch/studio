@@ -113,7 +113,13 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   
   const updateQuoteField = (field: keyof Omit<Quote, 'items' | 'indicativePricing'>, value: any) => {
     setQuote(prevQuote => {
-      const newQuote = { ...prevQuote, [field]: value };
+      let processedValue = value;
+      if (field === 'tax' || field === 'discount') {
+        processedValue = parseFloat(value) || 0;
+      }
+      
+      const newQuote = { ...prevQuote, [field]: processedValue };
+
       if (field === 'type') {
         const prefix = value === 'Master' ? 'MQ-' : 'TQ-';
         const currentNumber = newQuote.quoteNumber;
@@ -220,5 +226,3 @@ export function useQuote() {
   }
   return context;
 }
-
-    
