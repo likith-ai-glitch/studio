@@ -87,11 +87,20 @@ export function QuoteSheet() {
       description: 'Generating quote details and preparing document.',
     });
     try {
-      const emailContent = await sendQuote({
-        ...quote,
+      const quoteData = {
+        quoteNumber: quote.quoteNumber,
+        items: quote.items,
+        status: quote.status,
+        type: quote.type,
+        approvalStatus: quote.approvalStatus,
+        indicativePricing: quote.indicativePricing,
+        discount: quote.discount,
+        tax: quote.tax,
         subTotal,
         grandTotal,
-      });
+      };
+
+      const emailContent = await sendQuote(quoteData);
 
       await addDoc(notificationsCollectionRef, {
         customer: {
@@ -132,11 +141,20 @@ export function QuoteSheet() {
     });
 
     try {
-        const { emailBody: htmlContent } = await sendQuote({
-            ...quote,
-            subTotal,
-            grandTotal,
-        });
+        const quoteData = {
+          quoteNumber: quote.quoteNumber,
+          items: quote.items,
+          status: quote.status,
+          type: quote.type,
+          approvalStatus: quote.approvalStatus,
+          indicativePricing: quote.indicativePricing,
+          discount: quote.discount,
+          tax: quote.tax,
+          subTotal,
+          grandTotal,
+        };
+
+        const { emailBody: htmlContent } = await sendQuote(quoteData);
 
         const contentElement = document.createElement('div');
         contentElement.innerHTML = htmlContent;
@@ -464,5 +482,3 @@ export function QuoteSheet() {
     </Sheet>
   );
 }
-
-    
