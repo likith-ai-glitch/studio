@@ -7,8 +7,8 @@
  * - QuoteOutput - The return type for the flow.
  */
 
-import { ai } from '@/ai/genkit';
-import { z } from 'zod';
+import {ai} from '@/ai/genkit';
+import {z} from 'zod';
 import type { Quote } from '@/context/quote-context';
 
 const QuoteInputSchema = z.object({
@@ -89,5 +89,3 @@ export async function sendQuote(input: Quote): Promise<QuoteOutput> {
   const { output } = await prompt(input);
   return output!;
 }
-
-    
