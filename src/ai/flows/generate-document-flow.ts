@@ -1,59 +1,45 @@
 
 'use server';
 /**
- * @fileOverview A flow for generating a customer-facing quote email.
+ * @fileOverview A flow for generating a customer-facing quote document.
  *
- * - sendQuote - Generates an email to send a quote to a customer.
- * - QuoteOutput - The return type for the flow.
+ * - generateDocument - Generates an HTML document for a quote.
+ * - DocumentOutput - The return type for the flow.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
-import type { Quote } from '@/context/quote-context';
 
-const QuoteInputSchema = z.object({
+const DocumentInputSchema = z.object({
   quoteNumber: z.string(),
   items: z.array(z.object({
-    id: z.string(),
     name: z.string(),
     price: z.number(),
     quantity: z.number(),
-    brand: z.string(),
-    category: z.string(),
-    colour: z.string().optional(),
-    partName: z.string().optional(),
-    productId: z.string(),
   })),
-  status: z.enum(['Draft', 'InProgress', 'Final']),
-  type: z.enum(['Master', 'Transaction']),
-  approvalStatus: z.enum(['Draft', 'SentForApproval', 'Approved']),
-  indicativePricing: z.object({
-    additionalCost: z.number(),
-  }),
+  subTotal: z.number(),
   discount: z.number(),
   tax: z.number(),
-  subTotal: z.number().optional(),
-  grandTotal: z.number().optional(),
+  grandTotal: z.number(),
 });
 
-
-const QuoteOutputSchema = z.object({
+const DocumentOutputSchema = z.object({
   emailSubject: z.string().describe('The subject line for the quote email.'),
   emailBody: z.string().describe('The HTML body content for the quote email.'),
 });
-export type QuoteOutput = z.infer<typeof QuoteOutputSchema>;
+export type DocumentOutput = z.infer<typeof DocumentOutputSchema>;
 
 const prompt = ai.definePrompt({
-  name: 'sendQuotePrompt',
-  input: { schema: QuoteInputSchema },
-  output: { schema: QuoteOutputSchema },
+  name: 'generateDocumentPrompt',
+  input: { schema: DocumentInputSchema },
+  output: { schema: DocumentOutputSchema },
   prompt: `You are an expert sales assistant for an e-commerce store called Shopstream. Your task is to generate a professional and friendly HTML email for a customer quote.
 
   **CRITICAL INSTRUCTIONS:**
   1.  The output for 'emailBody' MUST be a valid HTML document. Do not just return plain text.
   2.  Present the quote details in an HTML table. Use '<table>', '<thead>', '<tbody>', '<tr>', '<th>', and '<td>' tags.
   3.  The item details section MUST be a table with columns: 'Description', 'Quantity', and 'Unit Price'.
-  4.  The financial summary (Subtotal, GST, Grand Total) MUST also be presented clearly in a two-column table layout.
+  4.  The financial summary (Subtotal, Discount, GST, Grand Total) MUST also be presented clearly in a two-column table layout.
   5.  Present all monetary values in Rupees. Use the format "₹{value}". Do not use any other currency symbol.
 
   **Quote Details:**
@@ -61,7 +47,7 @@ const prompt = ai.definePrompt({
 
   **Items:**
   {{#each items}}
-  - Name: {{name}} ({{brand}})
+  - Name: {{name}}
   - Quantity: {{quantity}}
   - Unit Price: ₹{{price}}
   {{/each}}
@@ -72,11 +58,6 @@ const prompt = ai.definePrompt({
   - GST Rate: {{tax}}%
   - Grand Total: ₹{{{grandTotal}}}
 
-  **Metadata:**
-  - Quote Status: {{status}}
-  - Quote Type: {{type}}
-  - Approval Status: {{approvalStatus}}
-
   **EMAIL CONTENT TO GENERATE:**
   - **emailSubject**: "Your Quote from Shopstream ({{{quoteNumber}}})"
   - **emailBody**: Generate an HTML body. Start with a polite greeting. Then, display all the quote details inside a well-formatted HTML structure as per the critical instructions above. End with a friendly closing.
@@ -84,7 +65,7 @@ const prompt = ai.definePrompt({
 });
 
 
-export async function sendQuote(input: Quote): Promise<QuoteOutput> {
+export async function generateDocument(input: z.infer<typeof DocumentInputSchema>): Promise<DocumentOutput> {
   const { output } = await prompt(input);
   return output!;
 }

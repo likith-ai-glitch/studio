@@ -37,7 +37,7 @@ import {
 import { AddressForm, type AddressFormValues } from './address-form';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { sendQuote } from '@/ai/flows/send-quote-flow';
+import { generateDocument } from '@/ai/flows/generate-document-flow';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useProducts } from '@/context/product-context';
@@ -80,27 +80,23 @@ export function QuoteSheet() {
     setIsQuoteSheetOpen(false);
   }
   
-  const handleSendQuote = async () => {
+  const handleGenerateDocument = async () => {
     setIsSending(true);
     const { id: toastId } = toast({
       title: 'Generating Document...',
-      description: 'Generating quote details and preparing document.',
+      description: 'Preparing document details.',
     });
     try {
       const quoteData = {
         quoteNumber: quote.quoteNumber,
         items: quote.items,
-        status: quote.status,
-        type: quote.type,
-        approvalStatus: quote.approvalStatus,
-        indicativePricing: quote.indicativePricing,
+        subTotal,
         discount: quote.discount,
         tax: quote.tax,
-        subTotal,
         grandTotal,
       };
 
-      const emailContent = await sendQuote(quoteData);
+      const emailContent = await generateDocument(quoteData);
 
       await addDoc(notificationsCollectionRef, {
         customer: {
@@ -121,7 +117,7 @@ export function QuoteSheet() {
       });
 
     } catch (error) {
-      console.error("Error sending quote:", error);
+      console.error("Error generating document:", error);
       toast({
         id: toastId,
         title: 'Error',
@@ -142,19 +138,15 @@ export function QuoteSheet() {
 
     try {
         const quoteData = {
-          quoteNumber: quote.quoteNumber,
-          items: quote.items,
-          status: quote.status,
-          type: quote.type,
-          approvalStatus: quote.approvalStatus,
-          indicativePricing: quote.indicativePricing,
-          discount: quote.discount,
-          tax: quote.tax,
-          subTotal,
-          grandTotal,
+            quoteNumber: quote.quoteNumber,
+            items: quote.items,
+            subTotal,
+            discount: quote.discount,
+            tax: quote.tax,
+            grandTotal,
         };
 
-        const { emailBody: htmlContent } = await sendQuote(quoteData);
+        const { emailBody: htmlContent } = await generateDocument(quoteData);
 
         const contentElement = document.createElement('div');
         contentElement.innerHTML = htmlContent;
@@ -304,7 +296,7 @@ export function QuoteSheet() {
                       id="additionalCost"
                       type="number"
                       value={quote.indicativePricing.additionalCost}
-                      onChange={(e) => updateIndicativePricingField('additionalCost', parseFloat(e.target.value) || 0)}
+                      onChange={(e) => updateIndicativePricingField('additionalCost', e.target.value)}
                       placeholder="e.g. 5000.00"
                     />
                  </div>
@@ -314,7 +306,7 @@ export function QuoteSheet() {
                       id="discount"
                       type="number"
                       value={quote.discount}
-                      onChange={(e) => updateQuoteField('discount', parseFloat(e.target.value) || 0)}
+                      onChange={(e) => updateQuoteField('discount', e.target.value)}
                       placeholder="e.g. 10"
                     />
                  </div>
@@ -324,7 +316,7 @@ export function QuoteSheet() {
                       id="tax"
                       type="number"
                       value={quote.tax}
-                      onChange={(e) => updateQuoteField('tax', parseFloat(e.target.value) || 0)}
+                      onChange={(e) => updateQuoteField('tax', e.target.value)}
                       placeholder="e.g. 18"
                     />
                  </div>
@@ -429,7 +421,7 @@ export function QuoteSheet() {
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                <Button onClick={handleSendQuote} disabled={isSending || isConvertingPdf} className="md:col-span-1">
+                <Button onClick={handleGenerateDocument} disabled={isSending || isConvertingPdf} className="md:col-span-1">
                     {isSending ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
