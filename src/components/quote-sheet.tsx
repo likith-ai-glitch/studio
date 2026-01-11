@@ -88,11 +88,15 @@ export function QuoteSheet() {
     try {
       const quoteData = {
         quoteNumber: quote.quoteNumber,
-        items: quote.items.map(item => ({ name: item.name, price: Number(item.price), quantity: Number(item.quantity) })),
-        subTotal: subTotal,
+        items: quote.items.map(item => ({
+            name: item.name,
+            price: Number(item.price),
+            quantity: Number(item.quantity)
+        })),
+        subTotal,
+        grandTotal,
         discount: quote.discount,
         tax: quote.tax,
-        grandTotal: grandTotal,
       };
 
       const emailContent = await generateDocumentAction(quoteData);
@@ -138,11 +142,15 @@ export function QuoteSheet() {
     try {
         const quoteData = {
             quoteNumber: quote.quoteNumber,
-            items: quote.items.map(item => ({ name: item.name, price: Number(item.price), quantity: Number(item.quantity) })),
-            subTotal: subTotal,
+            items: quote.items.map(item => ({
+                name: item.name,
+                price: Number(item.price),
+                quantity: Number(item.quantity)
+            })),
+            subTotal,
+            grandTotal,
             discount: quote.discount,
             tax: quote.tax,
-            grandTotal: grandTotal,
         };
 
         const { emailBody: htmlContent } = await generateDocumentAction(quoteData);
