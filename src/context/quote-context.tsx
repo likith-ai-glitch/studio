@@ -161,26 +161,9 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
             return item;
         });
 
-        // Calculate overall discount based on the new prices
-        let newTotal = 0;
-        let standardTotal = 0;
-        updatedItems.forEach(item => {
-            const product = allProducts.find(p => p.productId === item.productId);
-            if (product) {
-                const standardPrice = product.priceList1 || product.price || 0;
-                newTotal += item.price * item.quantity;
-                standardTotal += standardPrice * item.quantity;
-            }
-        });
-
-        const overallDiscount = standardTotal > 0 
-            ? ((standardTotal - newTotal) / standardTotal) * 100 
-            : 0;
-
         return { 
             ...prevQuote, 
             items: updatedItems,
-            discount: parseFloat(overallDiscount.toFixed(2))
         };
     });
 };
@@ -188,14 +171,26 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
 
   const subTotal = useMemo(() => {
     const itemsTotal = quote.items.reduce((total, item) => total + Number(item.price) * item.quantity, 0);
-    const indicativeTotal = Object.values(quote.indicativePricing).reduce((sum, value) => sum + (Number(value) || 0), 0);
-    return itemsTotal + indicativeTotal;
-  }, [quote.items, quote.indicativePricing]);
+    const indicativePricing = quote.indicativePricing;
+    const additionalCost = Number(indicativePricing.additionalCost) || 0;
+    
+    // As per new logic, totalProductPrice from indicativePricing seems redundant if calculated from items.
+    // So we'll just use itemsTotal + additionalCost for subTotal.
+    // If totalProductPrice was meant to be an override, this logic might need revisiting.
+    // For now, let's keep it clean.
+    
+    // totalProductPrice is also updated to reflect the sum of item prices.
+    updateIndicativePricingField('totalProductPrice', itemsTotal);
+    
+    return itemsTotal + additionalCost;
+  }, [quote.items, quote.indicativePricing.additionalCost]);
 
   const grandTotal = useMemo(() => {
-    const taxAmount = subTotal * ((quote.tax || 0) / 100);
-    return subTotal + taxAmount;
-  }, [subTotal, quote.tax]);
+    const discountAmount = subTotal * ((quote.discount || 0) / 100);
+    const taxableAmount = subTotal - discountAmount;
+    const taxAmount = taxableAmount * ((quote.tax || 0) / 100);
+    return taxableAmount + taxAmount;
+  }, [subTotal, quote.discount, quote.tax]);
 
   return (
     <QuoteContext.Provider value={{ 
@@ -225,3 +220,5 @@ export function useQuote() {
   }
   return context;
 }
+
+    

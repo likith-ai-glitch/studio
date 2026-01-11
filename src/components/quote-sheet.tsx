@@ -223,8 +223,8 @@ export function QuoteSheet() {
   }, [subTotal, quote.discount]);
 
   const taxAmount = useMemo(() => {
-    return subTotal * ((quote.tax || 0) / 100);
-  }, [subTotal, quote.tax]);
+    return (subTotal - totalDiscountAmount) * ((quote.tax || 0) / 100);
+  }, [subTotal, totalDiscountAmount, quote.tax]);
 
   return (
     <Sheet open={isQuoteSheetOpen} onOpenChange={setIsQuoteSheetOpen}>
@@ -394,8 +394,8 @@ export function QuoteSheet() {
                 </div>
                 {quote.discount > 0 && (
                    <div className="flex justify-between text-sm text-muted-foreground">
-                    <p>Discount</p>
-                    <p>{quote.discount || 0}%</p>
+                    <p>Discount ({quote.discount || 0}%)</p>
+                    <p>- ₹{totalDiscountAmount.toFixed(2)}</p>
                   </div>
                 )}
                 {quote.tax > 0 && (
@@ -464,3 +464,5 @@ export function QuoteSheet() {
     </Sheet>
   );
 }
+
+    
