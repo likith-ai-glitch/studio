@@ -6,7 +6,21 @@ import type { DocumentOutput } from '@/ai/flows/generate-document-flow';
 // This is a server action that can be called from client components.
 export async function generateDocumentAction(quoteData: any): Promise<DocumentOutput> {
   try {
-    const result = await generateDocumentFlow(quoteData);
+    // Ensure numeric types are correctly cast before sending to the flow.
+    const parsedQuoteData = {
+      ...quoteData,
+      subTotal: Number(quoteData.subTotal),
+      grandTotal: Number(quoteData.grandTotal),
+      discount: Number(quoteData.discount),
+      tax: Number(quoteData.tax),
+      items: quoteData.items.map((item: any) => ({
+        ...item,
+        price: Number(item.price),
+        quantity: Number(item.quantity),
+      })),
+    };
+
+    const result = await generateDocumentFlow(parsedQuoteData);
     return result;
   } catch (error: any) {
     console.error('Error in generateDocumentAction:', error);
