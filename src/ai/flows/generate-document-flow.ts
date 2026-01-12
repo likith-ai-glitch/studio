@@ -47,7 +47,7 @@ const prompt = ai.definePrompt({
   7.  You must calculate the actual GST amount. The GST is applied AFTER the discount. For example, if Subtotal is ₹1000, Discount is 10%, and GST is 18%, the calculation is (1000 - 100) * 0.18 = ₹162.
 
   **Quote Details:**
-  - Quote Number: {{{quoteNumber}}}
+  - Quote Number: {{quoteNumber}}
 
   **Items:**
   {{#each items}}
@@ -57,13 +57,13 @@ const prompt = ai.definePrompt({
   {{/each}}
 
   **Financials:**
-  - Subtotal: ₹{{{subTotal}}}
-  - Discount Rate: {{{discount}}}%
-  - GST Rate: {{{tax}}}%
-  - Grand Total: ₹{{{grandTotal}}}
+  - Subtotal: ₹{{subTotal}}
+  - Discount Rate: {{discount}}%
+  - GST Rate: {{tax}}%
+  - Grand Total: ₹{{grandTotal}}
 
   **EMAIL CONTENT TO GENERATE:**
-  - **emailSubject**: "Your Quote from Shopstream ({{{quoteNumber}}})"
+  - **emailSubject**: "Your Quote from Shopstream ({{quoteNumber}})"
   - **emailBody**: Generate an HTML body. Start with a polite greeting. Then, display all the quote details inside a well-formatted HTML structure as per the critical instructions above. The summary section must show the calculated discount amount and the calculated GST amount. End with a friendly closing.
   `,
 });
@@ -73,3 +73,4 @@ export async function generateDocument(input: z.infer<typeof DocumentInputSchema
   const { output } = await prompt(input);
   return output!;
 }
+
