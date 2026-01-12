@@ -50,8 +50,8 @@ const prompt = ai.definePrompt({
 
   **Financials:**
   - Subtotal: ₹{{{subTotal}}}
-  - Discount: {{discount}}%
-  - GST Rate: {{tax}}%
+  - Discount: {{{discount}}}%
+  - GST Rate: {{{tax}}}%
   - Grand Total: ₹{{{grandTotal}}}
 
   **EMAIL CONTENT TO GENERATE:**
