@@ -8,13 +8,12 @@ export async function generateDocumentAction(quoteData: any): Promise<DocumentOu
   try {
     // Ensure numeric types are correctly cast before sending to the flow.
     const parsedQuoteData = {
-      ...quoteData,
+      quoteNumber: quoteData.quoteNumber,
       subTotal: Number(quoteData.subTotal),
-      grandTotal: Number(quoteData.grandTotal),
       discount: Number(quoteData.discount),
       tax: Number(quoteData.tax),
       items: quoteData.items.map((item: any) => ({
-        ...item,
+        name: item.name,
         price: Number(item.price),
         quantity: Number(item.quantity),
       })),

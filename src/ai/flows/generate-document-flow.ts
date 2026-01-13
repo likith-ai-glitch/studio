@@ -22,7 +22,6 @@ const DocumentInputSchema = z.object({
   subTotal: z.number(),
   discount: z.number(),
   tax: z.number(),
-  grandTotal: z.number(),
 });
 
 const DocumentOutputSchema = z.object({
@@ -45,6 +44,7 @@ const prompt = ai.definePrompt({
   5.  Present all monetary values in Rupees. Use the format "₹{value}". Do not use any other currency symbol.
   6.  You must calculate the actual discount amount. The discount rate is given as a percentage.
   7.  You must calculate the actual GST amount. The GST rate is given as a percentage and is applied AFTER the discount.
+  8.  You must calculate the final Grand Total.
 
   **QUOTE DETAILS TO USE:**
   - Quote Number: {{quoteNumber}}
@@ -60,15 +60,15 @@ const prompt = ai.definePrompt({
   - Subtotal: ₹{{subTotal}}
   - Discount Rate: {{discount}}%
   - GST Rate: {{tax}}%
-  - Grand Total (to verify against): ₹{{grandTotal}}
   
   **EXAMPLE CALCULATIONS:**
-  - If Subtotal is ₹1000 and Discount is 10%, the discount amount to show is ₹100.
-  - If Subtotal is ₹1000, Discount is 10%, and GST is 18%, the GST amount to show is (1000 - 100) * 0.18 = ₹162.
+  - If Subtotal is ₹1000 and Discount is 10%, the discount amount to show is ₹100. The amount after discount is ₹900.
+  - If the amount after discount is ₹900 and GST is 18%, the GST amount to show is 900 * 0.18 = ₹162.
+  - The Grand Total would be 900 + 162 = ₹1062.
 
   **EMAIL CONTENT TO GENERATE:**
   - **emailSubject**: "Your Quote from Shopstream ({{quoteNumber}})"
-  - **emailBody**: Generate an HTML body. Start with a polite greeting. Then, display all the quote details inside a well-formatted HTML structure as per the critical instructions. The summary section MUST show the calculated discount amount and the calculated GST amount based on the financial data provided above. End with a friendly closing.
+  - **emailBody**: Generate an HTML body. Start with a polite greeting. Then, display all the quote details inside a well-formatted HTML structure as per the critical instructions. The summary section MUST show the calculated discount amount, the calculated GST amount, and the calculated Grand Total based on the financial data provided above. End with a friendly closing.
   `,
 });
 
