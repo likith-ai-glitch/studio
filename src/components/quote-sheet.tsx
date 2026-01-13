@@ -200,14 +200,14 @@ export function QuoteSheet() {
         pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
         pdf.save(`${quote.quoteNumber || 'quote'}.pdf`);
 
-        toast.update(toastId, {
+        toast({
             title: 'PDF Downloaded',
             description: 'Your quote has been successfully converted to a PDF.',
         });
 
     } catch (error) {
         console.error("Error converting to PDF:", error);
-        toast.update(toastId, {
+        toast({
             title: 'Error',
             description: 'Could not generate the PDF document.',
             variant: 'destructive',
