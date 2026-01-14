@@ -78,3 +78,4 @@ export async function generateDocument(input: z.infer<typeof DocumentInputSchema
   return output!;
 }
 
+
