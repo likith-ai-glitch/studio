@@ -19,7 +19,11 @@ const DocumentInputSchema = z.object({
     status: z.string(),
     type: z.string(),
     approvalStatus: z.string(),
-    items: z.array(z.any()),
+    items: z.array(z.object({
+        name: z.string(),
+        quantity: z.number(),
+        price: z.number(),
+    })),
     subTotal: z.number(),
     discountRate: z.number(),
     discountAmount: z.number(),
