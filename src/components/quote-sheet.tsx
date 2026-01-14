@@ -86,17 +86,10 @@ export function QuoteSheet() {
       description: 'Preparing document details.',
     });
     try {
+      // Pass the entire quote object, including status fields, to the action
       const quoteData = {
-        quoteNumber: quote.quoteNumber,
-        items: quote.items.map(item => ({
-            name: item.name,
-            price: Number(item.price),
-            quantity: Number(item.quantity)
-        })),
-        subTotal,
-        grandTotal,
-        discount: quote.discount,
-        tax: quote.tax,
+        ...quote,
+        subTotal, // Make sure the calculated subTotal is included
       };
 
       const emailContent = await generateDocumentAction(quoteData);
@@ -141,16 +134,8 @@ export function QuoteSheet() {
 
     try {
         const quoteData = {
-            quoteNumber: quote.quoteNumber,
-            items: quote.items.map(item => ({
-                name: item.name,
-                price: Number(item.price),
-                quantity: Number(item.quantity)
-            })),
+            ...quote,
             subTotal,
-            grandTotal,
-            discount: quote.discount,
-            tax: quote.tax,
         };
 
         const { emailBody: htmlContent } = await generateDocumentAction(quoteData);
@@ -201,6 +186,7 @@ export function QuoteSheet() {
         pdf.save(`${quote.quoteNumber || 'quote'}.pdf`);
 
         toast({
+            id: toastId,
             title: 'PDF Downloaded',
             description: 'Your quote has been successfully converted to a PDF.',
         });
@@ -208,6 +194,7 @@ export function QuoteSheet() {
     } catch (error) {
         console.error("Error converting to PDF:", error);
         toast({
+            id: toastId,
             title: 'Error',
             description: 'Could not generate the PDF document.',
             variant: 'destructive',

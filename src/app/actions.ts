@@ -9,6 +9,7 @@ import type { DocumentOutput } from '@/ai/flows/generate-document-flow';
 export async function generateDocumentAction(quoteData: any): Promise<DocumentOutput> {
   try {
     // Step 1: Prepare the input for the calculation flow.
+    // The incoming quoteData from the client should have everything we need.
     const calculationInput = {
       quoteNumber: quoteData.quoteNumber,
       status: quoteData.status,
