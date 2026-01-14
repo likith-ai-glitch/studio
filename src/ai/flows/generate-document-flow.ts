@@ -77,5 +77,3 @@ export async function generateDocument(input: z.infer<typeof DocumentInputSchema
   const { output } = await prompt(input);
   return output!;
 }
-
-
