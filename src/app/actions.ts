@@ -1,16 +1,15 @@
 
 'use server';
 
-import { generateDocumentData as generateDocumentDataFlow } from '@/ai/flows/generate-document-data-flow';
 import { generateDocument as generateDocumentFlow } from '@/ai/flows/generate-document-flow';
-import type { DocumentOutput } from '@/ai/flows/generate-document-flow';
+import type { DocumentOutput, DocumentInput } from '@/ai/flows/generate-document-flow';
 
 // This is a server action that can be called from client components.
 export async function generateDocumentAction(quoteData: any): Promise<DocumentOutput> {
   try {
-    // Step 1: Prepare the input for the calculation flow.
-    // The incoming quoteData from the client should have everything we need.
-    const calculationInput = {
+    // Step 1: Prepare the input for the consolidated generation flow.
+    // This is the raw data from the client.
+    const flowInput: DocumentInput = {
       quoteNumber: quoteData.quoteNumber,
       status: quoteData.status,
       type: quoteData.type,
@@ -25,11 +24,8 @@ export async function generateDocumentAction(quoteData: any): Promise<DocumentOu
       })),
     };
 
-    // Step 2: Call the calculation flow to get a complete, calculated data payload.
-    const documentData = await generateDocumentDataFlow(calculationInput);
-
-    // Step 3: Call the document generation flow with the final, calculated data.
-    const result = await generateDocumentFlow(documentData);
+    // Step 2: Call the single generation flow that handles both calculation and rendering.
+    const result = await generateDocumentFlow(flowInput);
     
     return result;
   } catch (error: any) {

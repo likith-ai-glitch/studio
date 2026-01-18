@@ -1,32 +1,49 @@
 
 'use server';
 /**
- * @fileOverview A flow for generating a customer-facing quote document
- * using pre-calculated quote data.
+ * @fileOverview A flow for generating a complete customer-facing quote document.
+ * It performs all necessary calculations and then uses an AI prompt to
+ * render the final HTML document.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
 /* ------------------------------------------------------------------ */
-/* INPUT SCHEMA – matches generateDocumentData output                  */
+/* INPUT SCHEMA - Raw data from the client                            */
 /* ------------------------------------------------------------------ */
+
+const RawItemSchema = z.object({
+  name: z.string(),
+  price: z.number(),
+  quantity: z.number(),
+});
 
 const DocumentInputSchema = z.object({
   quoteNumber: z.string(),
   status: z.string(),
   type: z.string(),
   approvalStatus: z.string(),
+  items: z.array(RawItemSchema),
+  subTotal: z.number(),
+  discount: z.number().describe('The discount rate as a percentage.'),
+  tax: z.number().describe('The GST rate as a percentage.'),
+});
+export type DocumentInput = z.infer<typeof DocumentInputSchema>;
 
-  items: z.array(
-    z.object({
-      name: z.string(),
-      quantity: z.number(),
-      price: z.number(),
-      total: z.number(),
-    })
-  ),
+/* ------------------------------------------------------------------ */
+/* PROMPT CONTEXT SCHEMA - The fully calculated data for the prompt   */
+/* ------------------------------------------------------------------ */
+const CalculatedItemSchema = RawItemSchema.extend({
+  total: z.number(),
+});
 
+const PromptContextSchema = z.object({
+  quoteNumber: z.string(),
+  status: z.string(),
+  type: z.string(),
+  approvalStatus: z.string(),
+  items: z.array(CalculatedItemSchema),
   subTotal: z.number(),
   discountRate: z.number(),
   discountAmount: z.number(),
@@ -36,32 +53,25 @@ const DocumentInputSchema = z.object({
   currency: z.literal('INR'),
 });
 
-export type DocumentInput = z.infer<typeof DocumentInputSchema>;
-
 /* ------------------------------------------------------------------ */
-/* OUTPUT SCHEMA                                                       */
+/* OUTPUT SCHEMA - The final AI-generated output                      */
 /* ------------------------------------------------------------------ */
 
 const DocumentOutputSchema = z.object({
   emailSubject: z.string(),
   emailBody: z.string(),
 });
-
 export type DocumentOutput = z.infer<typeof DocumentOutputSchema>;
 
 /* ------------------------------------------------------------------ */
-/* PROMPT DEFINITION                                                   */
+/* PROMPT DEFINITION - Renders pre-calculated data                    */
 /* ------------------------------------------------------------------ */
 
 const prompt = ai.definePrompt({
   name: 'generateDocumentPrompt',
-
-  // ✅ WORKING & SUPPORTED MODEL
   model: 'googleai/gemini-1.0-pro',
-
-  input: { schema: DocumentInputSchema },
+  input: { schema: PromptContextSchema }, // Takes the calculated data
   output: { schema: DocumentOutputSchema },
-
   prompt: `
 You are an expert sales assistant for an e-commerce store called Shopstream.
 
@@ -131,17 +141,55 @@ EMAIL FORMAT:
 });
 
 /* ------------------------------------------------------------------ */
-/* FLOW FUNCTION                                                       */
+/* FLOW DEFINITION - Performs calculations and calls prompt           */
 /* ------------------------------------------------------------------ */
 
+const generateDocumentFlow = ai.defineFlow(
+  {
+    name: 'generateDocumentFlow',
+    inputSchema: DocumentInputSchema,
+    outputSchema: DocumentOutputSchema,
+  },
+  async (input) => {
+    // Step 1: Perform all calculations in TypeScript
+    const { subTotal, discount, tax, items } = input;
+
+    const discountAmount = subTotal * (discount / 100);
+    const amountAfterDiscount = subTotal - discountAmount;
+    const gstAmount = amountAfterDiscount * (tax / 100);
+    const grandTotal = amountAfterDiscount + gstAmount;
+
+    const itemsWithTotals = items.map(item => ({
+        ...item,
+        total: item.price * item.quantity,
+    }));
+
+    const promptContext = {
+      ...input,
+      items: itemsWithTotals,
+      discountRate: input.discount,
+      discountAmount,
+      gstRate: input.tax,
+      gstAmount,
+      grandTotal,
+      currency: 'INR' as const,
+    };
+    
+    // Step 2: Call the prompt with the fully calculated data
+    const { output } = await prompt(promptContext);
+
+    if (!output) {
+      throw new Error('Document generation failed: The AI model did not return a valid output.');
+    }
+    
+    return output;
+  }
+);
+
+
+// Export a wrapper function to be used by the server action
 export async function generateDocument(
   input: DocumentInput
 ): Promise<DocumentOutput> {
-  const { output } = await prompt(input);
-
-  if (!output) {
-    throw new Error('Document generation failed');
-  }
-
-  return output;
+  return generateDocumentFlow(input);
 }
