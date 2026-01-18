@@ -23,6 +23,7 @@ const DocumentInputSchema = z.object({
       name: z.string(),
       quantity: z.number(),
       price: z.number(),
+      total: z.number(),
     })
   ),
 
@@ -95,7 +96,7 @@ ITEMS
       <td style="padding: 8px;">{{name}}</td>
       <td style="text-align: right; padding: 8px;">{{quantity}}</td>
       <td style="text-align: right; padding: 8px;">₹{{price}}</td>
-      <td style="text-align: right; padding: 8px;">₹{{multiply price quantity}}</td>
+      <td style="text-align: right; padding: 8px;">₹{{total}}</td>
     </tr>
     {{/each}}
   </tbody>
