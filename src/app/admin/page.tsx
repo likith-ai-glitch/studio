@@ -106,12 +106,22 @@ function QuotesDashboard() {
         const lineItemsSnapshot = await getDocs(lineItemsQuery);
         const lineItems = lineItemsSnapshot.docs.map(doc => doc.data() as QuoteLineItem);
 
+        // Safety check for LastModifiedDate to avoid runtime errors
+        let lastModified: Date;
+        if (quoteData.LastModifiedDate && typeof quoteData.LastModifiedDate.toDate === 'function') {
+          lastModified = quoteData.LastModifiedDate.toDate();
+        } else if (quoteData.LastModifiedDate instanceof Date) {
+          lastModified = quoteData.LastModifiedDate;
+        } else {
+          lastModified = new Date();
+        }
+
         return {
           Id: quoteDoc.id,
-          Name: quoteData.Name,
-          Status: quoteData.Status,
-          TotalPrice: quoteData.TotalPrice,
-          LastModifiedDate: (quoteData.LastModifiedDate as Timestamp).toDate(),
+          Name: quoteData.Name || quoteData.quoteNumber || 'Untitled Quote',
+          Status: quoteData.Status || quoteData.status || 'Draft',
+          TotalPrice: quoteData.TotalPrice || quoteData.totalPrice || 0,
+          LastModifiedDate: lastModified,
           lineItems: lineItems
         } as QuoteRecord;
       });
@@ -1407,7 +1417,7 @@ export default function AdminPage() {
                              return (
                                <TableCell key={key} className="text-right">
                                   {quoteTotal > 0 ? `₹${quoteTotal.toFixed(2)}` : '-'}
-                               </TableCell>
+                                </TableCell>
                              )
                           }
                           return (
