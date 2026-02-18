@@ -30,7 +30,6 @@ export default function MasterQuoteDetailsPage() {
   useEffect(() => {
     if (!id) return;
 
-    // Listen to Master Quote changes
     const unsubMaster = onSnapshot(doc(db, 'quotes', id as string), (docSnap) => {
       if (docSnap.exists()) {
         setMasterQuote({ id: docSnap.id, ...docSnap.data() } as Quote);
@@ -41,7 +40,6 @@ export default function MasterQuoteDetailsPage() {
       setLoading(false);
     });
 
-    // Listen to associated Child Quotes
     const qChild = query(collection(db, 'quotes'), where('masterQuoteId', '==', id));
     const unsubChild = onSnapshot(qChild, (snapshot) => {
       const quotes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Quote[];
@@ -70,7 +68,6 @@ export default function MasterQuoteDetailsPage() {
   const loadAvailableChildQuotes = async () => {
     setIsSearching(true);
     try {
-      // Fetch quotes that are NOT masters AND don't have a master assigned yet
       const q = query(
         collection(db, 'quotes'), 
         where('isMaster', '==', false),
@@ -134,24 +131,26 @@ export default function MasterQuoteDetailsPage() {
         </div>
         <div className="flex gap-4 items-center bg-card p-4 rounded-lg shadow-sm border">
             <div className="text-right mr-4">
-                <Label className="text-xs uppercase text-muted-foreground">Lifecycle Status</Label>
-                <p className="font-bold flex items-center gap-2">
+                <Label className="text-xs uppercase text-muted-foreground">Admin Status Controls</Label>
+                <p className="font-bold flex items-center gap-2 mt-1">
                     {masterQuote?.lifecycleStatus === 'Locked' ? <Lock className="h-4 w-4 text-destructive" /> : <History className="h-4 w-4 text-secondary" />}
                     {masterQuote?.lifecycleStatus}
                 </p>
             </div>
-            {masterQuote?.lifecycleStatus !== 'Locked' && (
-                <Select value={masterQuote?.lifecycleStatus || 'Draft'} onValueChange={(val) => handleUpdateLifecycle(val as QuoteLifecycleStatus)} disabled={isUpdating}>
-                    <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Update Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="Draft">Draft</SelectItem>
-                        <SelectItem value="InProgress">InProgress</SelectItem>
-                        <SelectItem value="Locked">Locked</SelectItem>
-                    </SelectContent>
-                </Select>
-            )}
+            <Select 
+                value={masterQuote?.lifecycleStatus || 'Draft'} 
+                onValueChange={(val) => handleUpdateLifecycle(val as QuoteLifecycleStatus)} 
+                disabled={isUpdating}
+            >
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Change Status" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="Draft">Draft (Editable)</SelectItem>
+                    <SelectItem value="InProgress">InProgress (Comparison)</SelectItem>
+                    <SelectItem value="Locked">Locked (Read-Only)</SelectItem>
+                </SelectContent>
+            </Select>
         </div>
       </header>
 
@@ -262,7 +261,6 @@ export default function MasterQuoteDetailsPage() {
   );
 }
 
-// Simple Helper Icons
 const Layers = ({ className }: { className?: string }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18" /><path d="M3 15h18" /><path d="M9 3v18" /><path d="M15 3v18" /></svg>
 );

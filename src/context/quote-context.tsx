@@ -56,6 +56,24 @@ const initialQuoteState: QuoteType = {
     lifecycleStatus: null,
 }
 
+// Utility to remove undefined values before sending to Firestore
+const cleanFirestoreData = (data: any): any => {
+  if (Array.isArray(data)) {
+    return data.map(v => cleanFirestoreData(v));
+  }
+  if (data !== null && typeof data === 'object' && !(data instanceof Date)) {
+    const clean: any = {};
+    Object.keys(data).forEach(key => {
+      const val = data[key];
+      if (val !== undefined) {
+        clean[key] = cleanFirestoreData(val);
+      }
+    });
+    return clean;
+  }
+  return data;
+};
+
 export function QuoteProvider({ children }: { children: ReactNode }) {
   const [quote, setQuote] = useState<QuoteType>(initialQuoteState);
   const [isQuoteSheetOpen, setIsQuoteSheetOpen] = useState(false);
@@ -81,13 +99,11 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addItemToQuote = (itemToAdd: QuoteItem) => {
-    // Lifecycle Validation: Locked quotes cannot be edited
     if (quote.isMaster && quote.lifecycleStatus === 'Locked') {
         toast({ title: "Quote Locked", description: "Cannot add items to a locked Master Quote.", variant: "destructive" });
         return;
     }
 
-    // Requirement: Master Quotes only allow Master Products
     if (quote.isMaster && !itemToAdd.isMasterProduct) {
         toast({ title: "Invalid Product", description: "Master Quotes only allow Master Products.", variant: "destructive" });
         return;
@@ -120,7 +136,6 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   };
 
   const removeItemFromQuote = (itemId: string) => {
-    // Lifecycle Validation: InProgress or Locked Master Quotes cannot remove items
     if (quote.isMaster && (quote.lifecycleStatus === 'InProgress' || quote.lifecycleStatus === 'Locked')) {
         toast({ title: "Restricted Action", description: "Cannot remove items from a Master Quote in Progress or Locked.", variant: "destructive" });
         return;
@@ -133,12 +148,11 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   };
   
   const updateQuoteField = (field: string, value: any) => {
-    if (quote.isMaster && quote.lifecycleStatus === 'Locked') return;
+    if (quote.isMaster && quote.lifecycleStatus === 'Locked' && field !== 'lifecycleStatus') return;
 
     setQuote(prevQuote => {
       const newQuote = { ...prevQuote, [field]: value };
 
-      // Validation logic: masterQuoteId must be null if isMaster is true
       if (field === 'isMaster') {
           if (value === true) {
               newQuote.masterQuoteId = null;
@@ -148,7 +162,6 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
           }
       }
 
-      // Handle quote number prefix based on type
       if (field === 'type') {
         const prefix = value === 'Master' ? 'MQ-' : 'TQ-';
         const currentNumber = newQuote.quoteNumber;
@@ -205,30 +218,24 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
 
   const saveQuoteToFirestore = async () => {
     try {
-      // Final Validation
-      if (!quote.isMaster && quote.masterQuoteId) {
-          // Check if trying to attach a quote that is already a master
-          // (Logic handled in UI dropdown but good to have here)
-      }
-
-      const quoteToSave = {
+      const quoteToSave = cleanFirestoreData({
         ...quote,
         Name: quote.quoteNumber,
         totalPrice: grandTotal,
         LastModifiedDate: serverTimestamp(),
         itemsCount: quote.items.length,
-      };
+      });
 
       const docRef = await addDoc(collection(db, 'quotes'), quoteToSave);
       
-      // Save Line Items
       for (const item of quote.items) {
-          await addDoc(collection(db, 'quoteLineItems'), {
+          const itemToSave = cleanFirestoreData({
               ...item,
               QuoteId: docRef.id,
               UnitPrice: item.price,
               TotalPrice: item.price * item.quantity,
           });
+          await addDoc(collection(db, 'quoteLineItems'), itemToSave);
       }
 
       toast({ title: "Quote Saved", description: "Quote successfully saved to Firestore." });
