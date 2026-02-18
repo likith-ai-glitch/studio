@@ -12,6 +12,7 @@ export interface Product {
   priceList3?: number;
   priceList4?: number;
   priceList5?: number;
+  isMasterProduct?: boolean;
   [key: string]: any;
 }
 
@@ -56,8 +57,31 @@ export interface Notification {
     };
     emailSubject: string;
     emailBody: string;
-    smsBody?: string;
     sentAt: Date;
     orderId?: string;
     quoteId?: string;
+}
+
+export type QuoteLifecycleStatus = 'Draft' | 'InProgress' | 'Locked';
+
+export interface Quote {
+    id?: string;
+    quoteNumber: string;
+    Name?: string; // For compatibility with Salesforce schema
+    items: any[];
+    status: string;
+    type: string;
+    approvalStatus: string;
+    indicativePricing: {
+        additionalCost: number;
+    };
+    discount: number;
+    tax: number;
+    totalPrice?: number;
+    LastModifiedDate?: Date | any;
+    
+    // New Master Quote Fields
+    isMaster: boolean;
+    masterQuoteId: string | null;
+    lifecycleStatus: QuoteLifecycleStatus | null;
 }

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -24,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, FileText, ShoppingCart, Loader2, FileDown } from 'lucide-react';
+import { Trash2, FileText, ShoppingCart, Loader2, FileDown, Save, CheckCircle2 } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -36,12 +37,12 @@ import {
 import { AddressForm, type AddressFormValues } from './address-form';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { useProducts } from '@/context/product-context';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { generateDocumentAction } from '@/app/actions';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 
 export function QuoteSheet() {
   const { 
@@ -56,6 +57,8 @@ export function QuoteSheet() {
     updateQuoteField,
     updateIndicativePricingField,
     applyPriceList,
+    saveQuoteToFirestore,
+    masterQuotes
   } = useQuote();
   const { products, headerNames } = useProducts();
   const { addOrder } = useOrders();
@@ -63,9 +66,10 @@ export function QuoteSheet() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isConvertingPdf, setIsConvertingPdf] = useState(false);
-  const notificationsCollectionRef = collection(db, 'notifications');
+  const [isSaving, setIsSaving] = useState(false);
   const [selectedPriceList, setSelectedPriceList] = useState('none');
 
+  const isLocked = quote.isMaster && quote.lifecycleStatus === 'Locked';
 
   const handlePlaceOrder = (customerData: AddressFormValues) => {
     if (!quote.items) return;
@@ -79,129 +83,10 @@ export function QuoteSheet() {
     setIsQuoteSheetOpen(false);
   }
   
-  const handleGenerateDocument = async () => {
-    setIsSending(true);
-    const { id: toastId } = toast({
-      title: 'Generating Document...',
-      description: 'Preparing document details.',
-    });
-    try {
-      // Pass the entire quote object, including status fields, to the action
-      const quoteData = {
-        ...quote,
-        subTotal, // Make sure the calculated subTotal is included
-      };
-
-      const emailContent = await generateDocumentAction(quoteData);
-
-      await addDoc(notificationsCollectionRef, {
-        customer: {
-          email: 'customer@example.com', // Placeholder email
-        },
-        emailSubject: emailContent.emailSubject,
-        emailBody: emailContent.emailBody,
-        sentAt: serverTimestamp(),
-        quoteId: quote.quoteNumber || `quote_${Date.now()}`,
-      });
-
-      updateQuoteField('approvalStatus', 'SentForApproval');
-      
-      toast({
-        id: toastId,
-        title: 'Document Generated!',
-        description: 'The quote document has been generated and logged.',
-      });
-
-    } catch (error) {
-      console.error("Error generating document:", error);
-      toast({
-        id: toastId,
-        title: 'Error',
-        description: 'Could not generate the document.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSending(false);
-    }
-  }
-
-  const handleDownloadPdf = async () => {
-    setIsConvertingPdf(true);
-     const { id: toastId } = toast({
-      title: 'Generating PDF...',
-      description: 'Please wait while we create your document.',
-    });
-
-    try {
-        const quoteData = {
-            ...quote,
-            subTotal,
-        };
-
-        const { emailBody: htmlContent } = await generateDocumentAction(quoteData);
-
-        const contentElement = document.createElement('div');
-        contentElement.innerHTML = htmlContent;
-        // The element needs to be in the DOM to be rendered by html2canvas, but it can be off-screen
-        contentElement.style.position = 'absolute';
-        contentElement.style.left = '-9999px';
-        contentElement.style.width = '794px'; // A4 width in pixels at 96 DPI
-        contentElement.style.padding = '20px';
-        contentElement.style.backgroundColor = 'white';
-        contentElement.style.color = 'black';
-        document.body.appendChild(contentElement);
-
-        const canvas = await html2canvas(contentElement, {
-            scale: 2,
-            useCORS: true, 
-        });
-        
-        document.body.removeChild(contentElement);
-
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF({
-            orientation: 'p',
-            unit: 'mm',
-            format: 'a4',
-        });
-        
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const canvasWidth = canvas.width;
-        const canvasHeight = canvas.height;
-        const ratio = canvasWidth / canvasHeight;
-        
-        let imgWidth = pdfWidth - 20; // with margin
-        let imgHeight = imgWidth / ratio;
-        
-        if (imgHeight > pdfHeight - 20) {
-            imgHeight = pdfHeight - 20;
-            imgWidth = imgHeight * ratio;
-        }
-        
-        const x = (pdfWidth - imgWidth) / 2;
-        const y = 10; // top margin
-        
-        pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
-        pdf.save(`${quote.quoteNumber || 'quote'}.pdf`);
-
-        toast({
-            id: toastId,
-            title: 'PDF Downloaded',
-            description: 'Your quote has been successfully converted to a PDF.',
-        });
-
-    } catch (error) {
-        console.error("Error converting to PDF:", error);
-        toast({
-            id: toastId,
-            title: 'Error',
-            description: 'Could not generate the PDF document.',
-            variant: 'destructive',
-        });
-    } finally {
-        setIsConvertingPdf(false);
-    }
+  const handleSaveQuote = async () => {
+    setIsSaving(true);
+    await saveQuoteToFirestore();
+    setIsSaving(false);
   };
 
   const handlePriceListChange = (priceListKey: string) => {
@@ -234,9 +119,17 @@ export function QuoteSheet() {
     <Sheet open={isQuoteSheetOpen} onOpenChange={setIsQuoteSheetOpen}>
       <SheetContent className="flex w-full flex-col sm:max-w-3xl">
         <SheetHeader>
-          <SheetTitle>Quote Builder</SheetTitle>
+          <div className="flex justify-between items-center pr-8">
+            <SheetTitle>Quote Builder</SheetTitle>
+            {quote.isMaster && (
+                <Badge variant={quote.lifecycleStatus === 'Locked' ? 'destructive' : 'secondary'}>
+                    Master: {quote.lifecycleStatus}
+                </Badge>
+            )}
+          </div>
         </SheetHeader>
-        <Separator />
+        <Separator className="my-4" />
+        
         {quote.items && quote.items.length > 0 ? (
            <>
             <div className="flex-1 overflow-hidden flex flex-col gap-4">
@@ -247,25 +140,55 @@ export function QuoteSheet() {
                     <Input
                       id="quoteNumber"
                       type="text"
+                      disabled={isLocked}
                       value={quote.quoteNumber}
                       onChange={(e) => updateQuoteField('quoteNumber', e.target.value)}
-                      placeholder="e.g. Q-12345"
                     />
                  </div>
-                 <div className="space-y-2">
-                    <Label>Status</Label>
-                    <Select value={quote.status} onValueChange={(value) => updateQuoteField('status', value)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Draft">Draft</SelectItem>
-                            <SelectItem value="InProgress">In Progress</SelectItem>
-                            <SelectItem value="Final">Final</SelectItem>
-                        </SelectContent>
-                    </Select>
+
+                 {/* Master Quote Relationship Controls */}
+                 <div className="flex flex-col justify-center gap-2 pt-6">
+                    <div className="flex items-center space-x-2">
+                        <Checkbox 
+                            id="isMaster" 
+                            disabled={isLocked || (!!quote.masterQuoteId)}
+                            checked={quote.isMaster} 
+                            onCheckedChange={(checked) => updateQuoteField('isMaster', !!checked)} 
+                        />
+                        <Label htmlFor="isMaster">Mark as Master Quote</Label>
+                    </div>
                  </div>
+
+                 {quote.isMaster ? (
+                    <div className="space-y-2">
+                        <Label>Lifecycle Status</Label>
+                        <Select disabled={isLocked} value={quote.lifecycleStatus || 'Draft'} onValueChange={(val) => updateQuoteField('lifecycleStatus', val)}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Draft">Draft</SelectItem>
+                                <SelectItem value="InProgress">InProgress</SelectItem>
+                                <SelectItem value="Locked">Locked</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                 ) : (
+                    <div className="space-y-2">
+                        <Label>Attach to Master Quote</Label>
+                        <Select disabled={isLocked} value={quote.masterQuoteId || 'none'} onValueChange={(val) => updateQuoteField('masterQuoteId', val === 'none' ? null : val)}>
+                            <SelectTrigger><SelectValue placeholder="Select a Master Quote" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">None</SelectItem>
+                                {masterQuotes.map(mq => (
+                                    <SelectItem key={mq.id} value={mq.id!}>{mq.Name || mq.quoteNumber}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                 )}
+
                  <div className="space-y-2">
                     <Label>Type</Label>
-                    <Select value={quote.type} onValueChange={(value) => updateQuoteField('type', value)}>
+                    <Select disabled={isLocked} value={quote.type} onValueChange={(value) => updateQuoteField('type', value)}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="Master">Master</SelectItem>
@@ -273,35 +196,15 @@ export function QuoteSheet() {
                         </SelectContent>
                     </Select>
                  </div>
-                 <div className="space-y-2">
-                    <Label>Approval Status</Label>
-                    <Select value={quote.approvalStatus} onValueChange={(value) => updateQuoteField('approvalStatus', value)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Draft">Draft</SelectItem>
-                            <SelectItem value="SentForApproval">Sent For Approval</SelectItem>
-                            <SelectItem value="Approved">Approved</SelectItem>
-                        </SelectContent>
-                    </Select>
-                 </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="additionalCost">Additional Cost</Label>
-                    <Input 
-                      id="additionalCost"
-                      type="number"
-                      value={quote.indicativePricing.additionalCost}
-                      onChange={(e) => updateIndicativePricingField('additionalCost', e.target.value)}
-                      placeholder="e.g. 5000.00"
-                    />
-                 </div>
+                 
                  <div className="space-y-2">
                     <Label htmlFor="discount">Discount %</Label>
                     <Input 
                       id="discount"
                       type="number"
+                      disabled={isLocked}
                       value={quote.discount}
                       onChange={(e) => updateQuoteField('discount', e.target.value)}
-                      placeholder="e.g. 10"
                     />
                  </div>
                   <div className="space-y-2">
@@ -309,14 +212,14 @@ export function QuoteSheet() {
                     <Input 
                       id="tax"
                       type="number"
+                      disabled={isLocked}
                       value={quote.tax}
                       onChange={(e) => updateQuoteField('tax', e.target.value)}
-                      placeholder="e.g. 18"
                     />
                  </div>
                  <div className="space-y-2 md:col-span-3">
                     <Label>Apply Price Book</Label>
-                    <Select value={selectedPriceList} onValueChange={handlePriceListChange}>
+                    <Select disabled={isLocked} value={selectedPriceList} onValueChange={handlePriceListChange}>
                         <SelectTrigger><SelectValue placeholder="Select a price list" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="none">Default Prices</SelectItem>
@@ -329,7 +232,9 @@ export function QuoteSheet() {
                     </Select>
                  </div>
               </div>
+              
               <Separator />
+
               <ScrollArea className="h-full -mx-6">
                 <Table>
                   <TableHeader>
@@ -338,53 +243,46 @@ export function QuoteSheet() {
                       <TableHead className="text-center">Qty</TableHead>
                       <TableHead className="text-right">Unit Price</TableHead>
                       <TableHead className="text-right">Total</TableHead>
-                      <TableHead className="w-[50px]"></TableHead>
+                      {!isLocked && <TableHead className="w-[50px]"></TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {quote.items.map(item => {
-                      const product = products.find(p => p.productId === item.productId);
-                      const standardPrice = product?.priceList1 || item.price;
-                      const percentageDiff = standardPrice > 0 ? ((item.price / standardPrice) - 1) * 100 : 0;
-
-                      return (
+                    {quote.items.map(item => (
                         <TableRow key={item.id}>
                           <TableCell className="px-6">
-                            <div className="font-medium text-base mb-2">{item.name}</div>
-                            <dl className="text-xs text-muted-foreground grid grid-cols-[max-content_1fr] gap-x-2 gap-y-1">
-                              {item.productId && (<><dt className="font-semibold">ID:</dt><dd className="truncate">{item.productId}</dd></>)}
-                              {item.brand && (<><dt className="font-semibold">Brand:</dt><dd className="truncate">{item.brand}</dd></>)}
-                              {item.category && (<><dt className="font-semibold">Category:</dt><dd className="truncate">{item.category}</dd></>)}
-                              {item.partName && (<><dt className="font-semibold">Part Name:</dt><dd className="truncate">{item.partName}</dd></>)}
-                              {item.colour && (<><dt className="font-semibold">Colour:</dt><dd className="truncate">{item.colour}</dd></>)}
-                            </dl>
+                            <div className="font-medium text-base mb-1">{item.name}</div>
+                            <div className="flex gap-2">
+                                <Badge variant="outline" className="text-[10px]">{item.productId}</Badge>
+                                {item.isMasterProduct && <Badge variant="secondary" className="text-[10px] bg-blue-100 text-blue-700">Master Product</Badge>}
+                            </div>
                           </TableCell>
                           <TableCell className="text-center">
                             <Input
                               type="number"
                               min="1"
+                              disabled={isLocked}
                               value={item.quantity}
                               onChange={(e) => updateItemQuantity(item.id, parseInt(e.target.value) || 1)}
                               className="w-16 h-8 mx-auto"
                             />
                           </TableCell>
-                          <TableCell className="text-right">
-                             <div>₹{Number(item.price).toFixed(2)}</div>
-                             {standardPrice !== item.price && (
-                                <div className={`text-xs ${percentageDiff > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                    {percentageDiff > 0 ? '+' : ''}{percentageDiff.toFixed(2)}%
-                                </div>
-                             )}
-                          </TableCell>
+                          <TableCell className="text-right">₹{Number(item.price).toFixed(2)}</TableCell>
                           <TableCell className="text-right">₹{(Number(item.price) * item.quantity).toFixed(2)}</TableCell>
-                          <TableCell>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeItemFromQuote(item.id)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </TableCell>
+                          {!isLocked && (
+                            <TableCell>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8" 
+                                    disabled={quote.isMaster && (quote.lifecycleStatus === 'InProgress')}
+                                    onClick={() => removeItemFromQuote(item.id)}
+                                >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
-                      );
-                    })}
+                    ))}
                   </TableBody>
                 </Table>
               </ScrollArea>
@@ -396,44 +294,21 @@ export function QuoteSheet() {
                   <p>Subtotal</p>
                   <p>₹{subTotal.toFixed(2)}</p>
                 </div>
-                {quote.discount > 0 && (
-                   <div className="flex justify-between text-sm text-muted-foreground">
-                    <p>Discount ({quote.discount || 0}%)</p>
-                    <p>- ₹{totalDiscountAmount.toFixed(2)}</p>
-                  </div>
-                )}
-                {quote.tax > 0 && (
-                   <div className="flex justify-between text-sm text-muted-foreground">
-                    <p>GST ({quote.tax || 0}%)</p>
-                    <p>+ ₹{taxAmount.toFixed(2)}</p>
-                  </div>
-                )}
                  <Separator />
                 <div className="flex justify-between font-bold text-xl">
                   <p>Grand Total</p>
                   <p>₹{grandTotal.toFixed(2)}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                <Button onClick={handleGenerateDocument} disabled={isSending || isConvertingPdf} className="md:col-span-1">
-                    {isSending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <FileText className="mr-2 h-4 w-4" />
-                    )}
-                    Generate
-                </Button>
-                <Button onClick={handleDownloadPdf} disabled={isConvertingPdf || isSending} className="md:col-span-1">
-                    {isConvertingPdf ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <FileDown className="mr-2 h-4 w-4" />
-                    )}
-                    Download PDF
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <Button variant="outline" onClick={handleSaveQuote} disabled={isSaving || isLocked}>
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Save Quote
                 </Button>
                 <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
                     <DialogTrigger asChild>
-                      <Button className="md:col-span-1" disabled={isSending || isConvertingPdf}>
+                      <Button className="w-full">
                         <ShoppingCart className="mr-2 h-4 w-4" />
                         Create Order
                       </Button>
@@ -441,17 +316,11 @@ export function QuoteSheet() {
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Shipping Information</DialogTitle>
-                        <DialogDescription>
-                          Provide customer details to create an order from this quote.
-                        </DialogDescription>
                       </DialogHeader>
                       <AddressForm onSubmit={handlePlaceOrder} />
                     </DialogContent>
                 </Dialog>
               </div>
-               <SheetClose asChild>
-                  <Button variant="outline">Continue Browsing</Button>
-                </SheetClose>
             </SheetFooter>
           </>
         ) : (

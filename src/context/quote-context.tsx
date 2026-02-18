@@ -1,11 +1,14 @@
 
 'use client';
 
-import { createContext, useContext, useState, ReactNode, useMemo } from 'react';
-import type { Product } from '@/lib/types';
+import { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
+import type { Product, Quote as QuoteType, QuoteLifecycleStatus } from '@/lib/types';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp, doc, updateDoc, getDocs, query, where, getDoc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 export interface QuoteItem {
-  id: string; // Internal ID for the quote item, typically same as productId
+  id: string; 
   productId: string;
   name: string;
   price: number;
@@ -14,49 +17,30 @@ export interface QuoteItem {
   category: string;
   colour?: string;
   partName?: string;
-}
-
-
-export type QuoteStatus = 'Draft' | 'InProgress' | 'Final';
-export type QuoteType = 'Master' | 'Transaction';
-export type QuoteApprovalStatus = 'Draft' | 'SentForApproval' | 'Approved';
-
-export interface IndicativePricing {
-    additionalCost: number;
-}
-
-export interface Quote {
-  quoteNumber: string;
-  items: QuoteItem[];
-  status: QuoteStatus;
-  type: QuoteType;
-  approvalStatus: QuoteApprovalStatus;
-  indicativePricing: IndicativePricing;
-  discount: number;
-  tax: number; // Represents GST %
-  subTotal?: number;
-  grandTotal?: number;
+  isMasterProduct?: boolean;
 }
 
 interface QuoteContextType {
-  quote: Quote;
+  quote: QuoteType;
   isQuoteSheetOpen: boolean;
   setIsQuoteSheetOpen: (isOpen: boolean) => void;
   addItemToQuote: (item: QuoteItem) => void;
-  buyNow: (item: QuoteItem) => void;
   updateItemQuantity: (itemId: string, quantity: number) => void;
   removeItemFromQuote: (itemId: string) => void;
   clearQuote: () => void;
   subTotal: number;
   grandTotal: number;
-  updateQuoteField: (field: keyof Omit<Quote, 'items' | 'indicativePricing'>, value: any) => void;
-  updateIndicativePricingField: (field: keyof IndicativePricing, value: number) => void;
+  updateQuoteField: (field: string, value: any) => void;
+  updateIndicativePricingField: (field: string, value: number) => void;
   applyPriceList: (priceListKey: string, allProducts: Product[]) => void;
+  saveQuoteToFirestore: () => Promise<void>;
+  masterQuotes: QuoteType[];
+  refreshMasterQuotes: () => Promise<void>;
 }
 
 const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
 
-const initialQuoteState: Quote = {
+const initialQuoteState: QuoteType = {
     quoteNumber: 'TQ-',
     items: [],
     status: 'Draft',
@@ -67,38 +51,64 @@ const initialQuoteState: Quote = {
     },
     discount: 0,
     tax: 0,
+    isMaster: false,
+    masterQuoteId: null,
+    lifecycleStatus: null,
 }
 
 export function QuoteProvider({ children }: { children: ReactNode }) {
-  const [quote, setQuote] = useState<Quote>(initialQuoteState);
+  const [quote, setQuote] = useState<QuoteType>(initialQuoteState);
   const [isQuoteSheetOpen, setIsQuoteSheetOpen] = useState(false);
+  const [masterQuotes, setMasterQuotes] = useState<QuoteType[]>([]);
+  const { toast } = useToast();
+
+  const refreshMasterQuotes = async () => {
+    try {
+      const q = query(collection(db, 'quotes'), where('isMaster', '==', true));
+      const querySnapshot = await getDocs(q);
+      const quotes = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as QuoteType[];
+      setMasterQuotes(quotes);
+    } catch (error) {
+      console.error("Error fetching master quotes:", error);
+    }
+  };
+
+  useEffect(() => {
+    refreshMasterQuotes();
+  }, []);
 
   const addItemToQuote = (itemToAdd: QuoteItem) => {
+    // Lifecycle Validation: Locked quotes cannot be edited
+    if (quote.isMaster && quote.lifecycleStatus === 'Locked') {
+        toast({ title: "Quote Locked", description: "Cannot add items to a locked Master Quote.", variant: "destructive" });
+        return;
+    }
+
+    // Requirement: Master Quotes only allow Master Products
+    if (quote.isMaster && !itemToAdd.isMasterProduct) {
+        toast({ title: "Invalid Product", description: "Master Quotes only allow Master Products.", variant: "destructive" });
+        return;
+    }
+
     setQuote(prevQuote => {
       const existingItem = prevQuote.items.find(item => item.id === itemToAdd.id);
       if (existingItem) {
-        // Item exists, update quantity
         const updatedItems = prevQuote.items.map(item =>
           item.id === itemToAdd.id ? { ...item, quantity: item.quantity + itemToAdd.quantity } : item
         );
         return { ...prevQuote, items: updatedItems };
       } else {
-        // Item does not exist, add it
-        const newItems = [...prevQuote.items, itemToAdd];
-        return { ...prevQuote, items: newItems };
+        return { ...prevQuote, items: [...prevQuote.items, itemToAdd] };
       }
     });
   };
 
-  const buyNow = (item: QuoteItem) => {
-    // This function can be used for other checkout flows if needed,
-    // but the primary "Buy Now" is now handled in ProductCard.
-    // For now, it will just open the quote sheet with the item.
-    addItemToQuote(item);
-    setIsQuoteSheetOpen(true);
-  }
-
   const updateItemQuantity = (itemId: string, quantity: number) => {
+    if (quote.isMaster && quote.lifecycleStatus === 'Locked') return;
+    
     if (quantity <= 0) {
       removeItemFromQuote(itemId);
     } else {
@@ -108,16 +118,37 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
       });
     }
   };
-  
-  const updateQuoteField = (field: keyof Omit<Quote, 'items' | 'indicativePricing'>, value: any) => {
-    setQuote(prevQuote => {
-      let processedValue = value;
-      if (field === 'tax' || field === 'discount') {
-        processedValue = parseFloat(value) || 0;
-      }
-      
-      const newQuote = { ...prevQuote, [field]: processedValue };
 
+  const removeItemFromQuote = (itemId: string) => {
+    // Lifecycle Validation: InProgress or Locked Master Quotes cannot remove items
+    if (quote.isMaster && (quote.lifecycleStatus === 'InProgress' || quote.lifecycleStatus === 'Locked')) {
+        toast({ title: "Restricted Action", description: "Cannot remove items from a Master Quote in Progress or Locked.", variant: "destructive" });
+        return;
+    }
+
+    setQuote(prevQuote => {
+        const updatedItems = prevQuote.items.filter(item => item.id !== itemId);
+        return { ...prevQuote, items: updatedItems };
+    });
+  };
+  
+  const updateQuoteField = (field: string, value: any) => {
+    if (quote.isMaster && quote.lifecycleStatus === 'Locked') return;
+
+    setQuote(prevQuote => {
+      const newQuote = { ...prevQuote, [field]: value };
+
+      // Validation logic: masterQuoteId must be null if isMaster is true
+      if (field === 'isMaster') {
+          if (value === true) {
+              newQuote.masterQuoteId = null;
+              newQuote.lifecycleStatus = prevQuote.lifecycleStatus || 'Draft';
+          } else {
+              newQuote.lifecycleStatus = null;
+          }
+      }
+
+      // Handle quote number prefix based on type
       if (field === 'type') {
         const prefix = value === 'Master' ? 'MQ-' : 'TQ-';
         const currentNumber = newQuote.quoteNumber;
@@ -131,7 +162,8 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
     });
   };
   
-  const updateIndicativePricingField = (field: keyof IndicativePricing, value: number) => {
+  const updateIndicativePricingField = (field: string, value: number) => {
+    if (quote.isMaster && quote.lifecycleStatus === 'Locked') return;
     setQuote(prevQuote => ({
         ...prevQuote,
         indicativePricing: {
@@ -141,18 +173,8 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  const removeItemFromQuote = (itemId: string) => {
-    setQuote(prevQuote => {
-        const updatedItems = prevQuote.items.filter(item => item.id !== itemId);
-        return { ...prevQuote, items: updatedItems };
-    });
-  };
-  
-  const clearQuote = () => {
-    setQuote(initialQuoteState);
-  }
-
   const applyPriceList = (priceListKey: string, allProducts: Product[]) => {
+    if (quote.isMaster && quote.lifecycleStatus === 'Locked') return;
     setQuote(prevQuote => {
         const updatedItems = prevQuote.items.map(item => {
             const product = allProducts.find(p => p.productId === item.productId);
@@ -164,20 +186,13 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
             }
             return item;
         });
-
-        return { 
-            ...prevQuote, 
-            items: updatedItems,
-        };
+        return { ...prevQuote, items: updatedItems };
     });
-};
-
+  };
 
   const subTotal = useMemo(() => {
     const itemsTotal = quote.items.reduce((total, item) => total + Number(item.price) * item.quantity, 0);
-    const indicativePricing = quote.indicativePricing;
-    const additionalCost = Number(indicativePricing.additionalCost) || 0;
-    
+    const additionalCost = Number(quote.indicativePricing.additionalCost) || 0;
     return itemsTotal + additionalCost;
   }, [quote.items, quote.indicativePricing.additionalCost]);
 
@@ -188,13 +203,54 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
     return taxableAmount + taxAmount;
   }, [subTotal, quote.discount, quote.tax]);
 
+  const saveQuoteToFirestore = async () => {
+    try {
+      // Final Validation
+      if (!quote.isMaster && quote.masterQuoteId) {
+          // Check if trying to attach a quote that is already a master
+          // (Logic handled in UI dropdown but good to have here)
+      }
+
+      const quoteToSave = {
+        ...quote,
+        Name: quote.quoteNumber,
+        totalPrice: grandTotal,
+        LastModifiedDate: serverTimestamp(),
+        itemsCount: quote.items.length,
+      };
+
+      const docRef = await addDoc(collection(db, 'quotes'), quoteToSave);
+      
+      // Save Line Items
+      for (const item of quote.items) {
+          await addDoc(collection(db, 'quoteLineItems'), {
+              ...item,
+              QuoteId: docRef.id,
+              UnitPrice: item.price,
+              TotalPrice: item.price * item.quantity,
+          });
+      }
+
+      toast({ title: "Quote Saved", description: "Quote successfully saved to Firestore." });
+      clearQuote();
+      setIsQuoteSheetOpen(false);
+      refreshMasterQuotes();
+    } catch (error: any) {
+      console.error("Error saving quote:", error);
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const clearQuote = () => {
+    setQuote(initialQuoteState);
+  }
+
   return (
     <QuoteContext.Provider value={{ 
         quote, 
         isQuoteSheetOpen, 
         setIsQuoteSheetOpen, 
         addItemToQuote, 
-        buyNow, 
         updateItemQuantity, 
         removeItemFromQuote, 
         clearQuote, 
@@ -203,6 +259,9 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
         updateQuoteField,
         updateIndicativePricingField,
         applyPriceList,
+        saveQuoteToFirestore,
+        masterQuotes,
+        refreshMasterQuotes
     }}>
       {children}
     </QuoteContext.Provider>
