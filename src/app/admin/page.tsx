@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
@@ -7,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings, View, Copy, FilePlus, Upload, Download, BookCopy, Percent, RefreshCw, AlertCircle, CheckCircle, DatabaseZap, Info, X } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings, View, Copy, FilePlus, Upload, Download, BookCopy, Percent, RefreshCw, AlertCircle, CheckCircle, DatabaseZap, Info, X, Save } from 'lucide-react';
 import Link from 'next/link';
 import {
     DropdownMenu,
@@ -101,11 +102,6 @@ function QuotesDashboard() {
       const quotesDataPromises = quotesSnapshot.docs.map(async (quoteDoc) => {
         const quoteData = quoteDoc.data();
         
-        // Fetch associated line items
-        const lineItemsQuery = query(collection(db, 'quoteLineItems'), where('QuoteId', '==', quoteDoc.id));
-        const lineItemsSnapshot = await getDocs(lineItemsQuery);
-        const lineItems = lineItemsSnapshot.docs.map(doc => doc.data() as QuoteLineItem);
-
         // Safety check for LastModifiedDate to avoid runtime errors
         let lastModified: Date;
         if (quoteData.LastModifiedDate && typeof quoteData.LastModifiedDate.toDate === 'function') {
@@ -115,6 +111,11 @@ function QuotesDashboard() {
         } else {
           lastModified = new Date();
         }
+
+        // Fetch associated line items
+        const lineItemsQuery = query(collection(db, 'quoteLineItems'), where('QuoteId', '==', quoteDoc.id));
+        const lineItemsSnapshot = await getDocs(lineItemsQuery);
+        const lineItems = lineItemsSnapshot.docs.map(doc => doc.data() as QuoteLineItem);
 
         return {
           Id: quoteDoc.id,
@@ -136,16 +137,8 @@ function QuotesDashboard() {
       setLoading(false);
     });
 
-    const qliQuery = collection(db, 'quoteLineItems');
-    const unsubscribeAllQLIs = onSnapshot(qliQuery, () => {
-        console.log("Change detected in QuoteLineItems, quote view will refresh.");
-    }, (err) => {
-        console.error("Error listening to QLIs:", err);
-    });
-
     return () => {
         unsubscribeQuotes();
-        unsubscribeAllQLIs();
     };
   }, []);
 
@@ -491,7 +484,7 @@ export default function AdminPage() {
     addProductsBulk,
   } = useProducts();
   const { orders } = useOrders();
-  const { addItemToQuote, setIsQuoteSheetOpen, quote, clearQuote } = useQuote();
+  const { addItemToQuote, setIsQuoteSheetOpen, quote, clearQuote, saveQuoteToFirestore } = useQuote();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Product | string | null; direction: 'ascending' | 'descending' }>({ key: 'name', direction: 'ascending' });
@@ -522,6 +515,7 @@ export default function AdminPage() {
   const [isImportDialogOpen, setImportDialogOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importStep, setImportStep] = useState<'selectFile' | 'mapFields'>('selectFile');
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
@@ -912,6 +906,15 @@ export default function AdminPage() {
     );
 };
 
+  const handleSaveActiveQuote = async () => {
+    setIsSaving(true);
+    try {
+        await saveQuoteToFirestore();
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
   const visibleFilteredProductIds = useMemo(() => sortedAndFilteredProducts.map(p => p.productId), [sortedAndFilteredProducts]);
 
   const allVisibleSelected = useMemo(() => {
@@ -935,9 +938,15 @@ export default function AdminPage() {
           <AlertTitle className="font-bold">Building Child Quote</AlertTitle>
           <AlertDescription className="flex justify-between items-center">
             You are currently selecting products to build a comparison quote for a Master Baseline.
-            <Button variant="ghost" size="sm" onClick={() => clearQuote()} className="text-primary hover:text-primary">
-              <X className="h-4 w-4 mr-1" /> Cancel Relationship
-            </Button>
+            <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleSaveActiveQuote} disabled={isSaving || quote.items.length === 0} className="bg-green-600 hover:bg-green-700 text-white border-none">
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                    Save Quote
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => clearQuote()} className="text-primary hover:text-primary">
+                    <X className="h-4 w-4 mr-1" /> Cancel
+                </Button>
+            </div>
           </AlertDescription>
         </Alert>
       )}
@@ -1015,6 +1024,17 @@ export default function AdminPage() {
         <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <CardTitle>Product Master (prd_master)</CardTitle>
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            {quote.items.length > 0 && (
+                <Button 
+                    size="sm" 
+                    onClick={handleSaveActiveQuote} 
+                    disabled={isSaving}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Save Quote ({quote.items.length})
+                </Button>
+            )}
             <Input
                 placeholder="Filter products..."
                 value={searchTerm}

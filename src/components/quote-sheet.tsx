@@ -85,8 +85,11 @@ export function QuoteSheet() {
   
   const handleSaveQuote = async () => {
     setIsSaving(true);
-    await saveQuoteToFirestore();
-    setIsSaving(false);
+    try {
+        await saveQuoteToFirestore();
+    } finally {
+        setIsSaving(false);
+    }
   };
 
   const handlePriceListChange = (priceListKey: string) => {
@@ -121,11 +124,25 @@ export function QuoteSheet() {
         <SheetHeader>
           <div className="flex justify-between items-center pr-8">
             <SheetTitle>Quote Builder</SheetTitle>
-            {quote.isMaster && (
-                <Badge variant={quote.lifecycleStatus === 'Locked' ? 'destructive' : 'secondary'}>
-                    Master: {quote.lifecycleStatus}
-                </Badge>
-            )}
+            <div className="flex items-center gap-2">
+                {quote.items.length > 0 && (
+                  <Button 
+                    size="sm" 
+                    variant="default"
+                    onClick={handleSaveQuote} 
+                    disabled={isSaving || isLocked}
+                    className="h-8 px-3 bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                    Save Quote
+                  </Button>
+                )}
+                {quote.isMaster && (
+                    <Badge variant={quote.lifecycleStatus === 'Locked' ? 'destructive' : 'secondary'}>
+                        Master: {quote.lifecycleStatus}
+                    </Badge>
+                )}
+            </div>
           </div>
         </SheetHeader>
         <Separator className="my-4" />
