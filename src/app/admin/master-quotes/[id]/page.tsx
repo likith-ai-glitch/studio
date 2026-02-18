@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -10,8 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, ArrowLeft, Plus, CheckCircle2, Lock, History, Search } from 'lucide-react';
+import { Loader2, ArrowLeft, Plus, CheckCircle2, Lock, History, Search, FilePlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useQuote } from '@/context/quote-context';
 import type { Quote, QuoteLifecycleStatus } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +20,7 @@ export default function MasterQuoteDetailsPage() {
   const { id } = useParams();
   const router = useRouter();
   const { toast } = useToast();
+  const { startNewChildQuote } = useQuote();
   const [masterQuote, setMasterQuote] = useState<Quote | null>(null);
   const [childQuotes, setChildQuotes] = useState<Quote[]>([]);
   const [availableChildQuotes, setAvailableChildQuotes] = useState<Quote[]>([]);
@@ -104,6 +105,13 @@ export default function MasterQuoteDetailsPage() {
       toast({ title: "Child Quote Detached", description: "The link has been successfully removed." });
     } catch (error: any) {
       toast({ title: "Detachment Failed", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleCreateNewChild = () => {
+    if (masterQuote) {
+      startNewChildQuote(masterQuote.id!, masterQuote.Name || masterQuote.quoteNumber);
+      router.push('/admin');
     }
   };
 
@@ -198,10 +206,16 @@ export default function MasterQuoteDetailsPage() {
                     <CardTitle className="flex justify-between items-center">
                         Vendor Child Quotes ({childQuotes.length})
                         {masterQuote?.lifecycleStatus !== 'Locked' && (
-                            <Button size="sm" onClick={loadAvailableChildQuotes} disabled={isSearching}>
-                                {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                                Add Child
-                            </Button>
+                            <div className="flex gap-2">
+                                <Button size="sm" variant="outline" onClick={loadAvailableChildQuotes} disabled={isSearching}>
+                                    {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                                    Link Existing
+                                </Button>
+                                <Button size="sm" onClick={handleCreateNewChild}>
+                                    <FilePlus className="h-4 w-4 mr-1" />
+                                    Add Child
+                                </Button>
+                            </div>
                         )}
                     </CardTitle>
                     <CardDescription>

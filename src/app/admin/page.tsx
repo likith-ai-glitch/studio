@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
@@ -8,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings, View, Copy, FilePlus, Upload, Download, BookCopy, Percent, RefreshCw, AlertCircle, CheckCircle, DatabaseZap } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings, View, Copy, FilePlus, Upload, Download, BookCopy, Percent, RefreshCw, AlertCircle, CheckCircle, DatabaseZap, Info, X } from 'lucide-react';
 import Link from 'next/link';
 import {
     DropdownMenu,
@@ -62,6 +61,7 @@ import { collection, query, orderBy, onSnapshot, Timestamp, where, getDocs } fro
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface QuoteLineItem {
     Id: string;
@@ -126,13 +126,8 @@ function QuotesDashboard() {
       setLoading(false);
     });
 
-    // Also listen for changes on ALL quoteLineItems to trigger a refresh
     const qliQuery = collection(db, 'quoteLineItems');
     const unsubscribeAllQLIs = onSnapshot(qliQuery, () => {
-        // This is a bit of a brute-force refresh. When any QLI changes,
-        // we re-run the main quotes query to get the latest state.
-        // This avoids complex individual listeners.
-        // No need to do anything here; the quotes listener will re-evaluate.
         console.log("Change detected in QuoteLineItems, quote view will refresh.");
     }, (err) => {
         console.error("Error listening to QLIs:", err);
@@ -486,7 +481,7 @@ export default function AdminPage() {
     addProductsBulk,
   } = useProducts();
   const { orders } = useOrders();
-  const { addItemToQuote, setIsQuoteSheetOpen } = useQuote();
+  const { addItemToQuote, setIsQuoteSheetOpen, quote, clearQuote } = useQuote();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Product | string | null; direction: 'ascending' | 'descending' }>({ key: 'name', direction: 'ascending' });
@@ -923,6 +918,19 @@ export default function AdminPage() {
       <header className="flex justify-between items-center">
         <h1 className="text-4xl font-bold font-headline">Dashboard</h1>
       </header>
+
+      {quote.masterQuoteId && (
+        <Alert className="bg-primary/10 border-primary">
+          <Info className="h-4 w-4 text-primary" />
+          <AlertTitle className="font-bold">Building Child Quote</AlertTitle>
+          <AlertDescription className="flex justify-between items-center">
+            You are currently selecting products to build a comparison quote for a Master Baseline.
+            <Button variant="ghost" size="sm" onClick={() => clearQuote()} className="text-primary hover:text-primary">
+              <X className="h-4 w-4 mr-1" /> Cancel Relationship
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <Card>
@@ -1462,5 +1470,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-    

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
@@ -36,6 +35,7 @@ interface QuoteContextType {
   saveQuoteToFirestore: () => Promise<void>;
   masterQuotes: QuoteType[];
   refreshMasterQuotes: () => Promise<void>;
+  startNewChildQuote: (masterId: string, masterName: string) => void;
 }
 
 const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
@@ -101,11 +101,6 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   const addItemToQuote = (itemToAdd: QuoteItem) => {
     if (quote.isMaster && quote.lifecycleStatus === 'Locked') {
         toast({ title: "Quote Locked", description: "Cannot add items to a locked Master Quote.", variant: "destructive" });
-        return;
-    }
-
-    if (quote.isMaster && !itemToAdd.isMasterProduct) {
-        toast({ title: "Invalid Product", description: "Master Quotes only allow Master Products.", variant: "destructive" });
         return;
     }
 
@@ -248,6 +243,19 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const startNewChildQuote = (masterId: string, masterName: string) => {
+    setQuote({
+      ...initialQuoteState,
+      isMaster: false,
+      masterQuoteId: masterId,
+      quoteNumber: `CQ-${masterName}-`,
+    });
+    toast({
+      title: "Building Child Quote",
+      description: `New quote will be linked to Master: ${masterName}`,
+    });
+  };
+
   const clearQuote = () => {
     setQuote(initialQuoteState);
   }
@@ -268,7 +276,8 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
         applyPriceList,
         saveQuoteToFirestore,
         masterQuotes,
-        refreshMasterQuotes
+        refreshMasterQuotes,
+        startNewChildQuote
     }}>
       {children}
     </QuoteContext.Provider>
