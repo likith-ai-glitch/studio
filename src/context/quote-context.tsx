@@ -58,24 +58,19 @@ const initialQuoteState: QuoteType = {
 
 /**
  * Utility to remove undefined values before sending to Firestore.
- * It carefully ignores Firestore sentinel values (like serverTimestamp) 
- * which shouldn't be iterated as plain objects.
+ * It carefully preserves Firestore sentinel values (like serverTimestamp)
+ * by only recursing into plain JavaScript objects.
  */
 const cleanFirestoreData = (data: any): any => {
   if (data === null || data === undefined) return data;
   
-  // Handle arrays
   if (Array.isArray(data)) {
     return data.map(v => cleanFirestoreData(v));
   }
   
-  // Handle Dates and Firestore Sentinels (which we don't want to iterate)
-  if (data instanceof Date || (data.constructor && data.constructor.name === 'FieldValue')) {
-    return data;
-  }
-  
-  // Handle plain objects
-  if (typeof data === 'object') {
+  // Use Object.prototype.toString to reliably identify plain objects {}
+  // This avoids recursing into Date, FieldValue, etc.
+  if (typeof data === 'object' && Object.prototype.toString.call(data) === '[object Object]') {
     const clean: any = {};
     Object.keys(data).forEach(key => {
       const val = data[key];
@@ -229,13 +224,17 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   const saveQuoteToFirestore = async () => {
     try {
       console.log("Preparing to save quote to Firestore...");
-      const quoteToSave = cleanFirestoreData({
+      
+      // We manually construct the save object to be absolutely certain of its structure
+      const rawQuoteData = {
         ...quote,
         Name: quote.quoteNumber,
         totalPrice: grandTotal,
         LastModifiedDate: serverTimestamp(),
         itemsCount: quote.items.length,
-      });
+      };
+
+      const quoteToSave = cleanFirestoreData(rawQuoteData);
 
       console.log("Saving quote header...");
       const docRef = await addDoc(collection(db, 'quotes'), quoteToSave);
@@ -264,7 +263,6 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
         description: error.message || "An unexpected error occurred while saving. Check your console for details.", 
         variant: "destructive" 
       });
-      // Re-throw to ensure callers know it failed
       throw error;
     }
   };
