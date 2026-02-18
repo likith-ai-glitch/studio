@@ -56,12 +56,26 @@ const initialQuoteState: QuoteType = {
     lifecycleStatus: null,
 }
 
-// Utility to remove undefined values before sending to Firestore
+/**
+ * Utility to remove undefined values before sending to Firestore.
+ * It carefully ignores Firestore sentinel values (like serverTimestamp) 
+ * which shouldn't be iterated as plain objects.
+ */
 const cleanFirestoreData = (data: any): any => {
+  if (data === null || data === undefined) return data;
+  
+  // Handle arrays
   if (Array.isArray(data)) {
     return data.map(v => cleanFirestoreData(v));
   }
-  if (data !== null && typeof data === 'object' && !(data instanceof Date)) {
+  
+  // Handle Dates and Firestore Sentinels (which we don't want to iterate)
+  if (data instanceof Date || (data.constructor && data.constructor.name === 'FieldValue')) {
+    return data;
+  }
+  
+  // Handle plain objects
+  if (typeof data === 'object') {
     const clean: any = {};
     Object.keys(data).forEach(key => {
       const val = data[key];
@@ -71,6 +85,7 @@ const cleanFirestoreData = (data: any): any => {
     });
     return clean;
   }
+  
   return data;
 };
 
@@ -213,6 +228,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
 
   const saveQuoteToFirestore = async () => {
     try {
+      console.log("Preparing to save quote to Firestore...");
       const quoteToSave = cleanFirestoreData({
         ...quote,
         Name: quote.quoteNumber,
@@ -221,8 +237,11 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
         itemsCount: quote.items.length,
       });
 
+      console.log("Saving quote header...");
       const docRef = await addDoc(collection(db, 'quotes'), quoteToSave);
+      console.log("Quote header saved with ID:", docRef.id);
       
+      console.log("Saving quote line items...");
       for (const item of quote.items) {
           const itemToSave = cleanFirestoreData({
               ...item,
@@ -232,14 +251,21 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
           });
           await addDoc(collection(db, 'quoteLineItems'), itemToSave);
       }
+      console.log("All line items saved.");
 
       toast({ title: "Quote Saved", description: "Quote successfully saved to Firestore." });
       clearQuote();
       setIsQuoteSheetOpen(false);
       refreshMasterQuotes();
     } catch (error: any) {
-      console.error("Error saving quote:", error);
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      console.error("CRITICAL ERROR: Failed to save quote to Firestore:", error);
+      toast({ 
+        title: "Save Failed", 
+        description: error.message || "An unexpected error occurred while saving. Check your console for details.", 
+        variant: "destructive" 
+      });
+      // Re-throw to ensure callers know it failed
+      throw error;
     }
   };
 
