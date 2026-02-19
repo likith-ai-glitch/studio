@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import type { Product, Quote as QuoteType, QuoteLifecycleStatus } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, doc, updateDoc, getDocs, query, where, getDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, updateDoc, getDocs, query, where, getDoc, limit } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -60,8 +60,7 @@ const initialQuoteState: QuoteType = {
 
 /**
  * Robust data cleanup for Firestore.
- * Recursively removes 'undefined' fields but preserves special Firestore objects
- * like FieldValue (serverTimestamp), Timestamps, and Dates.
+ * Processes only plain objects and arrays to preserve Firestore FieldValues (sentinels).
  */
 const cleanFirestoreData = (data: any): any => {
   if (data === null || data === undefined) return data;
@@ -70,9 +69,9 @@ const cleanFirestoreData = (data: any): any => {
     return data.map(v => cleanFirestoreData(v));
   }
   
-  // Only recurse into "plain" objects.
-  // This preserves Dates, Timestamps, and Firestore FieldValue sentinels (like serverTimestamp).
-  if (typeof data === 'object' && data.constructor === Object) {
+  // Check if it's a plain object. 
+  // We avoid cleaning Timestamps or FieldValues by checking the constructor.
+  if (typeof data === 'object' && Object.prototype.toString.call(data) === '[object Object]') {
     const clean: any = {};
     Object.keys(data).forEach(key => {
       const val = data[key];
@@ -230,7 +229,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
         ...quote,
         Name: quote.quoteNumber,
         totalPrice: grandTotal,
-        LastModifiedDate: serverTimestamp(), // Firestore sentinel
+        LastModifiedDate: serverTimestamp(),
         itemsCount: quote.items.length,
       };
 
@@ -255,7 +254,6 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
       setIsQuoteSheetOpen(false);
       refreshMasterQuotes();
 
-      // If we were building a child quote, redirect back to the master details
       if (currentMasterId) {
         router.push(`/admin/master-quotes/${currentMasterId}`);
       }
@@ -272,8 +270,25 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
 
   const linkQuoteToMaster = async (childId: string, masterId: string) => {
     try {
-        await updateDoc(doc(db, 'quotes', childId), { masterQuoteId: masterId });
-        toast({ title: "Quote Linked", description: "Successfully attached existing quote to Master." });
+        let finalChildId = childId;
+
+        // If childId looks like a quote number (e.g. TQ-...), we need to resolve it to a document ID
+        if (childId.startsWith('TQ-') || childId.startsWith('MQ-') || childId.startsWith('CQ-')) {
+            const q = query(
+                collection(db, 'quotes'), 
+                where('quoteNumber', '==', childId),
+                limit(1)
+            );
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                finalChildId = querySnapshot.docs[0].id;
+            } else {
+                throw new Error(`Could not find a quote with number: ${childId}`);
+            }
+        }
+
+        await updateDoc(doc(db, 'quotes', finalChildId), { masterQuoteId: masterId });
+        toast({ title: "Quote Linked", description: "Successfully attached quote to Master." });
         refreshMasterQuotes();
     } catch (error: any) {
         console.error("Link error:", error);
