@@ -481,7 +481,7 @@ export default function AdminPage() {
     addProductsBulk,
   } = useProducts();
   const { orders } = useOrders();
-  const { addItemToQuote, syncItemToQuote, setIsQuoteSheetOpen, quote, clearQuote, saveQuoteToFirestore, updateItemQuantity, removeItemFromQuote } = useQuote();
+  const { quote, clearQuote, saveQuoteToFirestore, syncItemToQuote } = useQuote();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Product | string | null; direction: 'ascending' | 'descending' }>({ key: 'name', direction: 'ascending' });
@@ -535,7 +535,6 @@ export default function AdminPage() {
     };
   }, [clearSelection]);
 
-
   const totalRevenue = orders.reduce((sum, order) => sum + Number(order.total), 0);
   const totalSales = orders.length;
 
@@ -564,6 +563,7 @@ export default function AdminPage() {
     return masterTableKeys.filter(key => adminTableVisibleFields[key]);
   }, [masterTableKeys, adminTableVisibleFields]);
 
+  const isBuildingQuote = quote.masterQuoteId || quote.isMaster;
 
   const sortedAndFilteredProducts = useMemo(() => {
     let sortableProducts = [...products];
@@ -601,13 +601,44 @@ export default function AdminPage() {
       });
     }
 
-    // Requirement: If building a Master Quote, show only Master Products
     if (quote.isMaster) {
       sortableProducts = sortableProducts.filter(p => p.isMasterProduct === true);
     }
 
     return sortableProducts;
   }, [products, searchTerm, sortConfig, quote.isMaster]);
+
+  const handleQtyChange = useCallback((productId: string, newQty: string) => {
+    const quantity = parseInt(newQty, 10);
+    if (!isNaN(quantity) && quantity >= 0) {
+        const product = products.find(p => p.productId === productId);
+        if (product && isBuildingQuote) {
+            syncItemToQuote({
+                id: product.productId,
+                productId: product.productId,
+                name: product.name,
+                price: Number(product.price) || 0,
+                quantity: quantity,
+                brand: product.brand,
+                category: product.category,
+                colour: product.colour,
+                partName: product.partName,
+                isMasterProduct: product.isMasterProduct,
+            });
+        }
+        updateProductField(productId, 'qtyForQuote', quantity);
+    }
+  }, [products, isBuildingQuote, syncItemToQuote, updateProductField]);
+
+  const handleProductSelection = useCallback((productId: string) => {
+      const isCurrentlySelected = selectedProducts.includes(productId);
+      toggleProductSelection(productId);
+      
+      if (isBuildingQuote) {
+          // If we're building a quote, toggling the checkbox acts as an "Add/Remove" with Qty 1
+          handleQtyChange(productId, isCurrentlySelected ? "0" : "1");
+      }
+  }, [selectedProducts, toggleProductSelection, isBuildingQuote, handleQtyChange]);
 
   const requestSort = (key: string) => {
     let direction: 'ascending' | 'descending' = 'ascending';
@@ -692,61 +723,6 @@ export default function AdminPage() {
     setIsHomePageSettingsOpen(false);
   };
   
-  const handleQtyChange = (productId: string, newQty: string) => {
-    const quantity = parseInt(newQty, 10);
-    if (!isNaN(quantity) && quantity >= 0) {
-        // Immediately sync to Active Quote context
-        const product = products.find(p => p.productId === productId);
-        if (product && (quote.masterQuoteId || quote.isMaster)) {
-            syncItemToQuote({
-                id: product.productId,
-                productId: product.productId,
-                name: product.name,
-                price: Number(product.price) || 99.99,
-                quantity: quantity,
-                brand: product.brand,
-                category: product.category,
-                colour: product.colour,
-                partName: product.partName,
-                isMasterProduct: product.isMasterProduct,
-            });
-        }
-
-        // Firestore update (handled on blur for efficiency)
-        updateProductField(productId, 'qtyForQuote', quantity);
-    }
-  }
-
-  const handleAddToQuote = (product: Product) => {
-    if (product.status === 'Unavailable') {
-        toast({
-            title: "Product Unavailable",
-            description: `${product.name} cannot be added to the quote.`,
-            variant: "destructive"
-        });
-        return;
-    };
-    
-    addItemToQuote({
-        id: product.productId,
-        productId: product.productId,
-        name: product.name,
-        price: Number(product.price) || 99.99,
-        quantity: 1,
-        brand: product.brand,
-        category: product.category,
-        colour: product.colour,
-        partName: product.partName,
-        isMasterProduct: product.isMasterProduct,
-    });
-
-    toast({
-        title: "Added to quote",
-        description: `${product.name} has been added.`
-    });
-    setIsQuoteSheetOpen(true);
-  }
-
   const handleExport = () => {
     const productsToExport = selectedProducts.length > 0
       ? products.filter(p => selectedProducts.includes(p.productId))
@@ -941,10 +917,16 @@ export default function AdminPage() {
   }, [selectedProducts, visibleFilteredProductIds]);
 
   const handleSelectAllToggle = () => {
+    const isSelectingAll = !allVisibleSelected;
     toggleSelectAllProducts(visibleFilteredProductIds);
-  };
 
-  const isBuildingQuote = quote.masterQuoteId || quote.isMaster;
+    if (isBuildingQuote) {
+        // Sync the quote items for all visible products
+        visibleFilteredProductIds.forEach(id => {
+            handleQtyChange(id, isSelectingAll ? "1" : "0");
+        });
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -1388,7 +1370,7 @@ export default function AdminPage() {
                          <TableCell padding="checkbox">
                             <Checkbox
                               checked={selectedProducts.includes(product.productId)}
-                              onCheckedChange={() => toggleProductSelection(product.productId)}
+                              onCheckedChange={() => handleProductSelection(product.productId)}
                               aria-label="Select row"
                             />
                         </TableCell>
@@ -1431,10 +1413,6 @@ export default function AdminPage() {
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
                               <DropdownMenuItem asChild>
                                 <Link href={`/admin/products/${product.productId}/edit`}>Edit</Link>
-                              </DropdownMenuItem>
-                               <DropdownMenuItem onSelect={() => handleAddToQuote(product as Product)}>
-                                <FilePlus className="mr-2 h-4 w-4" />
-                                Add to Quote
                               </DropdownMenuItem>
                               <AlertDialogTrigger asChild>
                                 <DropdownMenuItem className="text-destructive" onSelect={(e) => {e.preventDefault(); setDeleteTarget(product.productId);}}>
