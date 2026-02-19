@@ -481,7 +481,7 @@ export default function AdminPage() {
     addProductsBulk,
   } = useProducts();
   const { orders } = useOrders();
-  const { addItemToQuote, setIsQuoteSheetOpen, quote, clearQuote, saveQuoteToFirestore, updateItemQuantity, removeItemFromQuote } = useQuote();
+  const { addItemToQuote, syncItemToQuote, setIsQuoteSheetOpen, quote, clearQuote, saveQuoteToFirestore, updateItemQuantity, removeItemFromQuote } = useQuote();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Product | string | null; direction: 'ascending' | 'descending' }>({ key: 'name', direction: 'ascending' });
@@ -695,30 +695,25 @@ export default function AdminPage() {
   const handleQtyChange = (productId: string, newQty: string) => {
     const quantity = parseInt(newQty, 10);
     if (!isNaN(quantity) && quantity >= 0) {
-        updateProductField(productId, 'qtyForQuote', quantity);
-
-        // Sync with active quote if building
-        if (quote.masterQuoteId || quote.isMaster) {
-            const product = products.find(p => p.productId === productId);
-            if (product) {
-                if (quantity > 0) {
-                    addItemToQuote({
-                        id: product.productId,
-                        productId: product.productId,
-                        name: product.name,
-                        price: Number(product.price) || 99.99,
-                        quantity: quantity,
-                        brand: product.brand,
-                        category: product.category,
-                        colour: product.colour,
-                        partName: product.partName,
-                        isMasterProduct: product.isMasterProduct,
-                    });
-                } else {
-                    removeItemFromQuote(product.productId);
-                }
-            }
+        // Immediately sync to Active Quote context
+        const product = products.find(p => p.productId === productId);
+        if (product && (quote.masterQuoteId || quote.isMaster)) {
+            syncItemToQuote({
+                id: product.productId,
+                productId: product.productId,
+                name: product.name,
+                price: Number(product.price) || 99.99,
+                quantity: quantity,
+                brand: product.brand,
+                category: product.category,
+                colour: product.colour,
+                partName: product.partName,
+                isMasterProduct: product.isMasterProduct,
+            });
         }
+
+        // Firestore update (handled on blur for efficiency)
+        updateProductField(productId, 'qtyForQuote', quantity);
     }
   }
 
@@ -949,6 +944,8 @@ export default function AdminPage() {
     toggleSelectAllProducts(visibleFilteredProductIds);
   };
 
+  const isBuildingQuote = quote.masterQuoteId || quote.isMaster;
+
   return (
     <div className="space-y-8">
       <header className="flex justify-between items-center">
@@ -958,15 +955,15 @@ export default function AdminPage() {
       {quote.masterQuoteId && (
         <Alert className="bg-primary/10 border-primary">
           <Info className="h-4 w-4 text-primary" />
-          <AlertTitle className="font-bold">Building Child Quote</AlertTitle>
-          <AlertDescription className="flex justify-between items-center">
-            You are building a comparison quote. Add products and save when ready.
+          <AlertTitle className="font-bold text-primary">Building Child Quote</AlertTitle>
+          <AlertDescription className="flex justify-between items-center text-primary-foreground">
+            <span className="text-muted-foreground">You are building a comparison quote. Set quantities below and save when ready.</span>
             <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handleSaveActiveQuote} disabled={isSaving || quote.items.length === 0} className="bg-green-600 hover:bg-green-700 text-white border-none">
+                <Button variant="default" size="sm" onClick={handleSaveActiveQuote} disabled={isSaving || quote.items.length === 0} className="bg-green-600 hover:bg-green-700 text-white font-bold border-none">
                     {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
                     Save Quote ({quote.items.length})
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => clearQuote()} className="text-primary hover:text-primary">
+                <Button variant="outline" size="sm" onClick={() => clearQuote()} className="border-primary text-primary hover:bg-primary/20">
                     <X className="h-4 w-4 mr-1" /> Cancel
                 </Button>
             </div>
@@ -979,7 +976,7 @@ export default function AdminPage() {
           <Info className="h-4 w-4 text-blue-600" />
           <AlertTitle className="font-bold text-blue-800">Building Master Quote</AlertTitle>
           <AlertDescription className="text-blue-700">
-            Only <strong>Master Products</strong> are visible in the table below.
+            Only <strong>Master Products</strong> are visible in the table below. Set quantities to add them to your baseline.
           </AlertDescription>
         </Alert>
       )}
@@ -1034,16 +1031,16 @@ export default function AdminPage() {
 
       <QuotesDashboard />
 
-      <Card>
+      <Card className={cn(isBuildingQuote && "border-primary ring-1 ring-primary/20 shadow-md")}>
         <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <CardTitle>Product Master (prd_master)</CardTitle>
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            {quote.items.length > 0 && (
+            {isBuildingQuote && (
                 <Button 
                     size="sm" 
                     onClick={handleSaveActiveQuote} 
-                    disabled={isSaving}
-                    className="bg-green-600 hover:bg-green-700 text-white"
+                    disabled={isSaving || quote.items.length === 0}
+                    className="bg-green-600 hover:bg-green-700 text-white font-bold"
                 >
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     Save Quote ({quote.items.length})
@@ -1403,7 +1400,7 @@ export default function AdminPage() {
                                   type="number"
                                   min="0"
                                   defaultValue={product.qtyForQuote || 0}
-                                  onBlur={(e) => handleQtyChange(product.productId, e.target.value)}
+                                  onChange={(e) => handleQtyChange(product.productId, e.target.value)}
                                   className="w-20"
                                 />
                               </TableCell>

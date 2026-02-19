@@ -25,6 +25,7 @@ interface QuoteContextType {
   isQuoteSheetOpen: boolean;
   setIsQuoteSheetOpen: (isOpen: boolean) => void;
   addItemToQuote: (item: QuoteItem) => void;
+  syncItemToQuote: (item: QuoteItem) => void;
   updateItemQuantity: (itemId: string, quantity: number) => void;
   removeItemFromQuote: (itemId: string) => void;
   clearQuote: () => void;
@@ -58,29 +59,16 @@ const initialQuoteState: QuoteType = {
     lifecycleStatus: null,
 }
 
-/**
- * Robust data cleanup for Firestore.
- * ONLY processes plain JS objects/arrays to preserve Firestore sentinels and Timestamps.
- */
 const cleanFirestoreData = (data: any): any => {
   if (data === null || data === undefined) return data;
-  
-  if (Array.isArray(data)) {
-    return data.map(v => cleanFirestoreData(v));
-  }
-  
-  // Strictly check for plain objects to avoid corrupting Firestore FieldValues or custom Classes
+  if (Array.isArray(data)) return data.map(v => cleanFirestoreData(v));
   if (typeof data === 'object' && data.constructor === Object) {
     const clean: any = {};
     Object.keys(data).forEach(key => {
-      const val = data[key];
-      if (val !== undefined) {
-        clean[key] = cleanFirestoreData(val);
-      }
+      clean[key] = cleanFirestoreData(data[key]);
     });
     return clean;
   }
-  
   return data;
 };
 
@@ -124,6 +112,28 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
         return { ...prevQuote, items: updatedItems };
       } else {
         return { ...prevQuote, items: [...prevQuote.items, itemToAdd] };
+      }
+    });
+  };
+
+  const syncItemToQuote = (itemToSync: QuoteItem) => {
+    if (quote.isMaster && quote.lifecycleStatus === 'Locked') return;
+
+    setQuote(prevQuote => {
+      const existingItemIndex = prevQuote.items.findIndex(item => item.id === itemToSync.id);
+      
+      if (itemToSync.quantity <= 0) {
+          if (existingItemIndex === -1) return prevQuote;
+          return { ...prevQuote, items: prevQuote.items.filter(item => item.id !== itemToSync.id) };
+      }
+
+      if (existingItemIndex !== -1) {
+          const updatedItems = prevQuote.items.map(item =>
+              item.id === itemToSync.id ? { ...item, quantity: itemToSync.quantity } : item
+          );
+          return { ...prevQuote, items: updatedItems };
+      } else {
+          return { ...prevQuote, items: [...prevQuote.items, itemToSync] };
       }
     });
   };
@@ -318,6 +328,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
         isQuoteSheetOpen, 
         setIsQuoteSheetOpen, 
         addItemToQuote, 
+        syncItemToQuote,
         updateItemQuantity, 
         removeItemFromQuote, 
         clearQuote, 
