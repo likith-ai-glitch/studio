@@ -1,4 +1,3 @@
-
 'use client';
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
@@ -294,11 +293,25 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
 
       // If NOT a master quote, generate a document in the 'notifications' collection (Generated Documents page)
       if (!quote.isMaster) {
-          const docContent = await generateDocumentAction({
-              ...rawQuoteData,
-              subTotal,
-              grandTotal
-          });
+          // ENSURE ONLY PLAIN SERIALIZABLE OBJECTS ARE PASSED TO SERVER ACTION
+          // Next.js Server Actions fail if complex objects like serverTimestamp() are passed as arguments
+          const serializableQuoteData = {
+              quoteNumber: quote.quoteNumber,
+              customerEmail: quote.customerEmail || 'unknown@example.com',
+              status: quote.status,
+              type: quote.type,
+              approvalStatus: quote.approvalStatus,
+              items: quote.items.map(item => ({
+                  name: item.name,
+                  quantity: Number(item.quantity),
+                  price: Number(item.price)
+              })),
+              subTotal: Number(subTotal),
+              discount: Number(quote.discount),
+              tax: Number(quote.tax)
+          };
+
+          const docContent = await generateDocumentAction(serializableQuoteData);
 
           await addDoc(collection(db, 'notifications'), {
               customer: {
