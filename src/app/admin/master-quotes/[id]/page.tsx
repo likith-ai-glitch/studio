@@ -10,11 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, ArrowLeft, Plus, CheckCircle2, Lock, History, Search, FilePlus, Link2, ChevronDown, ChevronUp, Package, PlusCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, Plus, Lock, History, Link2, ChevronDown, ChevronUp, Package, PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQuote } from '@/context/quote-context';
 import type { Quote, QuoteLifecycleStatus } from '@/lib/types';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
@@ -105,7 +104,7 @@ export default function MasterQuoteDetailsPage() {
   }
 
   return (
-    <div className="space-y-8 pb-20">
+    <div className="space-y-8 pb-20 max-w-5xl mx-auto">
       <header className="flex flex-col md:flex-row justify-between items-start gap-4">
         <div className="flex items-center gap-4">
             <Button variant="ghost" onClick={() => router.push('/admin/master-quotes')}>
@@ -143,141 +142,96 @@ export default function MasterQuoteDetailsPage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        <Card className="xl:col-span-2">
+      <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-                <Layers className="h-5 w-5" /> Master Baseline Products
-            </CardTitle>
-            <CardDescription>
-                BASELINE: These products define the core requirements for vendor comparison.
-            </CardDescription>
+              <CardTitle className="flex justify-between items-center text-lg">
+                  Vendor Comparisons ({childQuotes.length})
+                  {masterQuote?.lifecycleStatus !== 'Locked' && (
+                      <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={handleGoToDocumentsForLinking}>
+                              <Link2 className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" onClick={handleCreateNewChild}>
+                              <Plus className="h-4 w-4" />
+                          </Button>
+                      </div>
+                  )}
+              </CardTitle>
+              <CardDescription>
+                  View and manage vendor comparison quotes linked to this Master baseline.
+              </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Product Name</TableHead>
-                        <TableHead>Qty</TableHead>
-                        <TableHead className="text-right">Unit Price</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {masterQuote?.items.map((item, idx) => (
-                        <TableRow key={idx}>
-                            <TableCell className="font-medium">{item.name}</TableCell>
-                            <TableCell>{item.quantity}</TableCell>
-                            <TableCell className="text-right">₹{Number(item.price).toFixed(2)}</TableCell>
-                            <TableCell className="text-right font-semibold">₹{(Number(item.price) * item.quantity).toFixed(2)}</TableCell>
-                        </TableRow>
-                    ))}
-                    <TableRow className="bg-muted/50 font-bold">
-                        <TableCell colSpan={3} className="text-right">Master Quote Total:</TableCell>
-                        <TableCell className="text-right text-primary text-lg">₹{masterQuote?.totalPrice?.toFixed(2)}</TableCell>
-                    </TableRow>
-                </TableBody>
-            </Table>
+          <CardContent className="px-2">
+              <div className="space-y-3">
+                  {childQuotes.length > 0 ? childQuotes.map(quote => {
+                      const isExpanded = expandedChildId === quote.id;
+                      return (
+                          <div key={quote.id} className={cn(
+                              "border rounded-lg overflow-hidden transition-all",
+                              isExpanded ? "ring-2 ring-primary/20 shadow-md bg-card" : "bg-muted/20"
+                          )}>
+                              <div 
+                                  className="p-4 flex justify-between items-center cursor-pointer hover:bg-muted/40"
+                                  onClick={() => toggleExpand(quote.id!)}
+                              >
+                                  <div className="flex items-center gap-3">
+                                      <div className="bg-primary/10 p-2 rounded-full">
+                                          <Package className="h-4 w-4 text-primary" />
+                                      </div>
+                                      <div>
+                                          <p className="font-bold text-sm">{quote.Name || quote.quoteNumber}</p>
+                                          <p className="text-xs text-muted-foreground">₹{quote.totalPrice?.toFixed(2)}</p>
+                                      </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                      {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                                  </div>
+                              </div>
+                              
+                              {isExpanded && (
+                                  <div className="p-4 border-t bg-card space-y-4 animate-in slide-in-from-top-2">
+                                      <div className="space-y-2">
+                                          <p className="text-xs font-bold uppercase text-muted-foreground px-1">Quote Items</p>
+                                          <div className="border rounded-md">
+                                              <Table>
+                                                  <TableBody>
+                                                      {quote.items.map((item, idx) => (
+                                                          <TableRow key={idx} className="h-10">
+                                                              <TableCell className="py-1 text-xs font-medium">{item.name}</TableCell>
+                                                              <TableCell className="py-1 text-xs text-center">{item.quantity}</TableCell>
+                                                              <TableCell className="py-1 text-xs text-right">₹{Number(item.price).toFixed(2)}</TableCell>
+                                                          </TableRow>
+                                                      ))}
+                                                  </TableBody>
+                                              </Table>
+                                          </div>
+                                      </div>
+                                      <div className="flex justify-between items-center pt-2 gap-2">
+                                          <Badge variant="outline">{quote.status}</Badge>
+                                          <div className="flex gap-2">
+                                              <Button variant="outline" size="sm" className="h-8" onClick={(e) => { e.stopPropagation(); loadQuoteForEditing(quote.id!); }}>
+                                                  <PlusCircle className="mr-2 h-4 w-4" />
+                                                  Add Products
+                                              </Button>
+                                              {masterQuote?.lifecycleStatus !== 'Locked' && (
+                                                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); removeChildQuote(quote.id!); }} className="text-destructive h-8 px-2">
+                                                      Detach
+                                                  </Button>
+                                              )}
+                                          </div>
+                                      </div>
+                                  </div>
+                              )}
+                          </div>
+                      );
+                  }) : (
+                      <div className="text-center py-10 text-sm text-muted-foreground border-2 border-dashed rounded-lg">
+                          No vendor quotes linked yet.
+                      </div>
+                  )}
+              </div>
           </CardContent>
-        </Card>
-
-        <div className="space-y-8">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex justify-between items-center text-lg">
-                        Vendor Comparisons ({childQuotes.length})
-                        {masterQuote?.lifecycleStatus !== 'Locked' && (
-                            <div className="flex gap-2">
-                                <Button size="sm" variant="outline" onClick={handleGoToDocumentsForLinking}>
-                                    <Link2 className="h-4 w-4" />
-                                </Button>
-                                <Button size="sm" onClick={handleCreateNewChild}>
-                                    <Plus className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        )}
-                    </CardTitle>
-                    <CardDescription>
-                        Click a quote to view products and prices.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="px-2">
-                    <div className="space-y-3">
-                        {childQuotes.length > 0 ? childQuotes.map(quote => {
-                            const isExpanded = expandedChildId === quote.id;
-                            return (
-                                <div key={quote.id} className={cn(
-                                    "border rounded-lg overflow-hidden transition-all",
-                                    isExpanded ? "ring-2 ring-primary/20 shadow-md bg-card" : "bg-muted/20"
-                                )}>
-                                    <div 
-                                        className="p-4 flex justify-between items-center cursor-pointer hover:bg-muted/40"
-                                        onClick={() => toggleExpand(quote.id!)}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="bg-primary/10 p-2 rounded-full">
-                                                <Package className="h-4 w-4 text-primary" />
-                                            </div>
-                                            <div>
-                                                <p className="font-bold text-sm">{quote.Name || quote.quoteNumber}</p>
-                                                <p className="text-xs text-muted-foreground">₹{quote.totalPrice?.toFixed(2)}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                                        </div>
-                                    </div>
-                                    
-                                    {isExpanded && (
-                                        <div className="p-4 border-t bg-card space-y-4 animate-in slide-in-from-top-2">
-                                            <div className="space-y-2">
-                                                <p className="text-xs font-bold uppercase text-muted-foreground px-1">Quote Items</p>
-                                                <div className="border rounded-md">
-                                                    <Table>
-                                                        <TableBody>
-                                                            {quote.items.map((item, idx) => (
-                                                                <TableRow key={idx} className="h-10">
-                                                                    <TableCell className="py-1 text-xs font-medium">{item.name}</TableCell>
-                                                                    <TableCell className="py-1 text-xs text-center">{item.quantity}</TableCell>
-                                                                    <TableCell className="py-1 text-xs text-right">₹{Number(item.price).toFixed(2)}</TableCell>
-                                                                </TableRow>
-                                                            ))}
-                                                        </TableBody>
-                                                    </Table>
-                                                </div>
-                                            </div>
-                                            <div className="flex justify-between items-center pt-2 gap-2">
-                                                <Badge variant="outline">{quote.status}</Badge>
-                                                <div className="flex gap-2">
-                                                    <Button variant="outline" size="sm" className="h-8" onClick={(e) => { e.stopPropagation(); loadQuoteForEditing(quote.id!); }}>
-                                                        <PlusCircle className="mr-2 h-4 w-4" />
-                                                        Add Products
-                                                    </Button>
-                                                    {masterQuote?.lifecycleStatus !== 'Locked' && (
-                                                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); removeChildQuote(quote.id!); }} className="text-destructive h-8 px-2">
-                                                            Detach
-                                                        </Button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        }) : (
-                            <div className="text-center py-10 text-sm text-muted-foreground border-2 border-dashed rounded-lg">
-                                No vendor quotes linked yet.
-                            </div>
-                        )}
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
-      </div>
+      </Card>
     </div>
   );
 }
-
-const Layers = ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18" /><path d="M3 15h18" /><path d="M9 3v18" /><path d="M15 3v18" /></svg>
-);
