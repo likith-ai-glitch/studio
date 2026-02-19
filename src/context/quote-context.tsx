@@ -59,16 +59,40 @@ const initialQuoteState: QuoteType = {
     lifecycleStatus: null,
 }
 
+/**
+ * Deeply cleans an object to be Firestore-compatible by removing any `undefined` values.
+ * Firestore accepts `null` but crashes on `undefined`.
+ */
 const cleanFirestoreData = (data: any): any => {
-  if (data === null || data === undefined) return data;
-  if (Array.isArray(data)) return data.map(v => cleanFirestoreData(v));
-  if (typeof data === 'object' && data.constructor === Object) {
-    const clean: any = {};
-    Object.keys(data).forEach(key => {
-      clean[key] = cleanFirestoreData(data[key]);
-    });
-    return clean;
+  // Return early for non-object types or null
+  if (data === null) return null;
+  if (data === undefined) return undefined;
+  if (data instanceof Date) return data;
+
+  // Handle arrays
+  if (Array.isArray(data)) {
+    return data
+      .map(v => cleanFirestoreData(v))
+      .filter(v => v !== undefined);
   }
+
+  // Handle objects
+  if (typeof data === 'object') {
+    // Check if it's a plain object (not a Firestore sentinel like FieldValue)
+    if (Object.prototype.toString.call(data) === '[object Object]') {
+      const clean: any = {};
+      Object.keys(data).forEach(key => {
+        const value = cleanFirestoreData(data[key]);
+        // Only include the key if the cleaned value is not undefined
+        if (value !== undefined) {
+          clean[key] = value;
+        }
+      });
+      return clean;
+    }
+  }
+
+  // Return primitives (strings, numbers, booleans) or special objects as-is
   return data;
 };
 
