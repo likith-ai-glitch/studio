@@ -481,7 +481,7 @@ export default function AdminPage() {
     addProductsBulk,
   } = useProducts();
   const { orders } = useOrders();
-  const { addItemToQuote, setIsQuoteSheetOpen, quote, clearQuote, saveQuoteToFirestore } = useQuote();
+  const { addItemToQuote, setIsQuoteSheetOpen, quote, clearQuote, saveQuoteToFirestore, updateItemQuantity, removeItemFromQuote } = useQuote();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Product | string | null; direction: 'ascending' | 'descending' }>({ key: 'name', direction: 'ascending' });
@@ -696,6 +696,29 @@ export default function AdminPage() {
     const quantity = parseInt(newQty, 10);
     if (!isNaN(quantity) && quantity >= 0) {
         updateProductField(productId, 'qtyForQuote', quantity);
+
+        // Sync with active quote if building
+        if (quote.masterQuoteId || quote.isMaster) {
+            const product = products.find(p => p.productId === productId);
+            if (product) {
+                if (quantity > 0) {
+                    addItemToQuote({
+                        id: product.productId,
+                        productId: product.productId,
+                        name: product.name,
+                        price: Number(product.price) || 99.99,
+                        quantity: quantity,
+                        brand: product.brand,
+                        category: product.category,
+                        colour: product.colour,
+                        partName: product.partName,
+                        isMasterProduct: product.isMasterProduct,
+                    });
+                } else {
+                    removeItemFromQuote(product.productId);
+                }
+            }
+        }
     }
   }
 
