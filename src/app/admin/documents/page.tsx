@@ -1,8 +1,7 @@
-
 'use client';
 
 import { useNotifications } from '@/context/notification-context';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Accordion,
   AccordionContent,
@@ -21,12 +20,18 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { format } from 'date-fns';
-import { FileText, Mail, FileDown, Loader2, Trash2 } from 'lucide-react';
+import { FileText, Mail, FileDown, Loader2, Trash2, Link2, AlertCircle, Info, ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { useQuote } from '@/context/quote-context';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import type { Quote } from '@/lib/types';
 
 // A simple SVG for the WhatsApp icon
 const WhatsAppIcon = () => (
@@ -48,9 +53,56 @@ const WhatsAppIcon = () => (
 
 export default function DocumentsPage() {
   const { notifications, deleteNotification } = useNotifications();
+  const { linkQuoteToMaster } = useQuote();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const linkingTo = searchParams.get('linkingTo');
+
   const [isConverting, setIsConverting] = useState(false);
   const [docToDelete, setDocToDelete] = useState<string | null>(null);
+  const [masterName, setMasterName] = useState<string>('');
+  const [availableQuotes, setAvailableQuotes] = useState<Quote[]>([]);
+  const [loadingQuotes, setLoadingQuotes] = useState(false);
   
+  // Load master info and available quotes if in linking mode
+  useEffect(() => {
+    if (linkingTo) {
+      const fetchMaster = async () => {
+        const docSnap = await getDoc(doc(db, 'quotes', linkingTo));
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setMasterName(data.Name || data.quoteNumber || linkingTo);
+        }
+      };
+      
+      const fetchAvailable = async () => {
+        setLoadingQuotes(true);
+        try {
+            const q = query(
+                collection(db, 'quotes'), 
+                where('isMaster', '==', false),
+                where('masterQuoteId', '==', null)
+            );
+            const snapshot = await getDocs(q);
+            const quotes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Quote[];
+            setAvailableQuotes(quotes);
+        } finally {
+            setLoadingQuotes(false);
+        }
+      };
+
+      fetchMaster();
+      fetchAvailable();
+    }
+  }, [linkingTo]);
+
+  const handleLinkExisting = async (quoteId: string) => {
+    if (!linkingTo) return;
+    await linkQuoteToMaster(quoteId, linkingTo);
+    // Optionally redirect back after linking
+    router.push(`/admin/master-quotes/${linkingTo}`);
+  };
+
   // Helper to strip HTML for plain text versions
   const stripHtml = (html: string) => {
     if (typeof document !== 'undefined') {
@@ -65,51 +117,32 @@ export default function DocumentsPage() {
     try {
         const contentElement = document.createElement('div');
         contentElement.innerHTML = htmlContent;
-        // The element needs to be in the DOM to be rendered by html2canvas, but it can be off-screen
         contentElement.style.position = 'absolute';
         contentElement.style.left = '-9999px';
-        contentElement.style.width = '794px'; // A4 width in pixels at 96 DPI
+        contentElement.style.width = '794px'; 
         contentElement.style.padding = '20px';
         contentElement.style.backgroundColor = 'white';
         contentElement.style.color = 'black';
         document.body.appendChild(contentElement);
 
-        const canvas = await html2canvas(contentElement, {
-            scale: 2, // Increase resolution
-            useCORS: true, 
-        });
-        
+        const canvas = await html2canvas(contentElement, { scale: 2, useCORS: true });
         document.body.removeChild(contentElement);
 
         const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF({
-            orientation: 'p',
-            unit: 'mm',
-            format: 'a4',
-        });
-        
+        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
         const canvasWidth = canvas.width;
         const canvasHeight = canvas.height;
         const ratio = canvasWidth / canvasHeight;
-        
-        let imgWidth = pdfWidth - 20; // with margin
+        let imgWidth = pdfWidth - 20; 
         let imgHeight = imgWidth / ratio;
-        
-        // If image is too high, scale based on height instead
         if (imgHeight > pdfHeight - 20) {
             imgHeight = pdfHeight - 20;
             imgWidth = imgHeight * ratio;
         }
-        
-        const x = (pdfWidth - imgWidth) / 2;
-        const y = 10; // top margin
-        
-        pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
+        pdf.addImage(imgData, 'PNG', (pdfWidth - imgWidth) / 2, 10, imgWidth, imgHeight);
         pdf.save(`${fileName}.pdf`);
-    } catch (error) {
-        console.error("Error converting to PDF:", error);
     } finally {
         setIsConverting(false);
     }
@@ -125,10 +158,60 @@ export default function DocumentsPage() {
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-4xl font-bold font-headline">Generated Documents</h1>
-        <p className="text-lg text-muted-foreground mt-2">A log of all documents generated for customers.</p>
+      <header className="flex justify-between items-start">
+        <div>
+            <h1 className="text-4xl font-bold font-headline">Generated Documents</h1>
+            <p className="text-lg text-muted-foreground mt-2">A log of all documents generated for customers.</p>
+        </div>
+        {linkingTo && (
+            <Button variant="ghost" onClick={() => router.push(`/admin/master-quotes/${linkingTo}`)}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Master Quote
+            </Button>
+        )}
       </header>
+
+      {linkingTo && (
+          <Alert className="bg-blue-50 border-blue-200">
+              <Info className="h-4 w-4 text-blue-600" />
+              <AlertTitle className="text-blue-800 font-bold">Linking Mode Active</AlertTitle>
+              <AlertDescription className="text-blue-700">
+                  You are selecting a quote to attach to <strong>Master Quote: {masterName}</strong>. 
+                  Below you will see documents that have quotes attached, or you can pick from available quotes.
+              </AlertDescription>
+          </Alert>
+      )}
+
+      {linkingTo && (
+          <Card className="border-blue-100 bg-blue-50/20">
+              <CardHeader>
+                  <CardTitle className="text-lg">Quotes Available for Linking</CardTitle>
+                  <CardDescription>Select an existing quote to associate with Master: {masterName}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                  {loadingQuotes ? (
+                      <div className="flex justify-center p-4"><Loader2 className="animate-spin h-6 w-6" /></div>
+                  ) : availableQuotes.length > 0 ? (
+                      <div className="grid gap-2">
+                          {availableQuotes.map(q => (
+                              <div key={q.id} className="flex items-center justify-between p-3 bg-card border rounded-md shadow-sm">
+                                  <div>
+                                      <p className="font-bold">{q.Name || q.quoteNumber}</p>
+                                      <p className="text-xs text-muted-foreground">Total: ₹{q.totalPrice?.toFixed(2)}</p>
+                                  </div>
+                                  <Button size="sm" onClick={() => handleLinkExisting(q.id!)}>
+                                      <Link2 className="mr-2 h-4 w-4" />
+                                      Add to Master
+                                  </Button>
+                              </div>
+                          ))}
+                      </div>
+                  ) : (
+                      <p className="text-sm text-muted-foreground text-center py-4">No available standalone quotes found.</p>
+                  )}
+              </CardContent>
+          </Card>
+      )}
 
       {notifications.length > 0 ? (
         <Accordion type="single" collapsible className="w-full space-y-4">
@@ -154,8 +237,14 @@ export default function DocumentsPage() {
                   </AccordionTrigger>
                   <AccordionContent className="pt-4 space-y-6">
                     <Card>
-                        <CardHeader>
+                        <CardHeader className="flex flex-row justify-between items-center">
                             <CardTitle>Email Content</CardTitle>
+                            {linkingTo && notification.quoteId && (
+                                <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleLinkExisting(notification.quoteId!)}>
+                                    <Link2 className="mr-2 h-4 w-4" />
+                                    Link This Quote to Master
+                                </Button>
+                            )}
                         </CardHeader>
                         <CardContent>
                              <div 

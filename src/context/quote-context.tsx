@@ -5,6 +5,7 @@ import type { Product, Quote as QuoteType, QuoteLifecycleStatus } from '@/lib/ty
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, doc, updateDoc, getDocs, query, where, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 export interface QuoteItem {
   id: string; 
@@ -33,6 +34,7 @@ interface QuoteContextType {
   updateIndicativePricingField: (field: string, value: number) => void;
   applyPriceList: (priceListKey: string, allProducts: Product[]) => void;
   saveQuoteToFirestore: () => Promise<void>;
+  linkQuoteToMaster: (childId: string, masterId: string) => Promise<void>;
   masterQuotes: QuoteType[];
   refreshMasterQuotes: () => Promise<void>;
   startNewChildQuote: (masterId: string, masterName: string) => void;
@@ -56,11 +58,6 @@ const initialQuoteState: QuoteType = {
     lifecycleStatus: null,
 }
 
-/**
- * Utility to remove undefined values before sending to Firestore.
- * It carefully preserves Firestore sentinel values (like serverTimestamp)
- * by only recursing into plain JavaScript objects.
- */
 const cleanFirestoreData = (data: any): any => {
   if (data === null || data === undefined) return data;
   
@@ -68,8 +65,6 @@ const cleanFirestoreData = (data: any): any => {
     return data.map(v => cleanFirestoreData(v));
   }
   
-  // Use Object.prototype.toString to reliably identify plain objects {}
-  // This avoids recursing into Date, FieldValue, etc.
   if (typeof data === 'object' && Object.prototype.toString.call(data) === '[object Object]') {
     const clean: any = {};
     Object.keys(data).forEach(key => {
@@ -89,6 +84,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   const [isQuoteSheetOpen, setIsQuoteSheetOpen] = useState(false);
   const [masterQuotes, setMasterQuotes] = useState<QuoteType[]>([]);
   const { toast } = useToast();
+  const router = useRouter();
 
   const refreshMasterQuotes = async () => {
     try {
@@ -223,9 +219,6 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
 
   const saveQuoteToFirestore = async () => {
     try {
-      console.log("Preparing to save quote to Firestore...");
-      
-      // We manually construct the save object to be absolutely certain of its structure
       const rawQuoteData = {
         ...quote,
         Name: quote.quoteNumber,
@@ -236,11 +229,8 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
 
       const quoteToSave = cleanFirestoreData(rawQuoteData);
 
-      console.log("Saving quote header...");
       const docRef = await addDoc(collection(db, 'quotes'), quoteToSave);
-      console.log("Quote header saved with ID:", docRef.id);
       
-      console.log("Saving quote line items...");
       for (const item of quote.items) {
           const itemToSave = cleanFirestoreData({
               ...item,
@@ -250,20 +240,37 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
           });
           await addDoc(collection(db, 'quoteLineItems'), itemToSave);
       }
-      console.log("All line items saved.");
 
       toast({ title: "Quote Saved", description: "Quote successfully saved to Firestore." });
+      
+      const currentMasterId = quote.masterQuoteId;
       clearQuote();
       setIsQuoteSheetOpen(false);
       refreshMasterQuotes();
+
+      // If we were building a child quote, redirect back to the master details
+      if (currentMasterId) {
+        router.push(`/admin/master-quotes/${currentMasterId}`);
+      }
     } catch (error: any) {
       console.error("CRITICAL ERROR: Failed to save quote to Firestore:", error);
       toast({ 
         title: "Save Failed", 
-        description: error.message || "An unexpected error occurred while saving. Check your console for details.", 
+        description: error.message || "An unexpected error occurred while saving.", 
         variant: "destructive" 
       });
       throw error;
+    }
+  };
+
+  const linkQuoteToMaster = async (childId: string, masterId: string) => {
+    try {
+        await updateDoc(doc(db, 'quotes', childId), { masterQuoteId: masterId });
+        toast({ title: "Quote Linked", description: "Successfully attached existing quote to Master." });
+        refreshMasterQuotes();
+    } catch (error: any) {
+        console.error("Link error:", error);
+        toast({ title: "Linking Failed", description: error.message, variant: "destructive" });
     }
   };
 
@@ -299,6 +306,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
         updateIndicativePricingField,
         applyPriceList,
         saveQuoteToFirestore,
+        linkQuoteToMaster,
         masterQuotes,
         refreshMasterQuotes,
         startNewChildQuote

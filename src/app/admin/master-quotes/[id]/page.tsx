@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, ArrowLeft, Plus, CheckCircle2, Lock, History, Search, FilePlus } from 'lucide-react';
+import { Loader2, ArrowLeft, Plus, CheckCircle2, Lock, History, Search, FilePlus, Link2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQuote } from '@/context/quote-context';
 import type { Quote, QuoteLifecycleStatus } from '@/lib/types';
@@ -23,10 +23,8 @@ export default function MasterQuoteDetailsPage() {
   const { startNewChildQuote } = useQuote();
   const [masterQuote, setMasterQuote] = useState<Quote | null>(null);
   const [childQuotes, setChildQuotes] = useState<Quote[]>([]);
-  const [availableChildQuotes, setAvailableChildQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -66,35 +64,6 @@ export default function MasterQuoteDetailsPage() {
     }
   };
 
-  const loadAvailableChildQuotes = async () => {
-    setIsSearching(true);
-    try {
-      const q = query(
-        collection(db, 'quotes'), 
-        where('isMaster', '==', false),
-        where('masterQuoteId', '==', null)
-      );
-      const snapshot = await getDocs(q);
-      const quotes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Quote[];
-      setAvailableChildQuotes(quotes);
-    } catch (error) {
-      console.error("Error loading child quotes:", error);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const attachChildQuote = async (childId: string) => {
-    if (!id) return;
-    try {
-      await updateDoc(doc(db, 'quotes', childId), { masterQuoteId: id });
-      toast({ title: "Child Quote Attached", description: "The quote has been successfully linked." });
-      setAvailableChildQuotes(prev => prev.filter(q => q.id !== childId));
-    } catch (error: any) {
-      toast({ title: "Attachment Failed", description: error.message, variant: "destructive" });
-    }
-  };
-
   const removeChildQuote = async (childId: string) => {
     if (masterQuote?.lifecycleStatus === 'Locked') {
       toast({ title: "Master Locked", description: "Cannot detach quotes while locked.", variant: "destructive" });
@@ -113,6 +82,10 @@ export default function MasterQuoteDetailsPage() {
       startNewChildQuote(masterQuote.id!, masterQuote.Name || masterQuote.quoteNumber);
       router.push('/admin');
     }
+  };
+
+  const handleGoToDocumentsForLinking = () => {
+    router.push(`/admin/documents?linkingTo=${id}`);
   };
 
   if (loading) {
@@ -207,8 +180,8 @@ export default function MasterQuoteDetailsPage() {
                         Vendor Child Quotes ({childQuotes.length})
                         {masterQuote?.lifecycleStatus !== 'Locked' && (
                             <div className="flex gap-2">
-                                <Button size="sm" variant="outline" onClick={loadAvailableChildQuotes} disabled={isSearching}>
-                                    {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                                <Button size="sm" variant="outline" onClick={handleGoToDocumentsForLinking}>
+                                    <Link2 className="h-4 w-4 mr-1" />
                                     Link Existing
                                 </Button>
                                 <Button size="sm" onClick={handleCreateNewChild}>
@@ -244,31 +217,6 @@ export default function MasterQuoteDetailsPage() {
                     </div>
                 </CardContent>
             </Card>
-
-            {availableChildQuotes.length > 0 && (
-                <Card className="border-secondary animate-in slide-in-from-right-4">
-                    <CardHeader className="bg-secondary/10">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                            <Search className="h-4 w-4" /> Available for Attachment
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-4 max-h-[400px] overflow-y-auto">
-                        <div className="space-y-2">
-                            {availableChildQuotes.map(q => (
-                                <div key={q.id} className="border p-3 rounded-md flex justify-between items-center text-sm">
-                                    <div className="truncate flex-grow mr-2">
-                                        <p className="font-medium truncate">{q.Name || q.quoteNumber}</p>
-                                        <p className="text-[10px] text-muted-foreground">Total: ₹{q.totalPrice?.toFixed(2)}</p>
-                                    </div>
-                                    <Button size="sm" variant="secondary" onClick={() => attachChildQuote(q.id!)}>
-                                        Attach
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
         </div>
       </div>
     </div>
