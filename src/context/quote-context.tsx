@@ -1,3 +1,4 @@
+
 'use client';
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
@@ -61,14 +62,20 @@ const initialQuoteState: QuoteType = {
 
 /**
  * Deeply cleans an object to be Firestore-compatible.
+ * Specifically handles plain objects vs Firestore Sentinels/Timestamps.
  */
 const cleanFirestoreData = (data: any): any => {
   if (data === null || data === undefined) return undefined;
   
-  // Preserve Dates and Firestore Sentinels (they usually have a specific structure or brand)
+  // Preserve Dates
   if (data instanceof Date) return data;
-  if (data && typeof data === 'object' && ('_methodName' in data || 'methodName' in data)) {
-    return data; // Likely a serverTimestamp() sentinel
+
+  // Preserve Firestore Sentinels (serverTimestamp, etc.)
+  if (data && typeof data === 'object') {
+    // Basic check for v9/v10 Sentinels
+    if (data._methodName || data.methodName) return data;
+    // Check for Timestamp objects
+    if (typeof data.toDate === 'function') return data;
   }
 
   if (Array.isArray(data)) {
@@ -77,7 +84,8 @@ const cleanFirestoreData = (data: any): any => {
       .filter(v => v !== undefined);
   }
 
-  if (typeof data === 'object' && data.constructor === Object) {
+  // Only recurse into plain JavaScript objects
+  if (typeof data === 'object' && Object.prototype.toString.call(data) === '[object Object]') {
     const clean: any = {};
     Object.keys(data).forEach(key => {
       const value = cleanFirestoreData(data[key]);
