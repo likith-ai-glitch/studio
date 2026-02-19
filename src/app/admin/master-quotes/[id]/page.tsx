@@ -4,18 +4,19 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, collection, query, where, getDocs, updateDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, updateDoc, onSnapshot } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, ArrowLeft, Plus, Lock, History, Link2, ChevronDown, ChevronUp, Package, PlusCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, Plus, Lock, History, Link2, ChevronDown, ChevronUp, Package, PlusCircle, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQuote } from '@/context/quote-context';
 import type { Quote, QuoteLifecycleStatus } from '@/lib/types';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 
 export default function MasterQuoteDetailsPage() {
   const { id } = useParams();
@@ -67,8 +68,8 @@ export default function MasterQuoteDetailsPage() {
   };
 
   const removeChildQuote = async (childId: string) => {
-    if (masterQuote?.lifecycleStatus === 'Locked') {
-      toast({ title: "Master Locked", description: "Cannot detach quotes while locked.", variant: "destructive" });
+    if (masterQuote?.lifecycleStatus === 'Locked' || masterQuote?.lifecycleStatus === 'InProgress') {
+      toast({ title: "Action Restricted", description: `Cannot detach quotes while ${masterQuote?.lifecycleStatus}.`, variant: "destructive" });
       return;
     }
     try {
@@ -103,6 +104,9 @@ export default function MasterQuoteDetailsPage() {
     );
   }
 
+  const isLocked = masterQuote?.lifecycleStatus === 'Locked';
+  const isInProgress = masterQuote?.lifecycleStatus === 'InProgress';
+
   return (
     <div className="space-y-8 pb-20 max-w-5xl mx-auto">
       <header className="flex flex-col md:flex-row justify-between items-start gap-4">
@@ -114,14 +118,14 @@ export default function MasterQuoteDetailsPage() {
                 <h1 className="text-3xl md:text-4xl font-bold font-headline">
                     Master Quote: {masterQuote?.Name || masterQuote?.quoteNumber}
                 </h1>
-                <p className="text-muted-foreground mt-1">ID: {masterQuote?.id}</p>
+                <p className="text-muted-foreground mt-1 text-sm font-mono">ID: {masterQuote?.id}</p>
             </div>
         </div>
         <div className="flex gap-4 items-center bg-card p-4 rounded-lg shadow-sm border w-full md:w-auto">
             <div className="text-right mr-4 flex-grow md:flex-grow-0">
                 <Label className="text-xs uppercase text-muted-foreground">Lifecycle</Label>
                 <p className="font-bold flex items-center gap-2 mt-1 justify-end">
-                    {masterQuote?.lifecycleStatus === 'Locked' ? <Lock className="h-4 w-4 text-destructive" /> : <History className="h-4 w-4 text-secondary" />}
+                    {isLocked ? <Lock className="h-4 w-4 text-destructive" /> : <History className="h-4 w-4 text-secondary" />}
                     {masterQuote?.lifecycleStatus || 'Draft'}
                 </p>
             </div>
@@ -130,13 +134,13 @@ export default function MasterQuoteDetailsPage() {
                 onValueChange={(val) => handleUpdateLifecycle(val as QuoteLifecycleStatus)} 
                 disabled={isUpdating}
             >
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="Draft">Draft (Editable)</SelectItem>
-                    <SelectItem value="InProgress">InProgress</SelectItem>
-                    <SelectItem value="Locked">Locked (Read-Only)</SelectItem>
+                    <SelectItem value="InProgress">InProgress (Reviewing)</SelectItem>
+                    <SelectItem value="Locked">Locked (Closed)</SelectItem>
                 </SelectContent>
             </Select>
         </div>
@@ -146,7 +150,7 @@ export default function MasterQuoteDetailsPage() {
           <CardHeader>
               <CardTitle className="flex justify-between items-center text-lg">
                   Vendor Comparisons ({childQuotes.length})
-                  {masterQuote?.lifecycleStatus !== 'Locked' && (
+                  {!isLocked && (
                       <div className="flex gap-2">
                           <Button size="sm" variant="outline" onClick={handleGoToDocumentsForLinking}>
                               <Link2 className="h-4 w-4" />
@@ -158,7 +162,7 @@ export default function MasterQuoteDetailsPage() {
                   )}
               </CardTitle>
               <CardDescription>
-                  View and manage vendor comparison quotes linked to this Master baseline.
+                  Manage vendor quotes attached to this Master baseline.
               </CardDescription>
           </CardHeader>
           <CardContent className="px-2">
@@ -192,8 +196,15 @@ export default function MasterQuoteDetailsPage() {
                                   <div className="p-4 border-t bg-card space-y-4 animate-in slide-in-from-top-2">
                                       <div className="space-y-2">
                                           <p className="text-xs font-bold uppercase text-muted-foreground px-1">Quote Items</p>
-                                          <div className="border rounded-md">
+                                          <div className="border rounded-md overflow-hidden">
                                               <Table>
+                                                  <TableHeader className="bg-muted/50">
+                                                      <TableRow className="h-8">
+                                                          <TableHead className="text-[10px] h-8">Product</TableHead>
+                                                          <TableHead className="text-[10px] text-center h-8">Qty</TableHead>
+                                                          <TableHead className="text-[10px] text-right h-8">Price</TableHead>
+                                                      </TableRow>
+                                                  </TableHeader>
                                                   <TableBody>
                                                       {quote.items.map((item, idx) => (
                                                           <TableRow key={idx} className="h-10">
@@ -206,18 +217,29 @@ export default function MasterQuoteDetailsPage() {
                                               </Table>
                                           </div>
                                       </div>
-                                      <div className="flex justify-between items-center pt-2 gap-2">
-                                          <Badge variant="outline">{quote.status}</Badge>
-                                          <div className="flex gap-2">
-                                              <Button variant="outline" size="sm" className="h-8" onClick={(e) => { e.stopPropagation(); loadQuoteForEditing(quote.id!); }}>
-                                                  <PlusCircle className="mr-2 h-4 w-4" />
-                                                  Add Products
-                                              </Button>
-                                              {masterQuote?.lifecycleStatus !== 'Locked' && (
-                                                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); removeChildQuote(quote.id!); }} className="text-destructive h-8 px-2">
-                                                      Detach
-                                                  </Button>
-                                              )}
+
+                                      <div className="flex flex-col gap-2 pt-2">
+                                          <div className="flex justify-between items-center px-1">
+                                              <p className="text-sm font-bold">Total Quote Amount</p>
+                                              <p className="text-lg font-bold text-primary">₹{quote.totalPrice?.toFixed(2)}</p>
+                                          </div>
+                                          <Separator className="my-2" />
+                                          <div className="flex justify-between items-center gap-2">
+                                              <Badge variant="outline">{quote.status}</Badge>
+                                              <div className="flex gap-2">
+                                                  {!isLocked && (
+                                                      <Button variant="outline" size="sm" className="h-8" onClick={(e) => { e.stopPropagation(); loadQuoteForEditing(quote.id!); }}>
+                                                          <PlusCircle className="mr-2 h-4 w-4" />
+                                                          Add Products
+                                                      </Button>
+                                                  )}
+                                                  {!isLocked && !isInProgress && (
+                                                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); removeChildQuote(quote.id!); }} className="text-destructive h-8 px-2">
+                                                          <Trash2 className="mr-2 h-4 w-4" />
+                                                          Detach
+                                                      </Button>
+                                                  )}
+                                              </div>
                                           </div>
                                       </div>
                                   </div>
