@@ -563,7 +563,7 @@ export default function AdminPage() {
     return masterTableKeys.filter(key => adminTableVisibleFields[key]);
   }, [masterTableKeys, adminTableVisibleFields]);
 
-  const isBuildingQuote = quote.masterQuoteId || quote.isMaster;
+  const isBuildingQuote = !!(quote.masterQuoteId || quote.isMaster);
 
   const sortedAndFilteredProducts = useMemo(() => {
     let sortableProducts = [...products];
@@ -584,8 +584,10 @@ export default function AdminPage() {
         let aValue, bValue;
 
         if (key === 'quoteTotal') {
-            aValue = (a.qtyForQuote || 0) * (a.price || 0);
-            bValue = (b.qtyForQuote || 0) * (b.price || 0);
+            const aQuoteItem = quote.items.find(i => i.productId === a.productId);
+            const bQuoteItem = quote.items.find(i => i.productId === b.productId);
+            aValue = (aQuoteItem?.quantity || 0) * (a.price || 0);
+            bValue = (bQuoteItem?.quantity || 0) * (b.price || 0);
         } else {
             aValue = a[key as keyof Product] ?? '';
             bValue = b[key as keyof Product] ?? '';
@@ -606,7 +608,7 @@ export default function AdminPage() {
     }
 
     return sortableProducts;
-  }, [products, searchTerm, sortConfig, quote.isMaster]);
+  }, [products, searchTerm, sortConfig, quote.isMaster, quote.items]);
 
   const handleQtyChange = useCallback((productId: string, newQty: string) => {
     const quantity = parseInt(newQty, 10);
@@ -626,19 +628,17 @@ export default function AdminPage() {
                 isMasterProduct: product.isMasterProduct,
             });
         }
-        updateProductField(productId, 'qtyForQuote', quantity);
     }
-  }, [products, isBuildingQuote, syncItemToQuote, updateProductField]);
+  }, [products, isBuildingQuote, syncItemToQuote]);
 
   const handleProductSelection = useCallback((productId: string) => {
-      const isCurrentlySelected = selectedProducts.includes(productId);
-      toggleProductSelection(productId);
-      
       if (isBuildingQuote) {
-          // If we're building a quote, toggling the checkbox acts as an "Add/Remove" with Qty 1
-          handleQtyChange(productId, isCurrentlySelected ? "0" : "1");
+          const isInQuote = quote.items.some(i => i.productId === productId);
+          handleQtyChange(productId, isInQuote ? "0" : "1");
+      } else {
+          toggleProductSelection(productId);
       }
-  }, [selectedProducts, toggleProductSelection, isBuildingQuote, handleQtyChange]);
+  }, [quote.items, isBuildingQuote, handleQtyChange, toggleProductSelection]);
 
   const requestSort = (key: string) => {
     let direction: 'ascending' | 'descending' = 'ascending';
@@ -737,7 +737,8 @@ export default function AdminPage() {
         fieldsToExport.map(field => {
           let value;
           if (field === 'quoteTotal') {
-            value = (product.qtyForQuote || 0) * (product.price || 0);
+            const qItem = quote.items.find(i => i.productId === product.productId);
+            value = (qItem?.quantity || 0) * (product.price || 0);
           } else {
             value = product[field as keyof Product] as any;
           }
@@ -912,19 +913,23 @@ export default function AdminPage() {
   const visibleFilteredProductIds = useMemo(() => sortedAndFilteredProducts.map(p => p.productId), [sortedAndFilteredProducts]);
 
   const allVisibleSelected = useMemo(() => {
+    if (isBuildingQuote) {
+        if (visibleFilteredProductIds.length === 0) return false;
+        return visibleFilteredProductIds.every(id => quote.items.some(i => i.productId === id));
+    }
     if (selectedProducts.length === 0 || visibleFilteredProductIds.length === 0) return false;
     return visibleFilteredProductIds.every(id => selectedProducts.includes(id));
-  }, [selectedProducts, visibleFilteredProductIds]);
+  }, [selectedProducts, visibleFilteredProductIds, isBuildingQuote, quote.items]);
 
   const handleSelectAllToggle = () => {
     const isSelectingAll = !allVisibleSelected;
-    toggleSelectAllProducts(visibleFilteredProductIds);
-
+    
     if (isBuildingQuote) {
-        // Sync the quote items for all visible products
         visibleFilteredProductIds.forEach(id => {
             handleQtyChange(id, isSelectingAll ? "1" : "0");
         });
+    } else {
+        toggleSelectAllProducts(visibleFilteredProductIds);
     }
   };
 
@@ -935,11 +940,11 @@ export default function AdminPage() {
       </header>
 
       {quote.masterQuoteId && (
-        <Alert className="bg-primary/10 border-primary">
+        <Alert className="bg-primary/10 border-primary ring-1 ring-primary/20">
           <Info className="h-4 w-4 text-primary" />
-          <AlertTitle className="font-bold text-primary">Building Child Quote</AlertTitle>
+          <AlertTitle className="font-bold text-primary">Building Vendor Child Quote</AlertTitle>
           <AlertDescription className="flex justify-between items-center text-primary-foreground">
-            <span className="text-muted-foreground">You are building a comparison quote. Set quantities below and save when ready.</span>
+            <span className="text-muted-foreground">Select multiple products below or set quantities. Click Save to link this quote to the Master.</span>
             <div className="flex gap-2">
                 <Button variant="default" size="sm" onClick={handleSaveActiveQuote} disabled={isSaving || quote.items.length === 0} className="bg-green-600 hover:bg-green-700 text-white font-bold border-none">
                     {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
@@ -1362,68 +1367,76 @@ export default function AdminPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedAndFilteredProducts.map((product) => (
-                      <TableRow 
-                        key={product.productId}
-                        data-state={selectedProducts.includes(product.productId) && "selected"}
-                      >
-                         <TableCell padding="checkbox">
-                            <Checkbox
-                              checked={selectedProducts.includes(product.productId)}
-                              onCheckedChange={() => handleProductSelection(product.productId)}
-                              aria-label="Select row"
-                            />
-                        </TableCell>
-                        {visibleProductKeys.map(key => {
-                          if (key === 'qtyForQuote') {
-                            return (
-                              <TableCell key={key}>
-                                <Input 
-                                  type="number"
-                                  min="0"
-                                  defaultValue={product.qtyForQuote || 0}
-                                  onChange={(e) => handleQtyChange(product.productId, e.target.value)}
-                                  className="w-20"
-                                />
-                              </TableCell>
-                            );
-                          }
-                          if (key === 'quoteTotal') {
-                             const quoteTotal = (product.qtyForQuote || 0) * (product.price || 0);
-                             return (
-                               <TableCell key={key} className="text-right">
-                                  {quoteTotal > 0 ? `₹${quoteTotal.toFixed(2)}` : '-'}
+                    {sortedAndFilteredProducts.map((product) => {
+                      const isSelected = isBuildingQuote 
+                        ? quote.items.some(i => i.productId === product.productId)
+                        : selectedProducts.includes(product.productId);
+
+                      return (
+                        <TableRow 
+                          key={product.productId}
+                          data-state={isSelected && "selected"}
+                        >
+                           <TableCell padding="checkbox">
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={() => handleProductSelection(product.productId)}
+                                aria-label="Select row"
+                              />
+                          </TableCell>
+                          {visibleProductKeys.map(key => {
+                            if (key === 'qtyForQuote') {
+                              const quoteItem = quote.items.find(i => i.productId === product.productId);
+                              return (
+                                <TableCell key={key}>
+                                  <Input 
+                                    type="number"
+                                    min="0"
+                                    value={quoteItem?.quantity || 0}
+                                    onChange={(e) => handleQtyChange(product.productId, e.target.value)}
+                                    className="w-20"
+                                  />
                                 </TableCell>
-                             )
-                          }
-                          return (
-                            <TableCell key={key} className={key === 'productId' ? 'font-mono text-xs' : ''}>
-                               {String(product[key as keyof Product] ?? '')}
-                            </TableCell>
-                          )
-                        })}
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button aria-haspopup="true" size="icon" variant="ghost">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem asChild>
-                                <Link href={`/admin/products/${product.productId}/edit`}>Edit</Link>
-                              </DropdownMenuItem>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem className="text-destructive" onSelect={(e) => {e.preventDefault(); setDeleteTarget(product.productId);}}>
-                                  Delete
+                              );
+                            }
+                            if (key === 'quoteTotal') {
+                               const qItem = quote.items.find(i => i.productId === product.productId);
+                               const quoteTotal = (qItem?.quantity || 0) * (product.price || 0);
+                               return (
+                                 <TableCell key={key} className="text-right">
+                                    {quoteTotal > 0 ? `₹${quoteTotal.toFixed(2)}` : '-'}
+                                  </TableCell>
+                               )
+                            }
+                            return (
+                              <TableCell key={key} className={key === 'productId' ? 'font-mono text-xs' : ''}>
+                                 {String(product[key as keyof Product] ?? '')}
+                              </TableCell>
+                            )
+                          })}
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/admin/products/${product.productId}/edit`}>Edit</Link>
                                 </DropdownMenuItem>
-                              </AlertDialogTrigger>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                                <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem className="text-destructive" onSelect={(e) => {e.preventDefault(); setDeleteTarget(product.productId);}}>
+                                    Delete
+                                  </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
                 </div>
