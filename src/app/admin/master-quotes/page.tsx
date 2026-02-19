@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ArrowRight, Layers } from 'lucide-react';
+import { Loader2, ArrowRight, Layers, Package } from 'lucide-react';
 import Link from 'next/link';
 import type { Quote } from '@/lib/types';
 
@@ -55,6 +55,7 @@ export default function MasterQuotesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Quote Name / ID</TableHead>
+                  <TableHead>Associated Products</TableHead>
                   <TableHead>Lifecycle Status</TableHead>
                   <TableHead className="w-[150px]"></TableHead>
                 </TableRow>
@@ -65,6 +66,25 @@ export default function MasterQuotesPage() {
                     <TableCell>
                         <div className="font-semibold">{quote.Name || quote.quoteNumber}</div>
                         <div className="text-xs text-muted-foreground font-mono">{quote.id}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1 max-w-[400px]">
+                        {quote.items && quote.items.length > 0 ? (
+                          quote.items.slice(0, 3).map((item, idx) => (
+                            <Badge key={idx} variant="outline" className="bg-muted/50 text-[10px] font-normal">
+                              <Package className="h-3 w-3 mr-1 text-muted-foreground" />
+                              {item.name}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-muted-foreground italic text-xs">No products defined</span>
+                        )}
+                        {quote.items && quote.items.length > 3 && (
+                          <Badge variant="outline" className="text-[10px] font-normal">
+                            +{quote.items.length - 3} more
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant={quote.lifecycleStatus === 'Locked' ? 'destructive' : 'secondary'}>
