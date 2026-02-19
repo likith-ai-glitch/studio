@@ -7,6 +7,7 @@ import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, doc, updateDoc, getDocs, query, where, getDoc, limit, setDoc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { generateDocumentAction } from '@/app/actions';
 
 export interface QuoteItem {
   id: string; 
@@ -47,6 +48,7 @@ const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
 
 const initialQuoteState: QuoteType = {
     quoteNumber: 'TQ-',
+    customerEmail: '',
     items: [],
     status: 'Draft',
     type: 'Transaction',
@@ -192,16 +194,20 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
           if (value === true) {
               newQuote.masterQuoteId = null;
               newQuote.lifecycleStatus = prevQuote.lifecycleStatus || 'Draft';
+              newQuote.type = 'Master';
+              newQuote.quoteNumber = 'MQ-' + (prevQuote.quoteNumber.includes('-') ? prevQuote.quoteNumber.split('-')[1] : '');
           } else {
               newQuote.lifecycleStatus = null;
+              newQuote.type = 'Transaction';
+              newQuote.quoteNumber = 'TQ-' + (prevQuote.quoteNumber.includes('-') ? prevQuote.quoteNumber.split('-')[1] : '');
           }
       }
 
       if (field === 'type') {
         const prefix = value === 'Master' ? 'MQ-' : 'TQ-';
         const currentNumber = newQuote.quoteNumber;
-        if (currentNumber.startsWith('MQ-') || currentNumber.startsWith('TQ-')) {
-            newQuote.quoteNumber = prefix + currentNumber.substring(3);
+        if (currentNumber.includes('-')) {
+            newQuote.quoteNumber = prefix + currentNumber.split('-')[1];
         } else {
             newQuote.quoteNumber = prefix + currentNumber;
         }
@@ -266,7 +272,6 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
 
       if (quoteId) {
         await setDoc(doc(db, 'quotes', quoteId), quoteToSave, { merge: true });
-        
         const qItems = query(collection(db, 'quoteLineItems'), where('QuoteId', '==', quoteId));
         const oldItemsSnap = await getDocs(qItems);
         const batch = writeBatch(db);
@@ -287,23 +292,44 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
           await addDoc(collection(db, 'quoteLineItems'), itemToSave);
       }
 
-      toast({ title: "Quote Saved", description: "Quote successfully saved." });
+      // If NOT a master quote, generate a document in the 'notifications' collection (Generated Documents page)
+      if (!quote.isMaster) {
+          const docContent = await generateDocumentAction({
+              ...rawQuoteData,
+              subTotal,
+              grandTotal
+          });
+
+          await addDoc(collection(db, 'notifications'), {
+              customer: {
+                  email: quote.customerEmail || 'unknown@example.com',
+              },
+              emailSubject: docContent.emailSubject,
+              emailBody: docContent.emailBody,
+              sentAt: serverTimestamp(),
+              quoteId: quote.quoteNumber,
+          });
+
+          toast({ title: "Quote Generated", description: "Quote saved and document generated." });
+      } else {
+          toast({ title: "Master Quote Saved", description: "Structural baseline updated." });
+      }
       
       const currentMasterId = quote.masterQuoteId;
       clearQuote();
       setIsQuoteSheetOpen(false);
       refreshMasterQuotes();
 
-      if (currentMasterId) {
-        router.push(`/admin/master-quotes/${currentMasterId}`);
+      if (quote.isMaster || currentMasterId) {
+        router.push(currentMasterId ? `/admin/master-quotes/${currentMasterId}` : '/admin/master-quotes');
       } else {
-        router.push('/admin/master-quotes');
+        router.push('/admin/documents');
       }
     } catch (error: any) {
       console.error("Save Error:", error);
       toast({ 
         title: "Save Failed", 
-        description: error.message || "An unexpected error occurred.", 
+        description: error.message || "An error occurred.", 
         variant: "destructive" 
       });
       throw error;

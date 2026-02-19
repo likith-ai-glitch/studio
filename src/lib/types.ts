@@ -60,6 +60,7 @@ export interface Notification {
     sentAt: Date;
     orderId?: string;
     quoteId?: string;
+    smsBody?: string;
 }
 
 export type QuoteLifecycleStatus = 'Draft' | 'InProgress' | 'Locked';
@@ -67,6 +68,7 @@ export type QuoteLifecycleStatus = 'Draft' | 'InProgress' | 'Locked';
 export interface Quote {
     id?: string;
     quoteNumber: string;
+    customerEmail?: string;
     Name?: string; // For compatibility with Salesforce schema
     items: any[];
     status: string;

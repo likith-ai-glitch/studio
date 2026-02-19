@@ -25,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, FileText, ShoppingCart, Loader2, FileDown, Save, CheckCircle2 } from 'lucide-react';
+import { Trash2, FileText, ShoppingCart, Loader2, FileDown, Save, CheckCircle2, User } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -38,9 +38,6 @@ import { AddressForm, type AddressFormValues } from './address-form';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProducts } from '@/context/product-context';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
-import { generateDocumentAction } from '@/app/actions';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 
@@ -55,8 +52,6 @@ export function QuoteSheet() {
     grandTotal, 
     clearQuote,
     updateQuoteField,
-    updateIndicativePricingField,
-    applyPriceList,
     saveQuoteToFirestore,
     masterQuotes
   } = useQuote();
@@ -64,10 +59,9 @@ export function QuoteSheet() {
   const { addOrder } = useOrders();
   const { toast } = useToast();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [isSending, setIsSending] = useState(false);
-  const [isConvertingPdf, setIsConvertingPdf] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedPriceList, setSelectedPriceList] = useState('none');
+  const { applyPriceList } = useQuote();
 
   const isLocked = quote.isMaster && quote.lifecycleStatus === 'Locked';
 
@@ -114,10 +108,6 @@ export function QuoteSheet() {
       return subTotal * ((quote.discount || 0) / 100);
   }, [subTotal, quote.discount]);
 
-  const taxAmount = useMemo(() => {
-    return (subTotal - totalDiscountAmount) * ((quote.tax || 0) / 100);
-  }, [subTotal, totalDiscountAmount, quote.tax]);
-
   return (
     <Sheet open={isQuoteSheetOpen} onOpenChange={setIsQuoteSheetOpen}>
       <SheetContent className="flex w-full flex-col sm:max-w-3xl">
@@ -150,8 +140,7 @@ export function QuoteSheet() {
         {quote.items && quote.items.length > 0 ? (
            <>
             <div className="flex-1 overflow-hidden flex flex-col gap-4">
-              {/* Quote Management Section */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-1">
                  <div className="space-y-2">
                     <Label htmlFor="quoteNumber">Quote Number</Label>
                     <Input
@@ -163,7 +152,20 @@ export function QuoteSheet() {
                     />
                  </div>
 
-                 {/* Master Quote Relationship Controls */}
+                 <div className="space-y-2">
+                    <Label htmlFor="customerEmail" className="flex items-center gap-2">
+                        <User className="h-3 w-3" /> Customer Email
+                    </Label>
+                    <Input
+                      id="customerEmail"
+                      type="email"
+                      placeholder="customer@example.com"
+                      disabled={isLocked}
+                      value={quote.customerEmail || ''}
+                      onChange={(e) => updateQuoteField('customerEmail', e.target.value)}
+                    />
+                 </div>
+
                  <div className="flex flex-col justify-center gap-2 pt-6">
                     <div className="flex items-center space-x-2">
                         <Checkbox 
