@@ -58,6 +58,11 @@ const initialQuoteState: QuoteType = {
     lifecycleStatus: null,
 }
 
+/**
+ * Robust data cleanup for Firestore.
+ * Recursively removes 'undefined' fields but preserves special Firestore objects
+ * like FieldValue (serverTimestamp), Timestamps, and Dates.
+ */
 const cleanFirestoreData = (data: any): any => {
   if (data === null || data === undefined) return data;
   
@@ -65,7 +70,9 @@ const cleanFirestoreData = (data: any): any => {
     return data.map(v => cleanFirestoreData(v));
   }
   
-  if (typeof data === 'object' && Object.prototype.toString.call(data) === '[object Object]') {
+  // Only recurse into "plain" objects.
+  // This preserves Dates, Timestamps, and Firestore FieldValue sentinels (like serverTimestamp).
+  if (typeof data === 'object' && data.constructor === Object) {
     const clean: any = {};
     Object.keys(data).forEach(key => {
       const val = data[key];
@@ -223,7 +230,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
         ...quote,
         Name: quote.quoteNumber,
         totalPrice: grandTotal,
-        LastModifiedDate: serverTimestamp(),
+        LastModifiedDate: serverTimestamp(), // Firestore sentinel
         itemsCount: quote.items.length,
       };
 
