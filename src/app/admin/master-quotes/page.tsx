@@ -56,8 +56,6 @@ export default function MasterQuotesPage() {
                 <TableRow>
                   <TableHead>Quote Name / ID</TableHead>
                   <TableHead>Lifecycle Status</TableHead>
-                  <TableHead className="text-right">Products</TableHead>
-                  <TableHead className="text-right">Total Price</TableHead>
                   <TableHead className="w-[150px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -72,12 +70,6 @@ export default function MasterQuotesPage() {
                       <Badge variant={quote.lifecycleStatus === 'Locked' ? 'destructive' : 'secondary'}>
                         {quote.lifecycleStatus}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                        {quote.items?.length || 0}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                        ₹{quote.totalPrice?.toFixed(2) || '0.00'}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button asChild size="sm" variant="outline">
