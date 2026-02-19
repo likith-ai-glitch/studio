@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
@@ -102,7 +101,6 @@ function QuotesDashboard() {
       const quotesDataPromises = quotesSnapshot.docs.map(async (quoteDoc) => {
         const quoteData = quoteDoc.data();
         
-        // Safety check for LastModifiedDate to avoid runtime errors
         let lastModified: Date;
         if (quoteData.LastModifiedDate && typeof quoteData.LastModifiedDate.toDate === 'function') {
           lastModified = quoteData.LastModifiedDate.toDate();
@@ -112,7 +110,6 @@ function QuotesDashboard() {
           lastModified = new Date();
         }
 
-        // Fetch associated line items
         const lineItemsQuery = query(collection(db, 'quoteLineItems'), where('QuoteId', '==', quoteDoc.id));
         const lineItemsSnapshot = await getDocs(lineItemsQuery);
         const lineItems = lineItemsSnapshot.docs.map(doc => doc.data() as QuoteLineItem);
@@ -604,8 +601,13 @@ export default function AdminPage() {
       });
     }
 
+    // Requirement: If building a Master Quote, show only Master Products
+    if (quote.isMaster) {
+      sortableProducts = sortableProducts.filter(p => p.isMasterProduct === true);
+    }
+
     return sortableProducts;
-  }, [products, searchTerm, sortConfig]);
+  }, [products, searchTerm, sortConfig, quote.isMaster]);
 
   const requestSort = (key: string) => {
     let direction: 'ascending' | 'descending' = 'ascending';
@@ -711,17 +713,18 @@ export default function AdminPage() {
         id: product.productId,
         productId: product.productId,
         name: product.name,
-        price: Number(product.price) || 99.99, // Fallback price
+        price: Number(product.price) || 99.99,
         quantity: 1,
         brand: product.brand,
         category: product.category,
         colour: product.colour,
         partName: product.partName,
+        isMasterProduct: product.isMasterProduct,
     });
 
     toast({
         title: "Added to quote",
-        description: `${product.name} has been added to your quote.`
+        description: `${product.name} has been added.`
     });
     setIsQuoteSheetOpen(true);
   }
@@ -842,12 +845,12 @@ export default function AdminPage() {
       await addProductsBulk(mappedData);
       toast({
         title: "Import Successful",
-        description: `${mappedData.length} products have been imported or updated.`,
+        description: `${mappedData.length} products imported.`,
       });
     } catch (error: any) {
       toast({
         title: "Import Failed",
-        description: error.message || "An unexpected error occurred.",
+        description: error.message,
         variant: "destructive",
       });
     } finally {
@@ -881,15 +884,12 @@ export default function AdminPage() {
                       <DialogContent>
                           <DialogHeader>
                               <DialogTitle>Rename Column</DialogTitle>
-                              <DialogDescription>
-                                  Change the display name for the &quot;{key}&quot; column.
-                              </DialogDescription>
                           </DialogHeader>
                           <div className="py-4">
                               <Input
                                   value={newHeaderName}
                                   onChange={(e) => setNewHeaderName(e.target.value)}
-                                  placeholder="Enter new column name"
+                                  placeholder="New column name"
                               />
                           </div>
                           <DialogFooter>
@@ -937,11 +937,11 @@ export default function AdminPage() {
           <Info className="h-4 w-4 text-primary" />
           <AlertTitle className="font-bold">Building Child Quote</AlertTitle>
           <AlertDescription className="flex justify-between items-center">
-            You are currently selecting products to build a comparison quote for a Master Baseline.
+            You are building a comparison quote. Add products and save when ready.
             <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={handleSaveActiveQuote} disabled={isSaving || quote.items.length === 0} className="bg-green-600 hover:bg-green-700 text-white border-none">
                     {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
-                    Save Quote
+                    Save Quote ({quote.items.length})
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => clearQuote()} className="text-primary hover:text-primary">
                     <X className="h-4 w-4 mr-1" /> Cancel
@@ -951,33 +951,33 @@ export default function AdminPage() {
         </Alert>
       )}
 
+      {quote.isMaster && (
+        <Alert className="bg-blue-50 border-blue-200">
+          <Info className="h-4 w-4 text-blue-600" />
+          <AlertTitle className="font-bold text-blue-800">Building Master Quote</AlertTitle>
+          <AlertDescription className="text-blue-700">
+            Only <strong>Master Products</strong> are visible in the table below.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Revenue
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Revenue</CardTitle>
             <IndianRupee className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">₹{totalRevenue.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">
-              Total revenue from all sales
-            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Sales
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Sales</CardTitle>
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">+{totalSales}</div>
-            <p className="text-xs text-muted-foreground">
-              Total number of orders placed
-            </p>
           </CardContent>
         </Card>
         <Card>
@@ -987,9 +987,6 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{products.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Total number of products in store
-            </p>
           </CardContent>
         </Card>
         <Card>
@@ -999,9 +996,6 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{availableProducts}</div>
-            <p className="text-xs text-muted-foreground">
-              Products marked as available
-            </p>
           </CardContent>
         </Card>
         <Card>
@@ -1011,9 +1005,6 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{unavailableProducts}</div>
-            <p className="text-xs text-muted-foreground">
-              Products marked as unavailable
-            </p>
           </CardContent>
         </Card>
       </div>
@@ -1051,16 +1042,6 @@ export default function AdminPage() {
               <DialogContent className="max-w-4xl">
                 <DialogHeader>
                   <DialogTitle>Import Products</DialogTitle>
-                  {importStep === 'selectFile' && (
-                    <DialogDescription>
-                      Upload a CSV file to add or update products. The first row must be headers.
-                    </DialogDescription>
-                  )}
-                  {importStep === 'mapFields' && (
-                    <DialogDescription>
-                      Map the columns from your CSV file to the corresponding product fields. Unmapped fields will be ignored.
-                    </DialogDescription>
-                  )}
                 </DialogHeader>
 
                 {importStep === 'selectFile' ? (
@@ -1069,13 +1050,13 @@ export default function AdminPage() {
                     <Label htmlFor="csv-upload" className="cursor-pointer">
                       <div className="text-center">
                         <Upload className="mx-auto h-10 w-10 text-muted-foreground" />
-                        {isImporting ? <p className="mt-2">Analyzing file...</p> : (importFile ? <p className="mt-2 font-medium">{importFile.name}</p> : <p className="mt-2">Click to browse or drag & drop CSV file</p>)}
+                        {isImporting ? <p className="mt-2">Analyzing...</p> : (importFile ? <p className="mt-2 font-medium">{importFile.name}</p> : <p className="mt-2">Drop CSV here</p>)}
                       </div>
                     </Label>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <p className="font-semibold">Map your fields:</p>
+                    <p className="font-semibold">Map fields:</p>
                     <ScrollArea className="h-64">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-1">
                       {csvHeaders.map(header => (
@@ -1086,19 +1067,16 @@ export default function AdminPage() {
                             onValueChange={(value) => setFieldMapping(prev => ({ ...prev, [header]: value }))}
                           >
                             <SelectTrigger id={`map-${header}`}>
-                              <SelectValue placeholder="Select a field" />
+                              <SelectValue placeholder="Select field" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="none">Ignore this field</SelectItem>
+                              <SelectItem value="none">Ignore</SelectItem>
                               <DropdownMenuSeparator />
                               {productKeys.filter(k => k !== 'quoteTotal').map(key => (
                                 <SelectItem key={key} value={key}>{headerNames[key] || key}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
-                          <p className="text-xs text-muted-foreground truncate">
-                            Preview: {csvData[0]?.[header]}
-                          </p>
                         </div>
                       ))}
                     </div>
@@ -1113,7 +1091,7 @@ export default function AdminPage() {
                   {importStep === 'mapFields' && (
                     <Button onClick={handleImport} disabled={isImporting}>
                       {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Import Data
+                      Import
                     </Button>
                   )}
                 </DialogFooter>
@@ -1130,13 +1108,6 @@ export default function AdminPage() {
               <DialogContent className="max-w-md">
                 <DialogHeader>
                   <DialogTitle>Export Products</DialogTitle>
-                  <DialogDescription>
-                    {selectedProducts.length > 0
-                      ? `You are about to export ${selectedProducts.length} selected product(s). `
-                      : `You are about to export all ${products.length} products. `
-                    }
-                    Select the fields you want to include in the CSV file.
-                  </DialogDescription>
                 </DialogHeader>
                 <ScrollArea className="max-h-80 my-4">
                   <div className="space-y-2 pr-6">
@@ -1164,15 +1135,12 @@ export default function AdminPage() {
               <DialogTrigger asChild>
                   <Button size="sm" variant="outline" disabled={selectedProducts.length === 0}>
                       <Copy className="mr-2 h-4 w-4" />
-                      Compare Selected ({selectedProducts.length})
+                      Compare ({selectedProducts.length})
                   </Button>
               </DialogTrigger>
               <DialogContent className="max-w-4xl h-[90vh]">
                   <DialogHeader>
                       <DialogTitle>Compare Products</DialogTitle>
-                      <DialogDescription>
-                          View selected products side-by-side.
-                      </DialogDescription>
                   </DialogHeader>
                   <ProductCompare productIds={selectedProducts} />
                   <DialogFooter>
@@ -1190,7 +1158,7 @@ export default function AdminPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+                <DropdownMenuLabel>Columns</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {masterTableKeys.map(key => (
                   <DropdownMenuCheckboxItem
@@ -1208,19 +1176,16 @@ export default function AdminPage() {
               <DialogTrigger asChild>
                 <Button size="sm" variant="outline">
                     <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Column
+                    Add Col
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Add New Column</DialogTitle>
-                  <DialogDescription>
-                    Enter a name for the new column. This will be added to all existing products.
-                  </DialogDescription>
+                  <DialogTitle>New Column</DialogTitle>
                 </DialogHeader>
                 <div className="py-4">
                   <Input 
-                    placeholder="e.g. SKU, Stock, etc."
+                    placeholder="Column Name"
                     value={newColumnName}
                     onChange={(e) => setNewColumnName(e.target.value)}
                   />
@@ -1230,7 +1195,6 @@ export default function AdminPage() {
                         <Button variant="outline" disabled={isAddingColumn}>Cancel</Button>
                     </DialogClose>
                     <Button onClick={handleAddColumn} disabled={isAddingColumn}>
-                        {isAddingColumn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Add Column
                     </Button>
                 </DialogFooter>
@@ -1241,20 +1205,17 @@ export default function AdminPage() {
               <DialogTrigger asChild>
                 <Button size="sm" variant="destructive" disabled={deletableColumns.length === 0}>
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Column
+                  Del Col
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Delete Column</DialogTitle>
-                  <DialogDescription>
-                    Select the column you want to permanently delete from all products. This action cannot be undone.
-                  </DialogDescription>
                 </DialogHeader>
                 <div className="py-4">
                   <Select value={columnToDelete} onValueChange={setColumnToDelete}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select a column to delete" />
+                      <SelectValue placeholder="Select column" />
                     </SelectTrigger>
                     <SelectContent>
                       {deletableColumns.map(col => (
@@ -1268,8 +1229,7 @@ export default function AdminPage() {
                     <Button variant="outline" disabled={isDeletingColumn}>Cancel</Button>
                   </DialogClose>
                   <Button onClick={handleDeleteColumn} disabled={isDeletingColumn || !columnToDelete} variant="destructive">
-                    {isDeletingColumn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Delete Column
+                    Delete
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -1285,9 +1245,6 @@ export default function AdminPage() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Reorder Columns</DialogTitle>
-                  <DialogDescription>
-                    Click the arrows to change the order of the columns.
-                  </DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-2 max-h-96 overflow-y-auto">
                   {localColumnOrder.map((key, index) => (
@@ -1317,19 +1274,16 @@ export default function AdminPage() {
               <DialogTrigger asChild>
                 <Button size="sm" variant="outline">
                   <Settings className="mr-2 h-4 w-4" />
-                  Home Page View
+                  Home Settings
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle>Customize Home Page View</DialogTitle>
-                  <DialogDescription>
-                    Choose which product fields to display on the home page cards and in what order.
-                  </DialogDescription>
+                  <DialogTitle>Customize Home Page</DialogTitle>
                 </DialogHeader>
                 <div className="grid grid-cols-2 gap-8 py-4">
                     <div className="space-y-4">
-                        <h4 className="font-semibold">Visible Fields</h4>
+                        <h4 className="font-semibold">Visibility</h4>
                         <div className="space-y-2">
                           {homePageConfigurableFields.map((key) => (
                                 <div key={key} className="flex items-center space-x-2">
@@ -1346,7 +1300,7 @@ export default function AdminPage() {
                         </div>
                     </div>
                     <div className="space-y-4">
-                        <h4 className="font-semibold">Field Order</h4>
+                        <h4 className="font-semibold">Order</h4>
                         <div className="space-y-2 max-h-64 overflow-y-auto">
                             {localHomePageOrder.map((key, index) => (
                                 <div key={key} className="flex items-center justify-between p-2 border rounded-md">
@@ -1451,7 +1405,6 @@ export default function AdminPage() {
                             <DropdownMenuTrigger asChild>
                               <Button aria-haspopup="true" size="icon" variant="ghost">
                                 <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Toggle menu</span>
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
@@ -1479,9 +1432,9 @@ export default function AdminPage() {
                 
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the product.
+                        This will permanently delete the product.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

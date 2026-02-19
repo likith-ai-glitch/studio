@@ -60,7 +60,7 @@ const initialQuoteState: QuoteType = {
 
 /**
  * Robust data cleanup for Firestore.
- * Processes only plain objects and arrays to preserve Firestore FieldValues (sentinels).
+ * ONLY processes plain JS objects/arrays to preserve Firestore sentinels and Timestamps.
  */
 const cleanFirestoreData = (data: any): any => {
   if (data === null || data === undefined) return data;
@@ -69,9 +69,8 @@ const cleanFirestoreData = (data: any): any => {
     return data.map(v => cleanFirestoreData(v));
   }
   
-  // Check if it's a plain object. 
-  // We avoid cleaning Timestamps or FieldValues by checking the constructor.
-  if (typeof data === 'object' && Object.prototype.toString.call(data) === '[object Object]') {
+  // Strictly check for plain objects to avoid corrupting Firestore FieldValues or custom Classes
+  if (typeof data === 'object' && data.constructor === Object) {
     const clean: any = {};
     Object.keys(data).forEach(key => {
       const val = data[key];
@@ -247,7 +246,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
           await addDoc(collection(db, 'quoteLineItems'), itemToSave);
       }
 
-      toast({ title: "Quote Saved", description: "Quote successfully saved to Firestore." });
+      toast({ title: "Quote Saved", description: "Quote successfully saved." });
       
       const currentMasterId = quote.masterQuoteId;
       clearQuote();
@@ -258,10 +257,10 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
         router.push(`/admin/master-quotes/${currentMasterId}`);
       }
     } catch (error: any) {
-      console.error("CRITICAL ERROR: Failed to save quote to Firestore:", error);
+      console.error("Save Error:", error);
       toast({ 
         title: "Save Failed", 
-        description: error.message || "An unexpected error occurred while saving.", 
+        description: error.message || "An unexpected error occurred.", 
         variant: "destructive" 
       });
       throw error;
@@ -272,7 +271,6 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
     try {
         let finalChildId = childId;
 
-        // If childId looks like a quote number (e.g. TQ-...), we need to resolve it to a document ID
         if (childId.startsWith('TQ-') || childId.startsWith('MQ-') || childId.startsWith('CQ-')) {
             const q = query(
                 collection(db, 'quotes'), 
@@ -288,7 +286,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
         }
 
         await updateDoc(doc(db, 'quotes', finalChildId), { masterQuoteId: masterId });
-        toast({ title: "Quote Linked", description: "Successfully attached quote to Master." });
+        toast({ title: "Quote Linked", description: "Successfully attached to Master." });
         refreshMasterQuotes();
     } catch (error: any) {
         console.error("Link error:", error);
@@ -297,11 +295,12 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
   };
 
   const startNewChildQuote = (masterId: string, masterName: string) => {
+    const timestamp = Date.now().toString().slice(-4);
     setQuote({
       ...initialQuoteState,
       isMaster: false,
       masterQuoteId: masterId,
-      quoteNumber: `CQ-${masterName}-`,
+      quoteNumber: `CQ-${masterName}-${timestamp}`,
     });
     toast({
       title: "Building Child Quote",
