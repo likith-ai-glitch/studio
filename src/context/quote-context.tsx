@@ -4,7 +4,7 @@
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import type { Product, Quote as QuoteType, QuoteLifecycleStatus } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, doc, updateDoc, getDocs, query, where, getDoc, limit } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, updateDoc, getDocs, query, where, getDoc, limit, setDoc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -40,6 +40,7 @@ interface QuoteContextType {
   masterQuotes: QuoteType[];
   refreshMasterQuotes: () => Promise<void>;
   startNewChildQuote: (masterId: string, masterName: string) => void;
+  loadQuoteForEditing: (quoteId: string) => Promise<void>;
 }
 
 const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
@@ -60,21 +61,13 @@ const initialQuoteState: QuoteType = {
     lifecycleStatus: null,
 }
 
-/**
- * Deeply cleans an object to be Firestore-compatible.
- * Specifically handles plain objects vs Firestore Sentinels/Timestamps.
- */
 const cleanFirestoreData = (data: any): any => {
   if (data === null || data === undefined) return undefined;
   
-  // Preserve Dates
   if (data instanceof Date) return data;
 
-  // Preserve Firestore Sentinels (serverTimestamp, etc.)
   if (data && typeof data === 'object') {
-    // Basic check for v9/v10 Sentinels
     if (data._methodName || data.methodName) return data;
-    // Check for Timestamp objects
     if (typeof data.toDate === 'function') return data;
   }
 
@@ -84,7 +77,6 @@ const cleanFirestoreData = (data: any): any => {
       .filter(v => v !== undefined);
   }
 
-  // Only recurse into plain JavaScript objects
   if (typeof data === 'object' && Object.prototype.toString.call(data) === '[object Object]') {
     const clean: any = {};
     Object.keys(data).forEach(key => {
@@ -131,10 +123,10 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
     }
 
     setQuote(prevQuote => {
-      const existingItem = prevQuote.items.find(item => item.id === itemToAdd.id);
+      const existingItem = prevQuote.items.find(item => item.productId === itemToAdd.productId);
       if (existingItem) {
         const updatedItems = prevQuote.items.map(item =>
-          item.id === itemToAdd.id ? { ...item, quantity: item.quantity + itemToAdd.quantity } : item
+          item.productId === itemToAdd.productId ? { ...item, quantity: item.quantity + itemToAdd.quantity } : item
         );
         return { ...prevQuote, items: updatedItems };
       } else {
@@ -147,16 +139,16 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
     if (quote.isMaster && quote.lifecycleStatus === 'Locked') return;
 
     setQuote(prevQuote => {
-      const existingItemIndex = prevQuote.items.findIndex(item => item.id === itemToSync.id);
+      const existingItemIndex = prevQuote.items.findIndex(item => item.productId === itemToSync.productId);
       
       if (itemToSync.quantity <= 0) {
           if (existingItemIndex === -1) return prevQuote;
-          return { ...prevQuote, items: prevQuote.items.filter(item => item.id !== itemToSync.id) };
+          return { ...prevQuote, items: prevQuote.items.filter(item => item.productId !== itemToSync.productId) };
       }
 
       if (existingItemIndex !== -1) {
           const updatedItems = prevQuote.items.map(item =>
-              item.id === itemToSync.id ? { ...item, quantity: itemToSync.quantity } : item
+              item.productId === itemToSync.productId ? { ...item, quantity: itemToSync.quantity } : item
           );
           return { ...prevQuote, items: updatedItems };
       } else {
@@ -172,7 +164,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
       removeItemFromQuote(itemId);
     } else {
       setQuote(prevQuote => {
-        const updatedItems = prevQuote.items.map(item => (item.id === itemId ? { ...item, quantity } : item));
+        const updatedItems = prevQuote.items.map(item => (item.id === itemId || item.productId === itemId ? { ...item, quantity } : item));
         return { ...prevQuote, items: updatedItems };
       });
     }
@@ -185,7 +177,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
     }
 
     setQuote(prevQuote => {
-        const updatedItems = prevQuote.items.filter(item => item.id !== itemId);
+        const updatedItems = prevQuote.items.filter(item => item.id !== itemId && item.productId !== itemId);
         return { ...prevQuote, items: updatedItems };
     });
   };
@@ -270,13 +262,25 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
       };
 
       const quoteToSave = cleanFirestoreData(rawQuoteData);
+      let quoteId = quote.id;
 
-      const docRef = await addDoc(collection(db, 'quotes'), quoteToSave);
+      if (quoteId) {
+        await setDoc(doc(db, 'quotes', quoteId), quoteToSave, { merge: true });
+        
+        const qItems = query(collection(db, 'quoteLineItems'), where('QuoteId', '==', quoteId));
+        const oldItemsSnap = await getDocs(qItems);
+        const batch = writeBatch(db);
+        oldItemsSnap.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      } else {
+        const docRef = await addDoc(collection(db, 'quotes'), quoteToSave);
+        quoteId = docRef.id;
+      }
       
       for (const item of quote.items) {
           const itemToSave = cleanFirestoreData({
               ...item,
-              QuoteId: docRef.id,
+              QuoteId: quoteId,
               UnitPrice: item.price,
               TotalPrice: item.price * item.quantity,
           });
@@ -292,6 +296,8 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
 
       if (currentMasterId) {
         router.push(`/admin/master-quotes/${currentMasterId}`);
+      } else {
+        router.push('/admin/master-quotes');
       }
     } catch (error: any) {
       console.error("Save Error:", error);
@@ -301,6 +307,35 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
         variant: "destructive" 
       });
       throw error;
+    }
+  };
+
+  const loadQuoteForEditing = async (quoteId: string) => {
+    try {
+        const docSnap = await getDoc(doc(db, 'quotes', quoteId));
+        if (!docSnap.exists()) {
+            toast({ title: "Error", description: "Quote not found.", variant: "destructive" });
+            return;
+        }
+
+        const data = docSnap.data();
+        const itemsSnap = await getDocs(query(collection(db, 'quoteLineItems'), where('QuoteId', '==', quoteId)));
+        
+        const items = itemsSnap.docs.map(d => ({
+            id: d.id,
+            ...d.data()
+        })) as QuoteItem[];
+
+        setQuote({
+            id: quoteId,
+            ...data,
+            items
+        } as QuoteType);
+
+        toast({ title: "Edit Mode", description: "Loading quote products..." });
+        router.push('/admin');
+    } catch (error: any) {
+        toast({ title: "Failed to load", description: error.message, variant: "destructive" });
     }
   };
 
@@ -368,7 +403,8 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
         linkQuoteToMaster,
         masterQuotes,
         refreshMasterQuotes,
-        startNewChildQuote
+        startNewChildQuote,
+        loadQuoteForEditing
     }}>
       {children}
     </QuoteContext.Provider>

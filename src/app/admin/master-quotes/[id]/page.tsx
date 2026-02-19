@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -9,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, ArrowLeft, Plus, CheckCircle2, Lock, History, Search, FilePlus, Link2, ChevronDown, ChevronUp, Package } from 'lucide-react';
+import { Loader2, ArrowLeft, Plus, CheckCircle2, Lock, History, Search, FilePlus, Link2, ChevronDown, ChevronUp, Package, PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQuote } from '@/context/quote-context';
 import type { Quote, QuoteLifecycleStatus } from '@/lib/types';
@@ -21,7 +22,7 @@ export default function MasterQuoteDetailsPage() {
   const { id } = useParams();
   const router = useRouter();
   const { toast } = useToast();
-  const { startNewChildQuote } = useQuote();
+  const { startNewChildQuote, loadQuoteForEditing } = useQuote();
   const [masterQuote, setMasterQuote] = useState<Quote | null>(null);
   const [childQuotes, setChildQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -245,13 +246,19 @@ export default function MasterQuoteDetailsPage() {
                                                     </Table>
                                                 </div>
                                             </div>
-                                            <div className="flex justify-between items-center pt-2">
+                                            <div className="flex justify-between items-center pt-2 gap-2">
                                                 <Badge variant="outline">{quote.status}</Badge>
-                                                {masterQuote?.lifecycleStatus !== 'Locked' && (
-                                                    <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); removeChildQuote(quote.id!); }} className="text-destructive h-8 px-2">
-                                                        Detach
+                                                <div className="flex gap-2">
+                                                    <Button variant="outline" size="sm" className="h-8" onClick={(e) => { e.stopPropagation(); loadQuoteForEditing(quote.id!); }}>
+                                                        <PlusCircle className="mr-2 h-4 w-4" />
+                                                        Add Products
                                                     </Button>
-                                                )}
+                                                    {masterQuote?.lifecycleStatus !== 'Locked' && (
+                                                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); removeChildQuote(quote.id!); }} className="text-destructive h-8 px-2">
+                                                            Detach
+                                                        </Button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     )}
