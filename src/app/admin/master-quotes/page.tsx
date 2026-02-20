@@ -73,7 +73,7 @@ export default function MasterQuotesPage() {
                           quote.items.slice(0, 3).map((item, idx) => (
                             <Badge key={idx} variant="outline" className="bg-muted/50 text-[10px] font-normal">
                               <Package className="h-3 w-3 mr-1 text-muted-foreground" />
-                              {item.name}
+                              {item.name} {item.brand ? `(${item.brand})` : ''}
                             </Badge>
                           ))
                         ) : (
@@ -113,3 +113,4 @@ export default function MasterQuotesPage() {
     </div>
   );
 }
+

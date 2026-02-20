@@ -200,7 +200,7 @@ export default function MasterQuoteDetailsPage() {
                                               <Table>
                                                   <TableHeader className="bg-muted/50">
                                                       <TableRow className="h-8">
-                                                          <TableHead className="text-[10px] h-8">Product</TableHead>
+                                                          <TableHead className="text-[10px] h-8">Product / Brand</TableHead>
                                                           <TableHead className="text-[10px] text-center h-8">Qty</TableHead>
                                                           <TableHead className="text-[10px] text-right h-8">Price</TableHead>
                                                       </TableRow>
@@ -208,7 +208,10 @@ export default function MasterQuoteDetailsPage() {
                                                   <TableBody>
                                                       {quote.items.map((item, idx) => (
                                                           <TableRow key={idx} className="h-10">
-                                                              <TableCell className="py-1 text-xs font-medium">{item.name}</TableCell>
+                                                              <TableCell className="py-1 text-xs font-medium">
+                                                                  <div>{item.name}</div>
+                                                                  {item.brand && <div className="text-[10px] text-muted-foreground font-normal">{item.brand}</div>}
+                                                              </TableCell>
                                                               <TableCell className="py-1 text-xs text-center">{item.quantity}</TableCell>
                                                               <TableCell className="py-1 text-xs text-right">₹{Number(item.price).toFixed(2)}</TableCell>
                                                           </TableRow>
@@ -257,3 +260,4 @@ export default function MasterQuoteDetailsPage() {
     </div>
   );
 }
+
