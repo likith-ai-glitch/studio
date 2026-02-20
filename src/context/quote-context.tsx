@@ -291,10 +291,9 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
           await addDoc(collection(db, 'quoteLineItems'), itemToSave);
       }
 
-      // If NOT a master quote, generate a document in the 'notifications' collection (Generated Documents page)
-      if (!quote.isMaster) {
+      // ONLY generate a document if it's NOT a master quote AND NOT a child quote
+      if (!quote.isMaster && !quote.masterQuoteId) {
           // ENSURE ONLY PLAIN SERIALIZABLE OBJECTS ARE PASSED TO SERVER ACTION
-          // Next.js Server Actions fail if complex objects like serverTimestamp() are passed as arguments
           const serializableQuoteData = {
               quoteNumber: quote.quoteNumber,
               customerEmail: quote.customerEmail || 'unknown@example.com',
@@ -325,7 +324,7 @@ export function QuoteProvider({ children }: { children: ReactNode }) {
 
           toast({ title: "Quote Generated", description: "Quote saved and document generated." });
       } else {
-          toast({ title: "Master Quote Saved", description: "Structural baseline updated." });
+          toast({ title: "Quote Saved", description: quote.isMaster ? "Master baseline updated." : "Vendor child quote updated." });
       }
       
       const currentMasterId = quote.masterQuoteId;
