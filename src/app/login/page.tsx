@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { 
   signInWithEmailAndPassword,
   RecaptchaVerifier,
@@ -14,6 +14,7 @@ import {
   createUserWithEmailAndPassword,
 } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +25,7 @@ import { useEvents } from '@/context/events-context';
 import { useAuth } from '@/context/auth-context';
 import { Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { generateAndSendOtpAction } from '@/app/actions/otp-actions';
 
 const emailFormSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -47,7 +49,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { logEvent } = useEvents();
-  const { user, isAppUser, loading: authLoading } = useAuth();
+  const { user, isAppUser, isEmailVerified, isOtpVerified, loading: authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [showOtpInput, setShowOtpInput] = useState(false);
@@ -64,9 +66,15 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user && !authLoading) {
-      router.push(isAppUser ? '/admin' : '/');
+      if (!isEmailVerified) {
+        router.push('/verify-otp');
+      } else if (!isOtpVerified) {
+        router.push('/verify-otp-login');
+      } else {
+        router.push(isAppUser ? '/admin' : '/');
+      }
     }
-  }, [user, authLoading, isAppUser, router]);
+  }, [user, authLoading, isAppUser, isEmailVerified, isOtpVerified, router]);
 
 
   const emailForm = useForm<z.infer<typeof emailFormSchema>>({
@@ -98,13 +106,29 @@ export default function LoginPage() {
   async function onEmailSubmit(values: z.infer<typeof emailFormSchema>) {
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       logEvent({ type: 'login', userEmail: values.email });
-      toast({
-        title: 'Login Successful',
-        description: 'Welcome back!',
-      });
-      // Allow AuthContext to resolve role and handle redirect via useEffect
+      
+      // Fetch status to decide redirect
+      const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+      const data = userDoc.data();
+      const isVerified = data?.emailVerified || false;
+
+      if (!isVerified) {
+        toast({ title: 'Verification Required', description: 'Please verify your email code.' });
+        const res = await generateAndSendOtpAction(values.email);
+        if (res.success) {
+            toast({ title: 'New OTP Sent', description: `Your test OTP is: ${res.otp}` });
+            router.push('/verify-otp');
+        }
+      } else {
+        toast({ title: 'Authentication Step 2', description: 'Sending security code to your email.' });
+        const res = await generateAndSendOtpAction(values.email);
+        if (res.success) {
+            toast({ title: 'OTP Sent', description: `Your test security OTP is: ${res.otp}` });
+            router.push('/verify-otp-login');
+        }
+      }
     } catch (error: any) {
       toast({
         title: 'Login Failed',
@@ -171,11 +195,29 @@ export default function LoginPage() {
   async function onSignupSubmit(values: z.infer<typeof signupFormSchema>) {
     setIsLoading(true);
     try {
-      await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      
+      // 1. Create user in Firestore
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        uid: userCredential.user.uid,
+        email: values.email,
+        role: 'CUSTOMER',
+        emailVerified: false,
+        createdAt: serverTimestamp(),
+      });
+
+      // 2. Generate and send OTP
+      const res = await generateAndSendOtpAction(values.email);
+      
       toast({
         title: 'Account Created',
-        description: "You've successfully signed up!",
+        description: "Verify your email with the OTP sent.",
       });
+
+      if (res.success) {
+          toast({ title: 'OTP Sent', description: `Your test OTP is: ${res.otp}` });
+          router.push('/verify-otp');
+      }
     } catch (error: any) {
       toast({
         title: 'Sign-up Failed',

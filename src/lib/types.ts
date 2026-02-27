@@ -94,5 +94,6 @@ export interface AppUser {
   uid: string;
   email: string;
   role: UserRole;
+  emailVerified: boolean;
   createdAt: Date;
 }
