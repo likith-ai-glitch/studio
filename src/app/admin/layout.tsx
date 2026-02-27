@@ -2,17 +2,20 @@
 'use client';
 
 import { useAuth } from '@/context/auth-context';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isAppUser, loading } = useAuth();
+  const { user, isAppUser, isAdmin, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!loading) {
@@ -22,9 +25,17 @@ export default function AdminLayout({
       } else if (!isAppUser) {
         // If logged in but not an admin/app user, go to home page
         router.push('/');
+      } else if (pathname === '/admin/roles' && !isAdmin) {
+        // Strict guard for Role Management
+        toast({
+          title: "Access Denied",
+          description: "You do not have permission to access user management.",
+          variant: "destructive",
+        });
+        router.push('/admin');
       }
     }
-  }, [user, isAppUser, loading, router]);
+  }, [user, isAppUser, isAdmin, loading, router, pathname, toast]);
 
   if (loading || !user || !isAppUser) {
     return (
@@ -32,6 +43,11 @@ export default function AdminLayout({
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
+  }
+
+  // Prevent flash of unauthorized content for the roles page
+  if (pathname === '/admin/roles' && !isAdmin) {
+    return null;
   }
 
   return <>{children}</>;

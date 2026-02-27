@@ -6,12 +6,15 @@ import { User, onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/a
 import { auth, db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
+import { UserRole } from '@/lib/types';
 
 const ADMIN_EMAIL = 'likithknml@gmail.com';
 
 interface AuthContextType {
   user: User | null;
+  role: UserRole | null;
   isAdmin: boolean;
+  isManager: boolean;
   isAppUser: boolean;
   loading: boolean;
   logout: () => Promise<void>;
@@ -21,7 +24,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -29,18 +32,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
-        // In a real app, it's better to get the role from custom claims via an ID token.
-        // For this prototype, we'll fetch it from a Firestore document.
-        const userDocRef = doc(db, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists() && userDoc.data().role) {
-          setUserRole(userDoc.data().role);
+        // First check for hardcoded super admin
+        if (user.email === ADMIN_EMAIL) {
+          setRole('ADMIN');
         } else {
-            // If no role is found, they are a customer
-            setUserRole('customer');
+          // Fetch role from Firestore
+          try {
+            const userDocRef = doc(db, 'users', user.uid);
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists() && userDoc.data().role) {
+              setRole(userDoc.data().role as UserRole);
+            } else {
+              setRole('MANAGER'); // Default for new non-admin users in this prototype
+            }
+          } catch (error) {
+            console.error("Error fetching user role:", error);
+            setRole('MANAGER');
+          }
         }
       } else {
-        setUserRole(null);
+        setRole(null);
       }
       setLoading(false);
     });
@@ -48,9 +59,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  const isAdmin = useMemo(() => user?.email === ADMIN_EMAIL, [user]);
-  const isAppUser = useMemo(() => isAdmin || userRole === 'user', [isAdmin, userRole]);
-
+  const isAdmin = useMemo(() => role === 'ADMIN', [role]);
+  const isManager = useMemo(() => role === 'MANAGER', [role]);
+  const isAppUser = useMemo(() => isAdmin || isManager, [isAdmin, isManager]);
 
   const logout = async () => {
     await firebaseSignOut(auth);
@@ -58,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, logout, isAdmin, isAppUser }}>
+    <AuthContext.Provider value={{ user, role, loading, logout, isAdmin, isManager, isAppUser }}>
       {children}
     </AuthContext.Provider>
   );

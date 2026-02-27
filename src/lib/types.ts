@@ -87,3 +87,12 @@ export interface Quote {
     masterQuoteId: string | null;
     lifecycleStatus: QuoteLifecycleStatus | null;
 }
+
+export type UserRole = 'ADMIN' | 'MANAGER' | 'CUSTOMER';
+
+export interface AppUser {
+  uid: string;
+  email: string;
+  role: UserRole;
+  createdAt: Date;
+}
