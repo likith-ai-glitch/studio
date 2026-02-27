@@ -1,0 +1,568 @@
+{
+  "entities": {
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "A profile for a user of the Shopstream application, linked to an external authentication system. This entity stores user-specific data not managed by the authentication system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the UserProfile entity. This typically corresponds to the user's ID from an external authentication system."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The first name of the user."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The last name of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "The primary email address of the user.",
+          "format": "email"
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "email"
+      ]
+    },
+    "Category": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Category",
+      "type": "object",
+      "description": "Represents a classification for products, enabling search filtering and organization.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Category entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the product category (e.g., 'Electronics', 'Apparel', 'Books')."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description of the category."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description"
+      ]
+    },
+    "Product": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Product",
+      "type": "object",
+      "description": "Represents a single product available for sale in the Shopstream application, including its details and pricing.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Product entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the product."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the product."
+        },
+        "price": {
+          "type": "number",
+          "description": "The current selling price of the product."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "The URL to the primary image of the product.",
+          "format": "uri"
+        },
+        "categoryId": {
+          "type": "string",
+          "description": "Reference to the Category this product belongs to. (Relationship: Category 1:N Product)"
+        },
+        "stockQuantity": {
+          "type": "number",
+          "description": "The number of units of this product currently in stock."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "price",
+        "imageUrl",
+        "categoryId",
+        "stockQuantity"
+      ]
+    },
+    "Cart": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Cart",
+      "type": "object",
+      "description": "Represents a user's shopping cart, holding products selected for potential purchase.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Cart entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who owns this cart. (Relationship: UserProfile 1:1 Cart)"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the cart was initially created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the cart was last modified (e.g., item added, quantity changed).",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CartItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CartItem",
+      "type": "object",
+      "description": "Represents a single product and its quantity within a user's shopping cart.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the CartItem entity."
+        },
+        "cartId": {
+          "type": "string",
+          "description": "Reference to the Cart this item belongs to. (Relationship: Cart 1:N CartItem)"
+        },
+        "productId": {
+          "type": "string",
+          "description": "Reference to the Product added to the cart. (Relationship: Product 1:N CartItem)"
+        },
+        "quantity": {
+          "type": "number",
+          "description": "The quantity of the product in the cart."
+        },
+        "priceAtAddition": {
+          "type": "number",
+          "description": "The price of the product at the moment it was added to the cart, for historical accuracy."
+        }
+      },
+      "required": [
+        "id",
+        "cartId",
+        "productId",
+        "quantity",
+        "priceAtAddition"
+      ]
+    },
+    "Wishlist": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Wishlist",
+      "type": "object",
+      "description": "Represents a user's collection of products they intend to purchase later.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Wishlist entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who owns this wishlist. (Relationship: UserProfile 1:N Wishlist)"
+        },
+        "name": {
+          "type": "string",
+          "description": "A user-defined name for the wishlist (e.g., 'My Favorites', 'Birthday Gifts')."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the wishlist was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the wishlist was last modified.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "name",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "WishlistItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "WishlistItem",
+      "type": "object",
+      "description": "Represents a single product added to a user's wishlist.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the WishlistItem entity."
+        },
+        "wishlistId": {
+          "type": "string",
+          "description": "Reference to the Wishlist this item belongs to. (Relationship: Wishlist 1:N WishlistItem)"
+        },
+        "productId": {
+          "type": "string",
+          "description": "Reference to the Product added to the wishlist. (Relationship: Product 1:N WishlistItem)"
+        },
+        "addedAt": {
+          "type": "string",
+          "description": "Timestamp when the product was added to the wishlist.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "wishlistId",
+        "productId",
+        "addedAt"
+      ]
+    },
+    "Order": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Order",
+      "type": "object",
+      "description": "Represents a completed transaction or a checkout process initiated by a user, encapsulating the entire order details.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Order entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who placed this order. (Relationship: UserProfile 1:N Order)"
+        },
+        "orderDate": {
+          "type": "string",
+          "description": "The date and time when the order was placed.",
+          "format": "date-time"
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "The total monetary amount of the order, including all items and potential charges (e.g., shipping, taxes)."
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the order (e.g., 'Pending', 'Processing', 'Completed', 'Cancelled')."
+        },
+        "shippingAddress": {
+          "type": "string",
+          "description": "The full shipping address for this order."
+        },
+        "billingAddress": {
+          "type": "string",
+          "description": "The full billing address for this order. Can be the same as shipping address."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "orderDate",
+        "totalAmount",
+        "status",
+        "shippingAddress",
+        "billingAddress"
+      ]
+    },
+    "OrderItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "OrderItem",
+      "type": "object",
+      "description": "Represents a single product and its quantity included in a specific order.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the OrderItem entity."
+        },
+        "orderId": {
+          "type": "string",
+          "description": "Reference to the Order this item belongs to. (Relationship: Order 1:N OrderItem)"
+        },
+        "productId": {
+          "type": "string",
+          "description": "Reference to the Product included in the order. (Relationship: Product 1:N OrderItem)"
+        },
+        "quantity": {
+          "type": "number",
+          "description": "The quantity of the product ordered."
+        },
+        "priceAtOrder": {
+          "type": "number",
+          "description": "The price of the product at the time the order was placed, for historical accuracy."
+        }
+      },
+      "required": [
+        "id",
+        "orderId",
+        "productId",
+        "quantity",
+        "priceAtOrder"
+      ]
+    },
+    "ProductDescriptionHistory": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ProductDescriptionHistory",
+      "type": "object",
+      "description": "Stores historical or alternative versions of product descriptions generated or modified by the AI Product Tweaker.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ProductDescriptionHistory entity."
+        },
+        "productId": {
+          "type": "string",
+          "description": "Reference to the Product whose description was tweaked. (Relationship: Product 1:N ProductDescriptionHistory)"
+        },
+        "descriptionContent": {
+          "type": "string",
+          "description": "The content of the rewritten product description."
+        },
+        "tone": {
+          "type": "string",
+          "description": "The tone or style used for this description (e.g., 'Formal', 'Humorous', 'Concise', 'Marketing-focused')."
+        },
+        "generatedAt": {
+          "type": "string",
+          "description": "Timestamp when this description was generated or last updated.",
+          "format": "date-time"
+        },
+        "generatedBy": {
+          "type": "string",
+          "description": "Indicates the source that generated or modified this description (e.g., 'AI', 'AdminUser')."
+        }
+      },
+      "required": [
+        "id",
+        "productId",
+        "descriptionContent",
+        "tone",
+        "generatedAt",
+        "generatedBy"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores user-specific profile data. Access is restricted to the user whose ID matches '{userId}' in the path. This provides strong, path-based ownership."
+        }
+      },
+      {
+        "path": "/categories/{categoryId}",
+        "definition": {
+          "entityName": "Category",
+          "schema": {
+            "$ref": "#/backend/entities/Category"
+          },
+          "description": "Publicly accessible collection for product categories. Readable by all users for product filtering; write access is restricted (e.g., to administrators or backend services).",
+          "params": [
+            {
+              "name": "categoryId",
+              "description": "Unique identifier for the Category document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/products/{productId}",
+        "definition": {
+          "entityName": "Product",
+          "schema": {
+            "$ref": "#/backend/entities/Product"
+          },
+          "description": "Publicly accessible collection for all products. Readable by all users for display and search; write access is restricted (e.g., to administrators or backend services).",
+          "params": [
+            {
+              "name": "productId",
+              "description": "Unique identifier for the Product document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/products/{productId}/descriptionHistory/{historyId}",
+        "definition": {
+          "entityName": "ProductDescriptionHistory",
+          "schema": {
+            "$ref": "#/backend/entities/ProductDescriptionHistory"
+          },
+          "description": "Stores historical or AI-generated descriptions for a specific product. Typically readable by product managers or specific services (e.g., AI Product Tweaker) and writeable by administrators/AI services. It resides as a subcollection to its parent Product, ensuring contextual relevance.",
+          "params": [
+            {
+              "name": "productId",
+              "description": "The ID of the parent Product."
+            },
+            {
+              "name": "historyId",
+              "description": "Unique identifier for a specific historical product description."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/carts/{cartId}",
+        "definition": {
+          "entityName": "Cart",
+          "schema": {
+            "$ref": "#/backend/entities/Cart"
+          },
+          "description": "A collection storing a user's shopping cart. The '{userId}' in the path ensures that only the authenticated user can access their own cart. To maintain the 1:1 relationship as per the schema, 'cartId' is typically set to the 'userId' or a fixed identifier like 'default_cart'.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The ID of the UserProfile who owns this cart."
+            },
+            {
+              "name": "cartId",
+              "description": "Unique identifier for the Cart document. For 1:1 relationship, this often matches 'userId'."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/carts/{cartId}/cartItems/{cartItemId}",
+        "definition": {
+          "entityName": "CartItem",
+          "schema": {
+            "$ref": "#/backend/entities/CartItem"
+          },
+          "description": "Items within a user's shopping cart. Access is restricted to the authenticated user via the '{userId}' in the parent path. For Authorization Independence and QAPs, each CartItem document MUST include a denormalized 'userId' field matching the parent's user, to enable direct security rule checks without 'get()'.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The ID of the UserProfile who owns the parent cart."
+            },
+            {
+              "name": "cartId",
+              "description": "The ID of the parent Cart document."
+            },
+            {
+              "name": "cartItemId",
+              "description": "Unique identifier for the CartItem document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/wishlists/{wishlistId}",
+        "definition": {
+          "entityName": "Wishlist",
+          "schema": {
+            "$ref": "#/backend/entities/Wishlist"
+          },
+          "description": "A collection of wishlists for a user. The '{userId}' in the path ensures that only the authenticated user can access their own wishlists. Supports multiple wishlists per user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The ID of the UserProfile who owns this wishlist."
+            },
+            {
+              "name": "wishlistId",
+              "description": "Unique identifier for the Wishlist document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/wishlists/{wishlistId}/wishlistItems/{wishlistItemId}",
+        "definition": {
+          "entityName": "WishlistItem",
+          "schema": {
+            "$ref": "#/backend/entities/WishlistItem"
+          },
+          "description": "Items within a specific user's wishlist. Access is restricted to the authenticated user via the '{userId}' in the parent path. For Authorization Independence and QAPs, each WishlistItem document MUST include a denormalized 'userId' field matching the parent's user, to enable direct security rule checks without 'get()'.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The ID of the UserProfile who owns the parent wishlist."
+            },
+            {
+              "name": "wishlistId",
+              "description": "The ID of the parent Wishlist document."
+            },
+            {
+              "name": "wishlistItemId",
+              "description": "Unique identifier for the WishlistItem document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/orders/{orderId}",
+        "definition": {
+          "entityName": "Order",
+          "schema": {
+            "$ref": "#/backend/entities/Order"
+          },
+          "description": "A collection of orders placed by a user. The '{userId}' in the path ensures that only the authenticated user can access their own orders. Supports multiple orders per user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The ID of the UserProfile who placed this order."
+            },
+            {
+              "name": "orderId",
+              "description": "Unique identifier for the Order document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/orders/{orderId}/orderItems/{orderItemId}",
+        "definition": {
+          "entityName": "OrderItem",
+          "schema": {
+            "$ref": "#/backend/entities/OrderItem"
+          },
+          "description": "Items included in a specific user's order. Access is restricted to the authenticated user via the '{userId}' in the parent path. For Authorization Independence and QAPs, each OrderItem document MUST include a denormalized 'userId' field matching the parent's user, to enable direct security rule checks without 'get()'.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The ID of the UserProfile who owns the parent order."
+            },
+            {
+              "name": "orderId",
+              "description": "The ID of the parent Order document."
+            },
+            {
+              "name": "orderItemId",
+              "description": "Unique identifier for the OrderItem document."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure for Shopstream prioritizes security, scalability, and debuggability by adhering strictly to the core design principles, especially Authorization Independence and Structural Segregation.\n\n**Authorization Independence:**\n1.  **Path-Based Ownership:** For all user-specific data (`UserProfile`, `Cart`, `Wishlist`, `Order`), a hierarchical path `/users/{userId}/...` is used. This immediately ties data ownership to the authenticated user's UID (`request.auth.uid`), eliminating the need for `get()` calls to verify who owns the top-level user data.\n2.  **Denormalization for Subcollections (CRITICAL):** For subcollections such as `CartItem`, `WishlistItem`, and `OrderItem`, although their parent documents (`Cart`, `Wishlist`, `Order`) are already user-owned via the path, access to the subcollection documents (e.g., `cartItems/{cartItemId}`) cannot inherently rely on `get()` calls to the parent document to determine ownership. To ensure atomic operations, robust security rules, and efficient querying (QAPs), the `userId` of the owning user MUST be denormalized and stored directly within each `CartItem`, `WishlistItem`, and `OrderItem` document. This allows security rules for these subcollections to check `resource.data.userId == request.auth.uid` directly, ensuring authorization independence without any `get()` operations.\n\n**Structural Segregation & QAPs (Query As Permissions):**\n1.  **Public/Global Data:** Collections like `/categories/{categoryId}` and `/products/{productId}` are designed for public read access. This structural segregation means all documents within these collections share the same security posture (publicly readable), simplifying rules and enabling efficient `list` operations for product showcases and smart search without complex filtering in rules.\n2.  **Private User Data:** For collections under `/users/{userId}/...`, the `userId` wildcard in the path directly corresponds to `request.auth.uid`. This ensures that `list` operations on collections like `carts`, `wishlists`, and `orders` (and their subcollections like `cartItems`) are inherently secure. A user can only `list` documents within their own `/users/{userId}` branch. The denormalized `userId` in subcollection documents further strengthens `list` operations by allowing efficient, indexed queries such as `db.collection('users').doc(uid).collection('carts').doc(cartId).collection('cartItems').where('userId', '==', uid).get()`, which are necessary for QAPs.\n3.  **Explicit State Modeling:** The `status` field in the `Order` entity explicitly manages order states, promoting clarity and simplifying conditional access rules based on status.\n\nThis structure, by leveraging path-based ownership, strategic denormalization, and clear segregation of data by access patterns, minimizes rule complexity, enhances debuggability, and supports scalable and secure data access for all core features like product showcase, cart management, wishlists, and checkout."
+  }
+}
