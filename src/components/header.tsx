@@ -9,13 +9,13 @@ import { useQuote } from '@/context/quote-context';
 import { Badge } from '@/components/ui/badge';
 
 export function Header() {
-  const { user, logout, loading, isAppUser, isEmailVerified, isOtpVerified } = useAuth();
+  const { user, logout, loading, isAppUser } = useAuth();
   const { quote, setIsQuoteSheetOpen } = useQuote();
   
   const totalItems = quote.items.reduce((sum, item) => sum + item.quantity, 0);
 
-  // Only show professional tools if fully verified
-  const showAdminNav = isAppUser && isEmailVerified && isOtpVerified;
+  // Only show professional tools if an authorized app user
+  const showAdminNav = isAppUser;
 
   return (
     <header className="bg-card shadow-md sticky top-0 z-40">

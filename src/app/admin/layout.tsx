@@ -12,7 +12,7 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isAppUser, isAdmin, isEmailVerified, isOtpVerified, loading } = useAuth();
+  const { user, isAppUser, isAdmin, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
@@ -22,12 +22,6 @@ export default function AdminLayout({
       if (!user) {
         // If not logged in at all, go to login page
         router.push('/login');
-      } else if (!isEmailVerified) {
-        // Force email verification
-        router.push('/verify-otp');
-      } else if (!isOtpVerified) {
-        // Force security OTP check
-        router.push('/verify-otp-login');
       } else if (!isAppUser) {
         // If logged in but not an admin/app user, go to home page
         router.push('/');
@@ -41,9 +35,9 @@ export default function AdminLayout({
         router.push('/admin');
       }
     }
-  }, [user, isAppUser, isAdmin, isEmailVerified, isOtpVerified, loading, router, pathname, toast]);
+  }, [user, isAppUser, isAdmin, loading, router, pathname, toast]);
 
-  if (loading || !user || !isAppUser || !isEmailVerified || !isOtpVerified) {
+  if (loading || !user || !isAppUser) {
     return (
       <div className="flex items-center justify-center h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />

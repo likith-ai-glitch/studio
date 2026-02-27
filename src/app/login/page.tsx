@@ -25,7 +25,6 @@ import { useEvents } from '@/context/events-context';
 import { useAuth } from '@/context/auth-context';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { generateAndSendOtpAction } from '@/app/actions/otp-actions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const emailFormSchema = z.object({
@@ -50,7 +49,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { logEvent } = useEvents();
-  const { user, isAppUser, isEmailVerified, isOtpVerified, loading: authLoading } = useAuth();
+  const { user, isAppUser, loading: authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [showOtpInput, setShowOtpInput] = useState(false);
@@ -68,15 +67,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user && !authLoading) {
-      if (!isEmailVerified) {
-        router.push('/verify-otp');
-      } else if (!isOtpVerified) {
-        router.push('/verify-otp-login');
-      } else {
-        router.push(isAppUser ? '/admin' : '/');
-      }
+      router.push(isAppUser ? '/admin' : '/');
     }
-  }, [user, authLoading, isAppUser, isEmailVerified, isOtpVerified, router]);
+  }, [user, authLoading, isAppUser, router]);
 
 
   const emailForm = useForm<z.infer<typeof emailFormSchema>>({
@@ -109,43 +102,12 @@ export default function LoginPage() {
     setIsLoading(true);
     setServerError(null);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      await signInWithEmailAndPassword(auth, values.email, values.password);
       logEvent({ type: 'login', userEmail: values.email });
-      
-      // Super Admin check
-      if (values.email === 'likithknml@gmail.com') {
-          const res = await generateAndSendOtpAction(values.email);
-          if (res.success) {
-              toast({ title: 'Security OTP Sent', description: `Admin security code: ${res.otp}` });
-              router.push('/verify-otp-login');
-          } else {
-              setServerError(res.error || 'Failed to generate security code.');
-          }
-          return;
-      }
-
-      // Fetch status to decide redirect
-      const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
-      const data = userDoc.data();
-      const isVerified = data?.emailVerified || false;
-
-      if (!isVerified) {
-        const res = await generateAndSendOtpAction(values.email);
-        if (res.success) {
-            toast({ title: 'Verification Required', description: `OTP sent to your email. Code: ${res.otp}` });
-            router.push('/verify-otp');
-        } else {
-            setServerError(res.error || 'Failed to send verification code.');
-        }
-      } else {
-        const res = await generateAndSendOtpAction(values.email);
-        if (res.success) {
-            toast({ title: 'Identity Check', description: `Security code sent. Code: ${res.otp}` });
-            router.push('/verify-otp-login');
-        } else {
-            setServerError(res.error || 'Failed to send security code.');
-        }
-      }
+      toast({
+        title: 'Login Successful',
+        description: 'Welcome back to Shopstream!',
+      });
     } catch (error: any) {
       setServerError(error.message);
     } finally {
@@ -210,19 +172,14 @@ export default function LoginPage() {
         id: userCredential.user.uid,
         email: values.email,
         role: 'CUSTOMER',
-        emailVerified: false,
         createdAt: serverTimestamp(),
       });
 
-      // 2. Generate and send OTP
-      const res = await generateAndSendOtpAction(values.email);
-      
-      if (res.success) {
-          toast({ title: 'Account Created', description: `Verify your email. OTP: ${res.otp}` });
-          router.push('/verify-otp');
-      } else {
-          setServerError(res.error || 'Failed to send verification code.');
-      }
+      logEvent({ type: 'login', userEmail: values.email });
+      toast({
+        title: 'Account Created',
+        description: 'Welcome to Shopstream!',
+      });
     } catch (error: any) {
       setServerError(error.message);
     } finally {

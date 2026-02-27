@@ -99,7 +99,7 @@ export default function RolesPage() {
       return;
     }
 
-    // Open re-auth dialog instead of prompt()
+    // Open re-auth dialog
     setPendingManagerValues(values);
     setIsAuthDialogOpen(true);
     setIsSubmitting(false);
@@ -118,12 +118,10 @@ export default function RolesPage() {
       const newUser = userCredential.user;
 
       // 2. Set the role in Firestore
-      // RULES expect 'id' field
       await setDoc(doc(db, 'users', newUser.uid), {
         id: newUser.uid,
         email: values.email,
         role: 'MANAGER',
-        emailVerified: true, // Managers created by admin are auto-verified
         createdAt: serverTimestamp(),
       });
 
