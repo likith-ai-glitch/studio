@@ -4,19 +4,30 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, collection, query, where, updateDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, updateDoc, onSnapshot, getDocs, writeBatch } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, ArrowLeft, Plus, Lock, History, Link2, ChevronDown, ChevronUp, Package, PlusCircle, Trash2 } from 'lucide-react';
+import { Loader2, ArrowLeft, Plus, Lock, History, Link2, ChevronDown, ChevronUp, Package, PlusCircle, Trash2, Link2Off } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQuote } from '@/context/quote-context';
 import type { Quote, QuoteLifecycleStatus } from '@/lib/types';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function MasterQuoteDetailsPage() {
   const { id } = useParams();
@@ -28,6 +39,7 @@ export default function MasterQuoteDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [expandedChildId, setExpandedChildId] = useState<string | null>(null);
+  const [quoteToDelete, setQuoteToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -78,6 +90,31 @@ export default function MasterQuoteDetailsPage() {
       if (expandedChildId === childId) setExpandedChildId(null);
     } catch (error: any) {
       toast({ title: "Detachment Failed", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const deleteChildQuote = async () => {
+    if (!quoteToDelete) return;
+    setIsUpdating(true);
+    try {
+        const batch = writeBatch(db);
+        
+        // Delete child quote doc
+        batch.delete(doc(db, 'quotes', quoteToDelete));
+        
+        // Delete child quote line items
+        const qliQuery = query(collection(db, 'quoteLineItems'), where('QuoteId', '==', quoteToDelete));
+        const qliSnap = await getDocs(qliQuery);
+        qliSnap.forEach(d => batch.delete(d.ref));
+
+        await batch.commit();
+        toast({ title: "Quote Deleted", description: "The vendor quote and its products were removed." });
+        if (expandedChildId === quoteToDelete) setExpandedChildId(null);
+    } catch (error: any) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+        setIsUpdating(false);
+        setQuoteToDelete(null);
     }
   };
 
@@ -166,98 +203,121 @@ export default function MasterQuoteDetailsPage() {
               </CardDescription>
           </CardHeader>
           <CardContent className="px-2">
-              <div className="space-y-3">
-                  {childQuotes.length > 0 ? childQuotes.map(quote => {
-                      const isExpanded = expandedChildId === quote.id;
-                      return (
-                          <div key={quote.id} className={cn(
-                              "border rounded-lg overflow-hidden transition-all",
-                              isExpanded ? "ring-2 ring-primary/20 shadow-md bg-card" : "bg-muted/20"
-                          )}>
-                              <div 
-                                  className="p-4 flex justify-between items-center cursor-pointer hover:bg-muted/40"
-                                  onClick={() => toggleExpand(quote.id!)}
-                              >
-                                  <div className="flex items-center gap-3">
-                                      <div className="bg-primary/10 p-2 rounded-full">
-                                          <Package className="h-4 w-4 text-primary" />
-                                      </div>
-                                      <div>
-                                          <p className="font-bold text-sm">{quote.Name || quote.quoteNumber}</p>
-                                          <p className="text-xs text-muted-foreground">₹{quote.totalPrice?.toFixed(2)}</p>
-                                      </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                      {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                                  </div>
-                              </div>
-                              
-                              {isExpanded && (
-                                  <div className="p-4 border-t bg-card space-y-4 animate-in slide-in-from-top-2">
-                                      <div className="space-y-2">
-                                          <p className="text-xs font-bold uppercase text-muted-foreground px-1">Quote Items</p>
-                                          <div className="border rounded-md overflow-hidden">
-                                              <Table>
-                                                  <TableHeader className="bg-muted/50">
-                                                      <TableRow className="h-8">
-                                                          <TableHead className="text-[10px] h-8">Product / Brand</TableHead>
-                                                          <TableHead className="text-[10px] text-center h-8">Qty</TableHead>
-                                                          <TableHead className="text-[10px] text-right h-8">Price</TableHead>
-                                                      </TableRow>
-                                                  </TableHeader>
-                                                  <TableBody>
-                                                      {quote.items.map((item, idx) => (
-                                                          <TableRow key={idx} className="h-10">
-                                                              <TableCell className="py-1 text-xs font-medium">
-                                                                  <div>{item.name}</div>
-                                                                  {item.brand && <div className="text-[10px] text-muted-foreground font-normal">{item.brand}</div>}
-                                                              </TableCell>
-                                                              <TableCell className="py-1 text-xs text-center">{item.quantity}</TableCell>
-                                                              <TableCell className="py-1 text-xs text-right">₹{Number(item.price).toFixed(2)}</TableCell>
-                                                          </TableRow>
-                                                      ))}
-                                                  </TableBody>
-                                              </Table>
-                                          </div>
-                                      </div>
+              <AlertDialog>
+                <div className="space-y-3">
+                    {childQuotes.length > 0 ? childQuotes.map(quote => {
+                        const isExpanded = expandedChildId === quote.id;
+                        return (
+                            <div key={quote.id} className={cn(
+                                "border rounded-lg overflow-hidden transition-all",
+                                isExpanded ? "ring-2 ring-primary/20 shadow-md bg-card" : "bg-muted/20"
+                            )}>
+                                <div 
+                                    className="p-4 flex justify-between items-center cursor-pointer hover:bg-muted/40"
+                                    onClick={() => toggleExpand(quote.id!)}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-primary/10 p-2 rounded-full">
+                                            <Package className="h-4 w-4 text-primary" />
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-sm">{quote.Name || quote.quoteNumber}</p>
+                                            <p className="text-xs text-muted-foreground">₹{quote.totalPrice?.toFixed(2)}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                                    </div>
+                                </div>
+                                
+                                {isExpanded && (
+                                    <div className="p-4 border-t bg-card space-y-4 animate-in slide-in-from-top-2">
+                                        <div className="space-y-2">
+                                            <p className="text-xs font-bold uppercase text-muted-foreground px-1">Quote Items</p>
+                                            <div className="border rounded-md overflow-hidden">
+                                                <Table>
+                                                    <TableHeader className="bg-muted/50">
+                                                        <TableRow className="h-8">
+                                                            <TableHead className="text-[10px] h-8">Product / Brand</TableHead>
+                                                            <TableHead className="text-[10px] text-center h-8">Qty</TableHead>
+                                                            <TableHead className="text-[10px] text-right h-8">Price</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {quote.items.map((item, idx) => (
+                                                            <TableRow key={idx} className="h-10">
+                                                                <TableCell className="py-1 text-xs font-medium">
+                                                                    <div>{item.name}</div>
+                                                                    {item.brand && <div className="text-[10px] text-muted-foreground font-normal">{item.brand}</div>}
+                                                                </TableCell>
+                                                                <TableCell className="py-1 text-xs text-center">{item.quantity}</TableCell>
+                                                                <TableCell className="py-1 text-xs text-right">₹{Number(item.price).toFixed(2)}</TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+                                        </div>
 
-                                      <div className="flex flex-col gap-2 pt-2">
-                                          <div className="flex justify-between items-center px-1">
-                                              <p className="text-sm font-bold">Total Quote Amount</p>
-                                              <p className="text-lg font-bold text-primary">₹{quote.totalPrice?.toFixed(2)}</p>
-                                          </div>
-                                          <Separator className="my-2" />
-                                          <div className="flex justify-between items-center gap-2">
-                                              <Badge variant="outline">{quote.status}</Badge>
-                                              <div className="flex gap-2">
-                                                  {!isLocked && (
-                                                      <Button variant="outline" size="sm" className="h-8" onClick={(e) => { e.stopPropagation(); loadQuoteForEditing(quote.id!); }}>
-                                                          <PlusCircle className="mr-2 h-4 w-4" />
-                                                          Add Products
-                                                      </Button>
-                                                  )}
-                                                  {!isLocked && !isInProgress && (
-                                                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); removeChildQuote(quote.id!); }} className="text-destructive h-8 px-2">
-                                                          <Trash2 className="mr-2 h-4 w-4" />
-                                                          Detach
-                                                      </Button>
-                                                  )}
-                                              </div>
-                                          </div>
-                                      </div>
-                                  </div>
-                              )}
-                          </div>
-                      );
-                  }) : (
-                      <div className="text-center py-10 text-sm text-muted-foreground border-2 border-dashed rounded-lg">
-                          No vendor quotes linked yet.
-                      </div>
-                  )}
-              </div>
+                                        <div className="flex flex-col gap-2 pt-2">
+                                            <div className="flex justify-between items-center px-1">
+                                                <p className="text-sm font-bold">Total Quote Amount</p>
+                                                <p className="text-lg font-bold text-primary">₹{quote.totalPrice?.toFixed(2)}</p>
+                                            </div>
+                                            <Separator className="my-2" />
+                                            <div className="flex justify-between items-center gap-2">
+                                                <Badge variant="outline">{quote.status}</Badge>
+                                                <div className="flex gap-2">
+                                                    {!isLocked && (
+                                                        <Button variant="outline" size="sm" className="h-8" onClick={(e) => { e.stopPropagation(); loadQuoteForEditing(quote.id!); }}>
+                                                            <PlusCircle className="mr-2 h-4 w-4" />
+                                                            Add Products
+                                                        </Button>
+                                                    )}
+                                                    {!isLocked && !isInProgress && (
+                                                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); removeChildQuote(quote.id!); }} className="text-muted-foreground h-8 px-2">
+                                                            <Link2Off className="mr-2 h-4 w-4" />
+                                                            Detach
+                                                        </Button>
+                                                    )}
+                                                    {!isLocked && (
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setQuoteToDelete(quote.id!); }} className="text-destructive h-8 px-2">
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                Delete
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    }) : (
+                        <div className="text-center py-10 text-sm text-muted-foreground border-2 border-dashed rounded-lg">
+                            No vendor quotes linked yet.
+                        </div>
+                    )}
+                </div>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Vendor Quote?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently delete this vendor submission and its line items. This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setQuoteToDelete(null)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={deleteChildQuote} className="bg-destructive hover:bg-destructive/90" disabled={isUpdating}>
+                            {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete Permanently"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
           </CardContent>
       </Card>
     </div>
   );
 }
-
