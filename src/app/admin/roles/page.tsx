@@ -114,14 +114,16 @@ export default function RolesPage() {
 
     try {
       // 1. Create the new user
-      // Note: Firebase client SDK automatically signs in the new user
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const newUser = userCredential.user;
 
       // 2. Set the role in Firestore
+      // RULES expect 'id' field
       await setDoc(doc(db, 'users', newUser.uid), {
+        id: newUser.uid,
         email: values.email,
         role: 'MANAGER',
+        emailVerified: true, // Managers created by admin are auto-verified
         createdAt: serverTimestamp(),
       });
 

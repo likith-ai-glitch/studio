@@ -11,18 +11,24 @@ import { Timestamp } from 'firebase-admin/firestore';
 export async function generateAndSendOtpAction(email: string) {
   try {
     // 1. Check for recent OTP to prevent spam (limit to 60 seconds)
+    // We fetch without orderBy to avoid index requirements in Firestore
     const recentOtpQuery = await adminDb.collection('emailOtps')
       .where('email', '==', email)
-      .orderBy('createdAt', 'desc')
-      .limit(1)
       .get();
 
     if (!recentOtpQuery.empty) {
-      const lastOtp = recentOtpQuery.docs[0].data();
-      const lastCreated = lastOtp.createdAt.toDate().getTime();
+      // Sort in memory to avoid composite index requirement
+      const docs = recentOtpQuery.docs.map(d => ({
+          ...d.data(),
+          createdAt: d.data().createdAt as Timestamp
+      }));
+      docs.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+      
+      const lastOtp = docs[0];
+      const lastCreated = lastOtp.createdAt.toMillis();
       const now = Date.now();
       if (now - lastCreated < 60000) {
-        throw new Error('Please wait 60 seconds before requesting a new OTP.');
+        throw new Error('Please wait 60 seconds before requesting a new code.');
       }
     }
 
@@ -41,8 +47,6 @@ export async function generateAndSendOtpAction(email: string) {
     // 4. Simulate sending email
     console.log(`[OTP DEBUG] Sent OTP ${otp} to ${email}`);
     
-    // In this MVP, we return the OTP so it can be shown in a toast for testing purposes
-    // since we don't have a real mail server configured.
     return { success: true, message: 'OTP sent to your email.', otp };
   } catch (error: any) {
     console.error('Error generating OTP:', error);
@@ -55,28 +59,32 @@ export async function generateAndSendOtpAction(email: string) {
  */
 export async function verifyOtpAction(email: string, otp: string) {
   try {
+    // Fetch all OTPs for this email to avoid complex index requirement
     const otpQuery = await adminDb.collection('emailOtps')
       .where('email', '==', email)
-      .where('otp', '==', otp)
-      .orderBy('createdAt', 'desc')
-      .limit(1)
       .get();
 
     if (otpQuery.empty) {
+      throw new Error('No verification code found for this email.');
+    }
+
+    // Filter for the matching OTP in memory
+    const matchingDoc = otpQuery.docs.find(d => d.data().otp === otp);
+
+    if (!matchingDoc) {
       throw new Error('Invalid OTP code. Please try again.');
     }
 
-    const otpDoc = otpQuery.docs[0];
-    const otpData = otpDoc.data();
+    const otpData = matchingDoc.data();
 
     // Check expiry
     if (otpData.expiresAt.toDate() < new Date()) {
-      await adminDb.collection('emailOtps').doc(otpDoc.id).delete();
+      await adminDb.collection('emailOtps').doc(matchingDoc.id).delete();
       throw new Error('OTP has expired. Please request a new one.');
     }
 
     // Success: Delete the OTP record so it can't be used again
-    await adminDb.collection('emailOtps').doc(otpDoc.id).delete();
+    await adminDb.collection('emailOtps').doc(matchingDoc.id).delete();
 
     return { success: true };
   } catch (error: any) {

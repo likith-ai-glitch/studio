@@ -23,9 +23,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '@/hooks/use-toast';
 import { useEvents } from '@/context/events-context';
 import { useAuth } from '@/context/auth-context';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { generateAndSendOtpAction } from '@/app/actions/otp-actions';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const emailFormSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -53,6 +54,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [showOtpInput, setShowOtpInput] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
   
   useEffect(() => {
     if (document.getElementById('recaptcha-container')) {
@@ -105,36 +107,47 @@ export default function LoginPage() {
 
   async function onEmailSubmit(values: z.infer<typeof emailFormSchema>) {
     setIsLoading(true);
+    setServerError(null);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       logEvent({ type: 'login', userEmail: values.email });
       
+      // Super Admin check
+      if (values.email === 'likithknml@gmail.com') {
+          const res = await generateAndSendOtpAction(values.email);
+          if (res.success) {
+              toast({ title: 'Security OTP Sent', description: `Admin security code: ${res.otp}` });
+              router.push('/verify-otp-login');
+          } else {
+              setServerError(res.error || 'Failed to generate security code.');
+          }
+          return;
+      }
+
       // Fetch status to decide redirect
       const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
       const data = userDoc.data();
       const isVerified = data?.emailVerified || false;
 
       if (!isVerified) {
-        toast({ title: 'Verification Required', description: 'Please verify your email code.' });
         const res = await generateAndSendOtpAction(values.email);
         if (res.success) {
-            toast({ title: 'New OTP Sent', description: `Your test OTP is: ${res.otp}` });
+            toast({ title: 'Verification Required', description: `OTP sent to your email. Code: ${res.otp}` });
             router.push('/verify-otp');
+        } else {
+            setServerError(res.error || 'Failed to send verification code.');
         }
       } else {
-        toast({ title: 'Authentication Step 2', description: 'Sending security code to your email.' });
         const res = await generateAndSendOtpAction(values.email);
         if (res.success) {
-            toast({ title: 'OTP Sent', description: `Your test security OTP is: ${res.otp}` });
+            toast({ title: 'Identity Check', description: `Security code sent. Code: ${res.otp}` });
             router.push('/verify-otp-login');
+        } else {
+            setServerError(res.error || 'Failed to send security code.');
         }
       }
     } catch (error: any) {
-      toast({
-        title: 'Login Failed',
-        description: error.message,
-        variant: 'destructive',
-      });
+      setServerError(error.message);
     } finally {
         setIsLoading(false);
     }
@@ -142,6 +155,7 @@ export default function LoginPage() {
 
   async function onPhoneSubmit(values: z.infer<typeof phoneFormSchema>) {
     setIsLoading(true);
+    setServerError(null);
     try {
       const recaptchaVerifier = window.recaptchaVerifier;
       if (!recaptchaVerifier) {
@@ -156,12 +170,7 @@ export default function LoginPage() {
         description: 'Please check your phone for the OTP.',
       });
     } catch (error: any) {
-      console.error(error);
-      toast({
-        title: 'SMS Sending Failed',
-        description: error.message,
-        variant: 'destructive',
-      });
+      setServerError(error.message);
     } finally {
       setIsLoading(false);
     }
@@ -169,8 +178,9 @@ export default function LoginPage() {
 
   async function onOtpSubmit(values: z.infer<typeof otpFormSchema>) {
     setIsLoading(true);
+    setServerError(null);
     if (!confirmationResult) {
-        toast({ title: 'Error', description: 'Please request an OTP first.', variant: 'destructive'});
+        setServerError('Please request an OTP first.');
         setIsLoading(false);
         return;
     }
@@ -179,14 +189,10 @@ export default function LoginPage() {
         logEvent({ type: 'login', userEmail: userCredential.user.phoneNumber || 'Phone User'});
         toast({
             title: 'Login Successful',
-            description: 'Welcome!',
+            description: 'Welcome back!',
         });
     } catch (error: any) {
-        toast({
-            title: 'OTP Verification Failed',
-            description: error.message,
-            variant: 'destructive',
-        });
+        setServerError(error.message);
     } finally {
         setIsLoading(false);
     }
@@ -194,12 +200,14 @@ export default function LoginPage() {
 
   async function onSignupSubmit(values: z.infer<typeof signupFormSchema>) {
     setIsLoading(true);
+    setServerError(null);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       
       // 1. Create user in Firestore
+      // IMPORTANT: rules expect 'id' field to match userId
       await setDoc(doc(db, 'users', userCredential.user.uid), {
-        uid: userCredential.user.uid,
+        id: userCredential.user.uid,
         email: values.email,
         role: 'CUSTOMER',
         emailVerified: false,
@@ -209,21 +217,14 @@ export default function LoginPage() {
       // 2. Generate and send OTP
       const res = await generateAndSendOtpAction(values.email);
       
-      toast({
-        title: 'Account Created',
-        description: "Verify your email with the OTP sent.",
-      });
-
       if (res.success) {
-          toast({ title: 'OTP Sent', description: `Your test OTP is: ${res.otp}` });
+          toast({ title: 'Account Created', description: `Verify your email. OTP: ${res.otp}` });
           router.push('/verify-otp');
+      } else {
+          setServerError(res.error || 'Failed to send verification code.');
       }
     } catch (error: any) {
-      toast({
-        title: 'Sign-up Failed',
-        description: error.message,
-        variant: 'destructive',
-      });
+      setServerError(error.message);
     } finally {
       setIsLoading(false);
     }
@@ -245,6 +246,14 @@ export default function LoginPage() {
           <CardDescription>Select a method to sign in or create an account</CardDescription>
         </CardHeader>
         <CardContent>
+          {serverError && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Action Failed</AlertTitle>
+              <AlertDescription>{serverError}</AlertDescription>
+            </Alert>
+          )}
+
           <Tabs defaultValue="email" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="email">Email</TabsTrigger>
