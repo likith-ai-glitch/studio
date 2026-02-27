@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { db, auth } from '@/lib/firebase';
-import { collection, query, onSnapshot, doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, signOut, signInWithEmailAndPassword } from 'firebase/auth';
+import { collection, query, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, UserPlus, Shield, ShieldCheck, ArrowLeft, AlertCircle, Users, LockKeyhole } from 'lucide-react';
+import { Loader2, UserPlus, Shield, ShieldCheck, ArrowLeft, AlertCircle, Users, LockKeyhole, MoreHorizontal, KeyRound, Trash2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -28,6 +29,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { createManagerAction, updateUserPasswordAction, deleteUserAction } from '@/app/actions/admin-user-actions';
 
 const managerSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
@@ -45,9 +65,16 @@ export default function RolesPage() {
   const [appUsers, setAppUsers] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   
-  // States for Admin Re-Auth Dialog
+  // Dialog States
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  
   const [adminPassword, setAdminPassword] = useState('');
+  const [newManagerPassword, setNewPassword] = useState('');
+  
+  const [pendingAction, setPendingAction] = useState<'CREATE' | 'UPDATE_PASSWORD' | 'DELETE' | null>(null);
+  const [targetUser, setTargetUser] = useState<{ uid: string; email: string } | null>(null);
   const [pendingManagerValues, setPendingManagerValues] = useState<ManagerFormValues | null>(null);
 
   const form = useForm<ManagerFormValues>({
@@ -91,67 +118,92 @@ export default function RolesPage() {
     return () => unsubscribe();
   }, [isAdmin, router, toast, currentUser]);
 
-  const handleCreateManagerRequest = async (values: ManagerFormValues) => {
-    setIsSubmitting(true);
-    
-    // Check for duplicates first in Firestore
-    const userDoc = await getDoc(doc(db, 'users', values.email));
-    if (userDoc.exists()) {
-      toast({
-        title: "Duplicate User",
-        description: "This email is already registered as a Manager or Admin.",
-        variant: "destructive",
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Open re-auth dialog
+  const handleCreateManagerRequest = (values: ManagerFormValues) => {
     setPendingManagerValues(values);
+    setPendingAction('CREATE');
     setIsAuthDialogOpen(true);
-    setIsSubmitting(false);
+  };
+
+  const handleUpdatePasswordRequest = (user: { uid: string; email: string }) => {
+    setTargetUser(user);
+    setPendingAction('UPDATE_PASSWORD');
+    setIsAuthDialogOpen(true);
+  };
+
+  const handleDeleteRequest = (user: { uid: string; email: string }) => {
+    setTargetUser(user);
+    setPendingAction('DELETE');
+    setIsAuthDialogOpen(true);
   };
 
   const handleConfirmAdminAuth = async () => {
-    if (!adminPassword || !pendingManagerValues || !currentUser?.email) return;
+    if (!adminPassword || !currentUser?.email) return;
     
     setIsSubmitting(true);
-    const values = pendingManagerValues;
-    const originalAdminEmail = currentUser.email;
-
     try {
-      // 1. Create the new user
-      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      const newUser = userCredential.user;
-
-      // 2. Set the role in Firestore
-      await setDoc(doc(db, 'users', newUser.uid), {
-        id: newUser.uid,
-        email: values.email,
-        role: 'MANAGER',
-        createdAt: serverTimestamp(),
-      });
-
-      // 3. Sign out the new user and sign back in as admin
-      await signOut(auth);
-      await signInWithEmailAndPassword(auth, originalAdminEmail, adminPassword);
-
-      toast({
-        title: "Manager Created",
-        description: `Successfully created Manager account for ${values.email}.`,
-      });
+      // Verify Admin Password
+      await signInWithEmailAndPassword(auth, currentUser.email, adminPassword);
       
-      // Cleanup
-      form.reset();
+      // Proceed to the specific dialog based on pending action
       setIsAuthDialogOpen(false);
       setAdminPassword('');
-      setPendingManagerValues(null);
+
+      if (pendingAction === 'CREATE' && pendingManagerValues) {
+        const res = await createManagerAction(pendingManagerValues);
+        if (res.success) {
+          toast({ title: "Manager Created", description: `Account for ${pendingManagerValues.email} is ready.` });
+          form.reset();
+        } else {
+          throw new Error(res.error);
+        }
+      } else if (pendingAction === 'UPDATE_PASSWORD') {
+        setIsPasswordDialogOpen(true);
+      } else if (pendingAction === 'DELETE') {
+        setIsDeleteDialogOpen(true);
+      }
     } catch (error: any) {
       toast({
-        title: "Creation Failed",
-        description: error.message,
+        title: "Authentication Failed",
+        description: error.message || "Invalid administrator password.",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleFinalPasswordUpdate = async () => {
+    if (!targetUser || !newManagerPassword) return;
+    setIsSubmitting(true);
+    try {
+      const res = await updateUserPasswordAction(targetUser.uid, newManagerPassword);
+      if (res.success) {
+        toast({ title: "Password Updated", description: `Credentials for ${targetUser.email} have been changed.` });
+        setIsPasswordDialogOpen(false);
+        setNewPassword('');
+      } else {
+        throw new Error(res.error);
+      }
+    } catch (error: any) {
+      toast({ title: "Update Failed", description: error.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleFinalDelete = async () => {
+    if (!targetUser) return;
+    setIsSubmitting(true);
+    try {
+      const res = await deleteUserAction(targetUser.uid);
+      if (res.success) {
+        toast({ title: "User Deleted", description: `Account for ${targetUser.email} has been removed.`, variant: "destructive" });
+        setIsDeleteDialogOpen(false);
+      } else {
+        throw new Error(res.error);
+      }
+    } catch (error: any) {
+      toast({ title: "Deletion Failed", description: error.message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -241,21 +293,44 @@ export default function RolesPage() {
                   <TableRow>
                     <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
-                    <TableHead className="text-right">Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {appUsers.length > 0 ? appUsers.map(u => (
                     <TableRow key={u.uid}>
-                      <TableCell className="font-medium">{u.email}</TableCell>
+                      <TableCell className="font-medium">
+                        <div>{u.email}</div>
+                        <div className="text-[10px] text-muted-foreground font-mono">{u.uid}</div>
+                      </TableCell>
                       <TableCell>
                         <Badge variant={u.role === 'ADMIN' ? 'default' : 'secondary'}>
                           {u.role === 'ADMIN' ? <ShieldCheck className="h-3 w-3 mr-1" /> : <Users className="h-3 w-3 mr-1" />}
                           {u.role}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right text-xs text-muted-foreground">
-                        {u.createdAt.toLocaleDateString()}
+                      <TableCell className="text-right">
+                        {u.email !== currentUser?.email ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Manage User</DropdownMenuLabel>
+                              <DropdownMenuItem onClick={() => handleUpdatePasswordRequest({ uid: u.uid, email: u.email })}>
+                                <KeyRound className="mr-2 h-4 w-4" /> Change Password
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteRequest({ uid: u.uid, email: u.email })}>
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete Account
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">You</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   )) : (
@@ -274,9 +349,9 @@ export default function RolesPage() {
 
       <Alert className="bg-muted border-none">
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle className="text-sm font-bold">Manager Permissions</AlertTitle>
+        <AlertTitle className="text-sm font-bold">Security Notice</AlertTitle>
         <AlertDescription className="text-xs">
-          Managers can manage products, quotes, and view audit logs, but cannot create or delete other system users.
+          Deleting a user or changing a password is permanent. Always verify the identity of the person you are managing before proceeding.
         </AlertDescription>
       </Alert>
 
@@ -289,7 +364,7 @@ export default function RolesPage() {
               Authorize Action
             </DialogTitle>
             <DialogDescription>
-              To create a new Manager, please confirm your Administrator password.
+              Please confirm your Administrator password to authorize this sensitive operation.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -297,7 +372,7 @@ export default function RolesPage() {
             <Input 
               id="admin-password" 
               type="password" 
-              placeholder="Enter your admin password" 
+              placeholder="Confirm your credentials" 
               value={adminPassword}
               onChange={(e) => setAdminPassword(e.target.value)}
               className="mt-2"
@@ -308,11 +383,60 @@ export default function RolesPage() {
               Cancel
             </Button>
             <Button onClick={handleConfirmAdminAuth} disabled={isSubmitting || !adminPassword}>
-              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm & Create"}
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Verify Identity"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Change Password Dialog */}
+      <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Password</DialogTitle>
+            <DialogDescription>
+              Set a new password for <strong>{targetUser?.email}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="new-password">New Password</Label>
+            <Input 
+              id="new-password" 
+              type="password" 
+              placeholder="Min 6 characters" 
+              value={newManagerPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="mt-2"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPasswordDialogOpen(false)} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button onClick={handleFinalPasswordUpdate} disabled={isSubmitting || !newManagerPassword}>
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save New Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User AlertDialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Manager Account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the account for <strong>{targetUser?.email}</strong> from both authentication and the database. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)} disabled={isSubmitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleFinalDelete} className="bg-destructive hover:bg-destructive/90" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete Permanently"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
