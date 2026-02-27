@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, UserPlus, Shield, ShieldCheck, ArrowLeft, AlertCircle, Users } from 'lucide-react';
+import { Loader2, UserPlus, Shield, ShieldCheck, ArrowLeft, AlertCircle, Users, LockKeyhole } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -21,6 +21,14 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const managerSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
@@ -33,9 +41,15 @@ export default function RolesPage() {
   const { isAdmin, user: currentUser } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [appUsers, setAppUsers] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  
+  // States for Admin Re-Auth Dialog
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [pendingManagerValues, setPendingManagerValues] = useState<ManagerFormValues | null>(null);
 
   const form = useForm<ManagerFormValues>({
     resolver: zodResolver(managerSchema),
@@ -70,7 +84,7 @@ export default function RolesPage() {
     return () => unsubscribe();
   }, [isAdmin, router, toast, currentUser]);
 
-  const handleCreateManager = async (values: ManagerFormValues) => {
+  const handleCreateManagerRequest = async (values: ManagerFormValues) => {
     setIsSubmitting(true);
     
     // Check for duplicates first in Firestore
@@ -85,18 +99,22 @@ export default function RolesPage() {
       return;
     }
 
-    try {
-      // In a prototype environment, we create the user using Auth
-      const originalAdminEmail = currentUser?.email;
-      const originalAdminPassword = prompt("For security, please re-enter your ADMIN password to authorize this new Manager account:");
-      
-      if (!originalAdminPassword) {
-        toast({ title: "Authorization Required", description: "Admin password needed to create users.", variant: "destructive" });
-        setIsSubmitting(false);
-        return;
-      }
+    // Open re-auth dialog instead of prompt()
+    setPendingManagerValues(values);
+    setIsAuthDialogOpen(true);
+    setIsSubmitting(false);
+  };
 
+  const handleConfirmAdminAuth = async () => {
+    if (!adminPassword || !pendingManagerValues || !currentUser?.email) return;
+    
+    setIsSubmitting(true);
+    const values = pendingManagerValues;
+    const originalAdminEmail = currentUser.email;
+
+    try {
       // 1. Create the new user
+      // Note: Firebase client SDK automatically signs in the new user
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const newUser = userCredential.user;
 
@@ -109,15 +127,18 @@ export default function RolesPage() {
 
       // 3. Sign out the new user and sign back in as admin
       await signOut(auth);
-      if (originalAdminEmail) {
-        await signInWithEmailAndPassword(auth, originalAdminEmail, originalAdminPassword);
-      }
+      await signInWithEmailAndPassword(auth, originalAdminEmail, adminPassword);
 
       toast({
         title: "Manager Created",
         description: `Successfully created Manager account for ${values.email}.`,
       });
+      
+      // Cleanup
       form.reset();
+      setIsAuthDialogOpen(false);
+      setAdminPassword('');
+      setPendingManagerValues(null);
     } catch (error: any) {
       toast({
         title: "Creation Failed",
@@ -164,7 +185,7 @@ export default function RolesPage() {
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleCreateManager)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(handleCreateManagerRequest)} className="space-y-4">
                 <FormField
                   control={form.control}
                   name="email"
@@ -245,6 +266,40 @@ export default function RolesPage() {
           Managers can manage products, quotes, and view audit logs, but cannot create or delete other system users.
         </AlertDescription>
       </Alert>
+
+      {/* Admin Re-Auth Dialog */}
+      <Dialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LockKeyhole className="h-5 w-5 text-primary" />
+              Authorize Action
+            </DialogTitle>
+            <DialogDescription>
+              To create a new Manager, please confirm your Administrator password.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="admin-password">Admin Password</Label>
+            <Input 
+              id="admin-password" 
+              type="password" 
+              placeholder="Enter your admin password" 
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              className="mt-2"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAuthDialogOpen(false)} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmAdminAuth} disabled={isSubmitting || !adminPassword}>
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm & Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
