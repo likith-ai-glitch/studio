@@ -1,4 +1,3 @@
-
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
@@ -43,11 +42,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (userDoc.exists() && userDoc.data().role) {
               setRole(userDoc.data().role as UserRole);
             } else {
-              setRole('MANAGER'); // Default for new non-admin users in this prototype
+              setRole('CUSTOMER'); // Default for new self-signup users
             }
           } catch (error) {
             console.error("Error fetching user role:", error);
-            setRole('MANAGER');
+            setRole('CUSTOMER');
           }
         }
       } else {

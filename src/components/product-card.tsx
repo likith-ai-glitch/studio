@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -32,10 +31,10 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  const { user } = useAuth();
+  const { user, isAppUser } = useAuth();
   const { headerNames, homePageFieldOrder, homePageVisibleFields } = useProducts();
   const { toast } = useToast();
-  const { addItemToQuote, setIsQuoteSheetOpen, buyNow: buyNowFromContext } = useQuote();
+  const { addItemToQuote, setIsQuoteSheetOpen } = useQuote();
   const { addOrder } = useOrders();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isBuyNowDialogOpen, setBuyNowDialogOpen] = useState(false);
@@ -56,7 +55,7 @@ export function ProductCard({ product }: ProductCardProps) {
         id: product.productId,
         productId: product.productId,
         name: product.name,
-        price: Number(product.price) || 99.99, // Fallback price
+        price: Number(product.price) || 99.99,
         quantity: 1,
         brand: product.brand,
         category: product.category,
@@ -120,14 +119,14 @@ export function ProductCard({ product }: ProductCardProps) {
             </CardContent>
         </Link>
         <CardFooter className="p-4 pt-0 mt-auto flex gap-2">
-           {user && (
+           {isAppUser && (
             <Button variant="secondary" className="w-full" disabled={isUnavailable} onClick={handleAddToQuote}>
                 Add to Quote
             </Button>
            )}
             <Dialog open={isBuyNowDialogOpen} onOpenChange={(open) => {
               setBuyNowDialogOpen(open);
-              if (!open) setIsCheckoutOpen(false); // Reset checkout state on close
+              if (!open) setIsCheckoutOpen(false);
             }}>
                 <DialogTrigger asChild>
                     <Button className="w-full" disabled={isUnavailable}>
