@@ -25,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, FileText, ShoppingCart, Loader2, FileDown, Save, CheckCircle2, User } from 'lucide-react';
+import { Trash2, FileText, ShoppingCart, Loader2, FileDown, Save, CheckCircle2, User, ArrowLeft } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -321,13 +321,19 @@ export function QuoteSheet() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <SheetClose asChild>
+                  <Button variant="outline" className="w-full">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Continue Shopping
+                  </Button>
+                </SheetClose>
                 <Button variant="outline" onClick={handleSaveQuote} disabled={isSaving || isLocked}>
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     Save Quote
                 </Button>
                 <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
                     <DialogTrigger asChild>
-                      <Button className="w-full">
+                      <Button className="w-full md:col-span-2">
                         <ShoppingCart className="mr-2 h-4 w-4" />
                         Create Order
                       </Button>
