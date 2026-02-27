@@ -13,13 +13,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, UserPlus, Shield, ShieldCheck, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Loader2, UserPlus, Shield, ShieldCheck, ArrowLeft, AlertCircle, Users } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const managerSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
@@ -86,8 +87,6 @@ export default function RolesPage() {
 
     try {
       // In a prototype environment, we create the user using Auth
-      // Note: Firebase Auth automatically signs in the new user. 
-      // We must handle the re-authentication or use an admin-only flow.
       const originalAdminEmail = currentUser?.email;
       const originalAdminPassword = prompt("For security, please re-enter your ADMIN password to authorize this new Manager account:");
       
@@ -241,10 +240,10 @@ export default function RolesPage() {
 
       <Alert className="bg-muted border-none">
         <AlertCircle className="h-4 w-4" />
-        <CardTitle className="text-sm">Manager Permissions</CardTitle>
-        <CardDescription className="text-xs">
+        <AlertTitle className="text-sm font-bold">Manager Permissions</AlertTitle>
+        <AlertDescription className="text-xs">
           Managers can manage products, quotes, and view audit logs, but cannot create or delete other system users.
-        </CardDescription>
+        </AlertDescription>
       </Alert>
     </div>
   );
