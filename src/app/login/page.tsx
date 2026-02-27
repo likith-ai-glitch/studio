@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -20,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { useEvents } from '@/context/events-context';
+import { useAuth } from '@/context/auth-context';
 import { Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -45,22 +47,26 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { logEvent } = useEvents();
+  const { user, isAppUser, loading: authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [showOtpInput, setShowOtpInput] = useState(false);
   
   useEffect(() => {
-    // It's possible for this to run after the component has unmounted
-    // if the user navigates away quickly. Check if the container exists.
     if (document.getElementById('recaptcha-container')) {
        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
         'size': 'invisible',
         'callback': (response: any) => {
-          // reCAPTCHA solved - not much to do here if it's invisible
         }
       });
     }
   }, []);
+
+  useEffect(() => {
+    if (user && !authLoading) {
+      router.push(isAppUser ? '/admin' : '/');
+    }
+  }, [user, authLoading, isAppUser, router]);
 
 
   const emailForm = useForm<z.infer<typeof emailFormSchema>>({
@@ -98,7 +104,7 @@ export default function LoginPage() {
         title: 'Login Successful',
         description: 'Welcome back!',
       });
-      router.push('/admin');
+      // Allow AuthContext to resolve role and handle redirect via useEffect
     } catch (error: any) {
       toast({
         title: 'Login Failed',
@@ -151,7 +157,6 @@ export default function LoginPage() {
             title: 'Login Successful',
             description: 'Welcome!',
         });
-        router.push('/admin');
     } catch (error: any) {
         toast({
             title: 'OTP Verification Failed',
@@ -171,7 +176,6 @@ export default function LoginPage() {
         title: 'Account Created',
         description: "You've successfully signed up!",
       });
-      router.push('/admin');
     } catch (error: any) {
       toast({
         title: 'Sign-up Failed',
@@ -181,6 +185,14 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (
