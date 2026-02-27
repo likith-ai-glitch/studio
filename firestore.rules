@@ -14,17 +14,6 @@ service cloud.firestore {
      * - Public Data: /categories and /products are publicly readable.
      * - Private Data: All user-specific data (Profiles, Carts, Wishlists, Orders) is
      *   nested under the path /users/{userId}.
-     *
-     * KEY SECURITY DECISIONS:
-     * 1. Path-Based Authorization: The {userId} wildcard in the path is used as the 
-     *    primary authority for determining document ownership.
-     * 2. Denormalization for Authorization: To ensure efficient listing and high performance
-     *    without using costly get() calls, sub-resources (like CartItems or OrderItems) 
-     *    MUST store the owner's UID (userId) directly on the document.
-     * 3. Restricted Admin Collections: Collections like /categories and /products are
-     *    publicly readable but prohibit client-side writes, assuming these are managed 
-     *    by administrative tools or backend services.
-     * 4. Structural Segregation: User data is kept in private trees to prevent data leakage.
      */
 
     // --- HELPER FUNCTIONS ---
@@ -44,122 +33,96 @@ service cloud.firestore {
     }
 
     /**
-     * @description Combined check for ownership and document existence for updates and deletes.
+     * @description Combined check for ownership and document existence.
      */
     function isExistingOwner(userId) {
       return resource != null && isOwner(userId);
+    }
+
+    /**
+     * @description Checks if the request is from the Super Administrator.
+     */
+    function isSuperAdmin() {
+      return isSignedIn() && (request.auth.token.email == "likithknml@gmail.com");
     }
 
     // --- COLLECTION RULES ---
 
     /**
      * @description Rules for the UserProfile entity. Users manage their own profile.
-     * @path /users/{userId}
-     * @allow (create) {auth.uid: "user123"} to /users/user123
-     * @deny (get) {auth.uid: "user123"} to /users/user456
-     * @principle Enforces path-based ownership for the root user document.
+     * Admins can list and manage all users.
      */
     match /users/{userId} {
-      allow get, list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
+      allow get, list: if isOwner(userId) || isSuperAdmin();
+      allow create: if (isOwner(userId) && request.resource.data.id == userId) || isSuperAdmin();
+      allow update: if (isExistingOwner(userId) && request.resource.data.id == resource.data.id) || isSuperAdmin();
+      allow delete: if isExistingOwner(userId) || isSuperAdmin();
 
-      /**
-       * @description Rules for the Cart entity. Restricted to the owner.
-       * @path /users/{userId}/carts/{cartId}
-       * @allow (get) {auth.uid: "user1"} to /users/user1/carts/cartA
-       * @deny (create) {auth.uid: "user1"} to /users/user2/carts/cartB
-       * @principle Enforces ownership and relational integrity for cart documents.
-       */
       match /carts/{cartId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-        allow delete: if isExistingOwner(userId);
+        allow get, list: if isOwner(userId) || isSuperAdmin();
+        allow create: if (isOwner(userId) && request.resource.data.userId == userId) || isSuperAdmin();
+        allow update: if (isExistingOwner(userId) && request.resource.data.userId == resource.data.userId) || isSuperAdmin();
+        allow delete: if isExistingOwner(userId) || isSuperAdmin();
 
-        /**
-         * @description Rules for CartItems. Requires denormalized userId for secure access.
-         * @path /users/{userId}/carts/{cartId}/cartItems/{cartItemId}
-         * @allow (create) {auth.uid: "u1", data: {userId: "u1"}} to /users/u1/carts/c1/cartItems/i1
-         * @deny (update) changing userId from "u1" to "u2"
-         * @principle Uses denormalized userId to avoid parent-document lookups.
-         */
         match /cartItems/{cartItemId} {
-          allow get, list: if isOwner(userId);
-          allow create: if isOwner(userId) && request.resource.data.userId == userId;
-          allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-          allow delete: if isExistingOwner(userId);
+          allow get, list: if isOwner(userId) || isSuperAdmin();
+          allow create: if (isOwner(userId) && request.resource.data.userId == userId) || isSuperAdmin();
+          allow update: if (isExistingOwner(userId) && request.resource.data.userId == resource.data.userId) || isSuperAdmin();
+          allow delete: if isExistingOwner(userId) || isSuperAdmin();
         }
       }
 
-      /**
-       * @description Rules for the Wishlist entity. Restricted to the owner.
-       * @path /users/{userId}/wishlists/{wishlistId}
-       */
       match /wishlists/{wishlistId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-        allow delete: if isExistingOwner(userId);
+        allow get, list: if isOwner(userId) || isSuperAdmin();
+        allow create: if (isOwner(userId) && request.resource.data.userId == userId) || isSuperAdmin();
+        allow update: if (isExistingOwner(userId) && request.resource.data.userId == resource.data.userId) || isSuperAdmin();
+        allow delete: if isExistingOwner(userId) || isSuperAdmin();
 
         match /wishlistItems/{wishlistItemId} {
-          allow get, list: if isOwner(userId);
-          allow create: if isOwner(userId) && request.resource.data.userId == userId;
-          allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-          allow delete: if isExistingOwner(userId);
+          allow get, list: if isOwner(userId) || isSuperAdmin();
+          allow create: if (isOwner(userId) && request.resource.data.userId == userId) || isSuperAdmin();
+          allow update: if (isExistingOwner(userId) && request.resource.data.userId == resource.data.userId) || isSuperAdmin();
+          allow delete: if isExistingOwner(userId) || isSuperAdmin();
         }
       }
 
-      /**
-       * @description Rules for the Order entity. Restricted to the owner.
-       * @path /users/{userId}/orders/{orderId}
-       */
       match /orders/{orderId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-        allow delete: if isExistingOwner(userId);
+        allow get, list: if isOwner(userId) || isSuperAdmin();
+        allow create: if (isOwner(userId) && request.resource.data.userId == userId) || isSuperAdmin();
+        allow update: if (isExistingOwner(userId) && request.resource.data.userId == resource.data.userId) || isSuperAdmin();
+        allow delete: if isExistingOwner(userId) || isSuperAdmin();
 
         match /orderItems/{orderItemId} {
-          allow get, list: if isOwner(userId);
-          allow create: if isOwner(userId) && request.resource.data.userId == userId;
-          allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-          allow delete: if isExistingOwner(userId);
+          allow get, list: if isOwner(userId) || isSuperAdmin();
+          allow create: if (isOwner(userId) && request.resource.data.userId == userId) || isSuperAdmin();
+          allow update: if (isExistingOwner(userId) && request.resource.data.userId == resource.data.userId) || isSuperAdmin();
+          allow delete: if isExistingOwner(userId) || isSuperAdmin();
         }
       }
     }
 
-    /**
-     * @description Rules for Product Categories. Publicly readable.
-     * @path /categories/{categoryId}
-     * @allow (get) Any user (including anonymous)
-     * @deny (create) Any user (Client-side writes are forbidden)
-     * @principle Prohibits client-side writes for reference catalog data.
-     */
     match /categories/{categoryId} {
       allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add admin validation once schema supports it.
+      allow create, update, delete: if isSuperAdmin();
     }
 
-    /**
-     * @description Rules for the Product catalog. Publicly readable.
-     * @path /products/{productId}
-     * @allow (list) Any user
-     * @deny (update) Any user
-     */
     match /products/{productId} {
       allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add admin validation once schema supports it.
+      allow create, update, delete: if isSuperAdmin();
 
-      /**
-       * @description Rules for Product Description History. Readable by authenticated users.
-       * @path /products/{productId}/descriptionHistory/{historyId}
-       */
       match /descriptionHistory/{historyId} {
         allow get, list: if isSignedIn();
-        allow create, update, delete: if false; // Managed by backend/admin services.
+        allow create, update, delete: if isSuperAdmin();
       }
+    }
+
+    match /events/{eventId} {
+      allow create: if isSignedIn();
+      allow get, list: if isSuperAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read, write: if isSuperAdmin();
     }
   }
 }

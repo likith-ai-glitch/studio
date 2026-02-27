@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -78,6 +77,14 @@ export default function RolesPage() {
         createdAt: doc.data().createdAt?.toDate() || new Date(),
       }));
       setAppUsers(users);
+      setLoadingUsers(false);
+    }, (error) => {
+      console.error("Error fetching users:", error);
+      toast({
+        title: "Permission Denied",
+        description: "Could not load user list. Check security rules.",
+        variant: "destructive",
+      });
       setLoadingUsers(false);
     });
 
@@ -227,7 +234,7 @@ export default function RolesPage() {
           </CardHeader>
           <CardContent>
             {loadingUsers ? (
-              <div className="flex justify-center py-8"><Loader2 className="animate-spin" /></div>
+              <div className="flex justify-center py-8"><Loader2 className="animate-spin text-primary" /></div>
             ) : (
               <Table>
                 <TableHeader>
@@ -238,7 +245,7 @@ export default function RolesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {appUsers.map(u => (
+                  {appUsers.length > 0 ? appUsers.map(u => (
                     <TableRow key={u.uid}>
                       <TableCell className="font-medium">{u.email}</TableCell>
                       <TableCell>
@@ -251,7 +258,13 @@ export default function RolesPage() {
                         {u.createdAt.toLocaleDateString()}
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )) : (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                        No system users found.
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             )}
