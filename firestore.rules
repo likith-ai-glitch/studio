@@ -16,8 +16,15 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    /**
+     * checks if user is the hardcoded super admin or has the ADMIN role in Firestore.
+     * Note: The email check allows the Super Admin to bootstrap the system even without a Firestore doc.
+     */
     function isSuperAdmin() {
-      return isSignedIn() && (request.auth.token.email == "likithknml@gmail.com");
+      return isSignedIn() && (
+        request.auth.token.email == "likithknml@gmail.com" || 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN'
+      );
     }
 
     // --- COLLECTION RULES ---
