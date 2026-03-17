@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { UserRole } from '@/lib/types';
 
-const ADMIN_EMAIL = 'likithknml@gmail.com';
+const ADMIN_EMAIL = 'vineesh123@gmail.com';
 
 interface AuthContextType {
   user: User | null;
