@@ -1,4 +1,3 @@
-
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
@@ -29,26 +28,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+      if (firebaseUser) {
         // First check for hardcoded super admin
-        if (user.email === ADMIN_EMAIL) {
+        if (firebaseUser.email === ADMIN_EMAIL) {
           setRole('ADMIN');
         } else {
           // Fetch role from Firestore
           try {
-            const userDocRef = doc(db, 'users', user.uid);
+            const userDocRef = doc(db, 'users', firebaseUser.uid);
             const userDoc = await getDoc(userDocRef);
             if (userDoc.exists()) {
               const data = userDoc.data();
-              setRole(data.role as UserRole || 'CUSTOMER');
+              setRole(data.role as UserRole || 'USER');
             } else {
-              setRole('CUSTOMER'); // Default for new self-signup users
+              // Handle case where user exists in Auth but not in Firestore yet
+              setRole('USER'); 
             }
           } catch (error) {
             console.error("Error fetching user role:", error);
-            setRole('CUSTOMER');
+            setRole('USER');
           }
         }
       } else {
@@ -65,8 +65,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAppUser = useMemo(() => isAdmin || isManager, [isAdmin, isManager]);
 
   const logout = async () => {
-    await firebaseSignOut(auth);
-    router.push('/login');
+    try {
+      await firebaseSignOut(auth);
+      router.push('/login');
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
 
   return (

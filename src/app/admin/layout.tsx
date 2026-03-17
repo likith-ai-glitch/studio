@@ -1,43 +1,30 @@
-
 'use client';
 
 import { useAuth } from '@/context/auth-context';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Loader2, ShieldAlert } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isAppUser, isAdmin, loading } = useAuth();
+  const { user, isAppUser, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const { toast } = useToast();
 
   useEffect(() => {
     if (!loading) {
       if (!user) {
-        // If not logged in at all, go to login page
         router.push('/login');
-      } else if (!isAppUser) {
-        // If logged in but not an admin/app user, go to home page
-        router.push('/');
-      } else if (pathname === '/admin/roles' && !isAdmin) {
-        // Strict guard for Role Management
-        toast({
-          title: "Access Denied",
-          description: "You do not have permission to access user management.",
-          variant: "destructive",
-        });
-        router.push('/admin');
       }
     }
-  }, [user, isAppUser, isAdmin, loading, router, pathname, toast]);
+  }, [user, loading, router]);
 
-  if (loading || !user || !isAppUser) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -45,9 +32,28 @@ export default function AdminLayout({
     );
   }
 
-  // Prevent flash of unauthorized content for the roles page
-  if (pathname === '/admin/roles' && !isAdmin) {
+  if (!user) {
     return null;
+  }
+
+  if (!isAppUser) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] space-y-6 text-center">
+        <div className="p-4 bg-destructive/10 rounded-full">
+          <ShieldAlert className="h-12 w-12 text-destructive" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold font-headline">Access Denied</h1>
+          <p className="text-muted-foreground max-w-md">
+            This section is restricted to administrators and managers. 
+            If you believe you should have access, please contact support.
+          </p>
+        </div>
+        <Button asChild variant="outline">
+          <Link href="/">Return Home</Link>
+        </Button>
+      </div>
+    );
   }
 
   return <>{children}</>;

@@ -1,4 +1,3 @@
-
 export interface Product {
   productId: string;
   name: string;
@@ -88,7 +87,7 @@ export interface Quote {
     lifecycleStatus: QuoteLifecycleStatus | null;
 }
 
-export type UserRole = 'ADMIN' | 'MANAGER' | 'CUSTOMER';
+export type UserRole = 'ADMIN' | 'MANAGER' | 'USER' | 'CUSTOMER';
 
 export interface AppUser {
   uid: string;
