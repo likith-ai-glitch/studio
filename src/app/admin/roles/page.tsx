@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { db, auth } from '@/lib/firebase';
-import { collection, query, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot } from 'firebase/firestore';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -47,14 +47,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { createManagerAction, updateUserPasswordAction, deleteUserAction } from '@/app/actions/admin-user-actions';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { createSystemUserAction, updateUserPasswordAction, deleteUserAction } from '@/app/actions/admin-user-actions';
 
-const managerSchema = z.object({
+const systemUserSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  role: z.enum(['ADMIN', 'MANAGER'], { required_error: "Please select a role." }),
 });
 
-type ManagerFormValues = z.infer<typeof managerSchema>;
+type SystemUserFormValues = z.infer<typeof systemUserSchema>;
 
 export default function RolesPage() {
   const { isAdmin, user: currentUser } = useAuth();
@@ -75,13 +77,14 @@ export default function RolesPage() {
   
   const [pendingAction, setPendingAction] = useState<'CREATE' | 'UPDATE_PASSWORD' | 'DELETE' | null>(null);
   const [targetUser, setTargetUser] = useState<{ uid: string; email: string } | null>(null);
-  const [pendingManagerValues, setPendingManagerValues] = useState<ManagerFormValues | null>(null);
+  const [pendingUserValues, setPendingUserValues] = useState<SystemUserFormValues | null>(null);
 
-  const form = useForm<ManagerFormValues>({
-    resolver: zodResolver(managerSchema),
+  const form = useForm<SystemUserFormValues>({
+    resolver: zodResolver(systemUserSchema),
     defaultValues: {
       email: '',
       password: '',
+      role: 'MANAGER',
     },
   });
 
@@ -118,8 +121,8 @@ export default function RolesPage() {
     return () => unsubscribe();
   }, [isAdmin, router, toast, currentUser]);
 
-  const handleCreateManagerRequest = (values: ManagerFormValues) => {
-    setPendingManagerValues(values);
+  const handleCreateUserRequest = (values: SystemUserFormValues) => {
+    setPendingUserValues(values);
     setPendingAction('CREATE');
     setIsAuthDialogOpen(true);
   };
@@ -148,10 +151,10 @@ export default function RolesPage() {
       setIsAuthDialogOpen(false);
       setAdminPassword('');
 
-      if (pendingAction === 'CREATE' && pendingManagerValues) {
-        const res = await createManagerAction(pendingManagerValues);
+      if (pendingAction === 'CREATE' && pendingUserValues) {
+        const res = await createSystemUserAction(pendingUserValues);
         if (res.success) {
-          toast({ title: "Manager Created", description: `Account for ${pendingManagerValues.email} is ready.` });
+          toast({ title: "User Created", description: `Account for ${pendingUserValues.email} is ready.` });
           form.reset();
         } else {
           throw new Error(res.error);
@@ -226,7 +229,7 @@ export default function RolesPage() {
               <Shield className="h-8 w-8 text-primary" />
               Role Management
             </h1>
-            <p className="text-muted-foreground mt-1">Manage Manager access and credentials.</p>
+            <p className="text-muted-foreground mt-1">Manage staff access and credentials.</p>
           </div>
         </div>
       </header>
@@ -236,23 +239,23 @@ export default function RolesPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <UserPlus className="h-5 w-5" />
-              Add Manager
+              Add User
             </CardTitle>
             <CardDescription>
-              Create a new account with MANAGER privileges.
+              Create a new staff account with specific privileges.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleCreateManagerRequest)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(handleCreateUserRequest)} className="space-y-4">
                 <FormField
                   control={form.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Manager Email</FormLabel>
+                      <FormLabel>User Email</FormLabel>
                       <FormControl>
-                        <Input placeholder="manager@shopstream.com" {...field} />
+                        <Input placeholder="staff@shopstream.com" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -271,8 +274,29 @@ export default function RolesPage() {
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Assign Role</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a role" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="ADMIN">Administrator</SelectItem>
+                          <SelectItem value="MANAGER">Manager</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Create Manager"}
+                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Create User"}
                 </Button>
               </form>
             </Form>
@@ -424,7 +448,7 @@ export default function RolesPage() {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Manager Account?</AlertDialogTitle>
+            <AlertDialogTitle>Delete User Account?</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete the account for <strong>{targetUser?.email}</strong> from both authentication and the database. This action cannot be undone.
             </AlertDialogDescription>

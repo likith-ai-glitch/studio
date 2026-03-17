@@ -5,9 +5,9 @@ import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 
 /**
- * Creates a new Manager user in both Auth and Firestore.
+ * Creates a new System User (Admin or Manager) in both Auth and Firestore.
  */
-export async function createManagerAction(data: { email: string; password: string }) {
+export async function createSystemUserAction(data: { email: string; password: string; role: 'ADMIN' | 'MANAGER' }) {
   try {
     // 1. Create in Firebase Auth
     const userRecord = await adminAuth.createUser({
@@ -20,13 +20,13 @@ export async function createManagerAction(data: { email: string; password: strin
     await adminDb.collection('users').doc(userRecord.uid).set({
       id: userRecord.uid,
       email: data.email,
-      role: 'MANAGER',
+      role: data.role,
       createdAt: Timestamp.now(),
     });
 
     return { success: true };
   } catch (error: any) {
-    console.error('Error creating manager:', error);
+    console.error('Error creating system user:', error);
     return { success: false, error: error.message };
   }
 }
