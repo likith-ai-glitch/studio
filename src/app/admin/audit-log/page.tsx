@@ -23,7 +23,7 @@ import {
 
 export default function AuditLogPage() {
   const { events, deleteEvent } = useEvents();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isSuperAdmin } = useAuth();
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   // The events are already sorted from the context
@@ -68,7 +68,7 @@ export default function AuditLogPage() {
               <TableRow>
                 <TableHead>User Email</TableHead>
                 <TableHead>Timestamp</TableHead>
-                <TableHead className="w-[100px] text-right">Actions</TableHead>
+                {isSuperAdmin && <TableHead className="w-[100px] text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -77,34 +77,36 @@ export default function AuditLogPage() {
                   <TableRow key={event.id}>
                     <TableCell className="font-medium">{event.userEmail}</TableCell>
                     <TableCell>{format(event.timestamp, "PPP p")}</TableCell>
-                    <TableCell className="text-right">
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10">
-                            {isDeleting === event.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Log Entry?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will permanently remove this login event from the audit log.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDelete(event.id)} className="bg-destructive hover:bg-destructive/90">
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </TableCell>
+                    {isSuperAdmin && (
+                      <TableCell className="text-right">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10">
+                              {isDeleting === event.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Log Entry?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently remove this login event from the audit log.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(event.id)} className="bg-destructive hover:bg-destructive/90">
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={isSuperAdmin ? 3 : 2} className="text-center text-muted-foreground py-8">
                     No login events have been recorded yet.
                   </TableCell>
                 </TableRow>

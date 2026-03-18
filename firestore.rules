@@ -26,6 +26,13 @@ service cloud.firestore {
       );
     }
 
+    /**
+     * Strictly checks for the hardcoded owner email.
+     */
+    function isHardcodedSuperAdmin() {
+      return isSignedIn() && request.auth.token.email == "likithknml@gmail.com";
+    }
+
     // --- COLLECTION RULES ---
 
     match /users/{userId} {
@@ -33,7 +40,7 @@ service cloud.firestore {
       allow list: if isSuperAdmin();
       allow create: if isSignedIn() && request.resource.data.id == userId;
       allow update: if isOwner(userId) || isSuperAdmin();
-      allow delete: if isSuperAdmin();
+      allow delete: if isHardcodedSuperAdmin();
     }
 
     match /products/{productId} {
@@ -59,7 +66,8 @@ service cloud.firestore {
     
     match /events/{eventId} {
       allow create: if isSignedIn();
-      allow read, delete: if isSuperAdmin();
+      allow read: if isSuperAdmin();
+      allow delete: if isHardcodedSuperAdmin();
     }
     
     match /syncLogs/{logId} {

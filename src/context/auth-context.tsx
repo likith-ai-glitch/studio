@@ -14,6 +14,7 @@ interface AuthContextType {
   role: UserRole | null;
   isAdmin: boolean;
   isManager: boolean;
+  isSuperAdmin: boolean;
   isAppUser: boolean;
   loading: boolean;
   logout: () => Promise<void>;
@@ -60,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
+  const isSuperAdmin = useMemo(() => user?.email === ADMIN_EMAIL, [user]);
   const isAdmin = useMemo(() => role === 'ADMIN', [role]);
   const isManager = useMemo(() => role === 'MANAGER', [role]);
   const isAppUser = useMemo(() => isAdmin || isManager, [isAdmin, isManager]);
@@ -81,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout, 
       isAdmin, 
       isManager, 
+      isSuperAdmin,
       isAppUser 
     }}>
       {children}
