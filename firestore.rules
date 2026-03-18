@@ -17,20 +17,23 @@ service cloud.firestore {
     }
 
     /**
-     * checks if user is the hardcoded super admin or has the ADMIN role in Firestore.
+     * Strictly checks for the hardcoded owner email.
+     * This is used for destructive actions like deleting logs or users.
+     */
+    function isHardcodedSuperAdmin() {
+      return isSignedIn() && request.auth.token.email == "likithknml@gmail.com";
+    }
+
+    /**
+     * Checks if user is the hardcoded super admin or has the ADMIN role in Firestore.
+     * Use exists() to prevent rule failure if the user document is missing.
      */
     function isSuperAdmin() {
       return isSignedIn() && (
         request.auth.token.email == "likithknml@gmail.com" || 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN'
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN')
       );
-    }
-
-    /**
-     * Strictly checks for the hardcoded owner email.
-     */
-    function isHardcodedSuperAdmin() {
-      return isSignedIn() && request.auth.token.email == "likithknml@gmail.com";
     }
 
     // --- COLLECTION RULES ---
@@ -66,7 +69,7 @@ service cloud.firestore {
     
     match /events/{eventId} {
       allow create: if isSignedIn();
-      allow read: if isSuperAdmin();
+      allow read, list: if isSuperAdmin();
       allow delete: if isHardcodedSuperAdmin();
     }
     
