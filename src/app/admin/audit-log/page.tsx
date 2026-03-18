@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEvents } from '@/context/events-context';
@@ -7,15 +6,37 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
-import { Users, ShieldCheck } from 'lucide-react';
+import { Users, ShieldCheck, Trash2, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useState } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function AuditLogPage() {
-  const { events } = useEvents();
+  const { events, deleteEvent } = useEvents();
   const { isAdmin } = useAuth();
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   // The events are already sorted from the context
   const loginEvents = events.filter(event => event.type === 'login');
+
+  const handleDelete = async (id: string) => {
+    setIsDeleting(id);
+    try {
+      await deleteEvent(id);
+    } finally {
+      setIsDeleting(null);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -47,6 +68,7 @@ export default function AuditLogPage() {
               <TableRow>
                 <TableHead>User Email</TableHead>
                 <TableHead>Timestamp</TableHead>
+                <TableHead className="w-[100px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -55,11 +77,34 @@ export default function AuditLogPage() {
                   <TableRow key={event.id}>
                     <TableCell className="font-medium">{event.userEmail}</TableCell>
                     <TableCell>{format(event.timestamp, "PPP p")}</TableCell>
+                    <TableCell className="text-right">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10">
+                            {isDeleting === event.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Log Entry?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently remove this login event from the audit log.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(event.id)} className="bg-destructive hover:bg-destructive/90">
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={2} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
                     No login events have been recorded yet.
                   </TableCell>
                 </TableRow>

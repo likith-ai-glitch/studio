@@ -18,7 +18,6 @@ service cloud.firestore {
 
     /**
      * checks if user is the hardcoded super admin or has the ADMIN role in Firestore.
-     * Note: The email check allows the Super Admin to bootstrap the system even without a Firestore doc.
      */
     function isSuperAdmin() {
       return isSignedIn() && (
@@ -31,6 +30,7 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isOwner(userId) || isSuperAdmin();
+      allow list: if isSuperAdmin();
       allow create: if isSignedIn() && request.resource.data.id == userId;
       allow update: if isOwner(userId) || isSuperAdmin();
       allow delete: if isSuperAdmin();
@@ -59,7 +59,7 @@ service cloud.firestore {
     
     match /events/{eventId} {
       allow create: if isSignedIn();
-      allow read: if isSuperAdmin();
+      allow read, delete: if isSuperAdmin();
     }
     
     match /syncLogs/{logId} {

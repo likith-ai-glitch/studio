@@ -1,16 +1,16 @@
-
 'use client';
 
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import type { AppEvent } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc } from 'firebase/firestore';
 
 
 interface EventsContextType {
   events: AppEvent[];
   logEvent: (event: Omit<AppEvent, 'id' | 'timestamp'>) => void;
+  deleteEvent: (eventId: string) => Promise<void>;
 }
 
 const EventsContext = createContext<EventsContextType | undefined>(undefined);
@@ -42,9 +42,25 @@ export function EventsProvider({ children }: { children: ReactNode }) {
             ...eventData,
             timestamp: serverTimestamp(),
         });
-        // The toast notification is now triggered by the real-time listener
     } catch (error) {
         console.error("Error logging event: ", error);
+    }
+  };
+
+  const deleteEvent = async (eventId: string) => {
+    try {
+      await deleteDoc(doc(db, 'events', eventId));
+      toast({
+        title: "Log Deleted",
+        description: "The event log has been removed.",
+      });
+    } catch (error: any) {
+      console.error("Error deleting event:", error);
+      toast({
+        title: "Deletion Failed",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
   
@@ -65,7 +81,7 @@ export function EventsProvider({ children }: { children: ReactNode }) {
 
 
   return (
-    <EventsContext.Provider value={{ events, logEvent }}>
+    <EventsContext.Provider value={{ events, logEvent, deleteEvent }}>
       {children}
     </EventsContext.Provider>
   );
