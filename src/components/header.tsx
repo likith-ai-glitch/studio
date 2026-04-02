@@ -56,12 +56,6 @@ export function Header() {
                   </Link>
                 </Button>
                  <Button variant="ghost" asChild className="h-9">
-                  <Link href="/admin/orders" className="flex items-center gap-2">
-                    <Package className="h-4 w-4" />
-                    <span className="hidden md:inline">Orders</span>
-                  </Link>
-                </Button>
-                 <Button variant="ghost" asChild className="h-9">
                   <Link href="/admin/documents" className="flex items-center gap-2">
                     <FileArchive className="h-4 w-4" />
                     <span className="hidden md:inline">Documents</span>

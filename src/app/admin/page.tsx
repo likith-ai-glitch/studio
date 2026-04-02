@@ -1,14 +1,12 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useProducts } from '@/context/product-context';
-import { useOrders } from '@/context/order-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal, PlusCircle, IndianRupee, Package, ShoppingCart, ArrowUpDown, Loader2, PackageCheck, PackageX, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings, View, Copy, FilePlus, Upload, Download, BookCopy, Percent, RefreshCw, AlertCircle, CheckCircle, DatabaseZap, Info, X, Save } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Package, ArrowUpDown, Loader2, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings, View, Copy, Upload, Download, BookCopy, Percent, X, Save } from 'lucide-react';
 import Link from 'next/link';
 import {
     DropdownMenu,
@@ -51,12 +49,9 @@ import Papa from 'papaparse';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { debounce } from 'lodash';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, Timestamp, where, getDocs } from 'firebase/firestore';
-import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Info } from 'lucide-react';
 
 function PriceBookTable() {
   const { products, loading, updateProductField, headerNames, renameColumn } = useProducts();
@@ -315,14 +310,12 @@ export default function AdminPage() {
     toggleHomePageFieldVisibility,
     adminTableVisibleFields,
     toggleAdminTableFieldVisibility,
-    updateProductField,
     selectedProducts,
     toggleProductSelection,
     toggleSelectAllProducts,
     clearSelection,
     addProductsBulk,
   } = useProducts();
-  const { orders } = useOrders();
   const { quote, clearQuote, saveQuoteToFirestore, syncItemToQuote } = useQuote();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
@@ -376,17 +369,6 @@ export default function AdminPage() {
       clearSelection();
     };
   }, [clearSelection]);
-
-  const totalRevenue = orders.reduce((sum, order) => sum + Number(order.total), 0);
-  const totalSales = orders.length;
-
-  const availableProducts = useMemo(() => {
-    return products.filter(p => p.status === 'Available').length;
-  }, [products]);
-
-  const unavailableProducts = useMemo(() => {
-    return products.filter(p => p.status === 'Unavailable').length;
-  }, [products]);
 
   const deletableColumns = useMemo(() => {
     return productKeys.filter(k => k !== 'productId' && k !== 'quoteTotal');
@@ -777,10 +759,6 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-8">
-      <header className="flex justify-between items-center">
-        <h1 className="text-4xl font-bold font-headline">Dashboard</h1>
-      </header>
-
       {quote.masterQuoteId && (
         <Alert className="bg-primary/10 border-primary ring-1 ring-primary/20">
           <Info className="h-4 w-4 text-primary" />
@@ -809,54 +787,6 @@ export default function AdminPage() {
           </AlertDescription>
         </Alert>
       )}
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Revenue</CardTitle>
-            <IndianRupee className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">₹{totalRevenue.toFixed(2)}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Sales</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">+{totalSales}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Products</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{products.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Available</CardTitle>
-            <PackageCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{availableProducts}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Unavailable</CardTitle>
-            <PackageX className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{unavailableProducts}</div>
-          </CardContent>
-        </Card>
-      </div>
 
       <Card className={cn(isBuildingQuote && "border-primary ring-1 ring-primary/20 shadow-md")}>
         <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
