@@ -28,6 +28,7 @@ interface ProductContextType {
   updateProduct: (productData: ProductFormValues, originalProductId?: string) => Promise<void>;
   updateProductField: (productId: string, field: string | Record<string, any>, value?: any) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
+  deleteProductsBulk: (productIds: string[]) => Promise<void>;
   getProduct: (productId: string) => Promise<Product | undefined>;
   addColumn: (columnName: string) => Promise<void>;
   deleteColumn: (columnName: string) => Promise<void>;
@@ -407,6 +408,33 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const deleteProductsBulk = async (productIds: string[]) => {
+    if (productIds.length === 0) return;
+    
+    const batch = writeBatch(db);
+    productIds.forEach(id => {
+      const docRef = doc(db, 'products', id);
+      batch.delete(docRef);
+    });
+
+    try {
+      await batch.commit();
+      toast({
+        title: "Products Deleted",
+        description: `Successfully deleted ${productIds.length} products.`,
+        variant: 'destructive',
+      });
+      clearSelection();
+    } catch (error: any) {
+      console.error("Error deleting products in bulk: ", error);
+      toast({
+        title: "Bulk Delete Failed",
+        description: error.message || "An error occurred while deleting products.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getProduct = async (productId: string): Promise<Product | undefined> => {
     const localProduct = products.find(p => p.productId === productId);
     if (localProduct) return localProduct;
@@ -584,6 +612,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         updateProduct, 
         updateProductField,
         deleteProduct, 
+        deleteProductsBulk,
         getProduct, 
         addColumn, 
         deleteColumn, 

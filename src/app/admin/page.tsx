@@ -48,14 +48,13 @@ import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Info } from 'lucide-react';
 import { PriceBookTable } from '@/components/price-book-table';
 
 export default function AdminPage() {
   const { 
     products, 
     deleteProduct, 
+    deleteProductsBulk,
     addColumn, 
     deleteColumn, 
     loading: productsLoading, 
@@ -80,6 +79,7 @@ export default function AdminPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Product | string | null; direction: 'ascending' | 'descending' }>({ key: 'name', direction: 'ascending' });
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   
   const [newColumnName, setNewColumnName] = useState('');
   const [isAddingColumn, setIsAddingColumn] = useState(false);
@@ -147,8 +147,6 @@ export default function AdminPage() {
     return masterTableKeys.filter(key => adminTableVisibleFields[key]);
   }, [masterTableKeys, adminTableVisibleFields]);
 
-  const isBuildingQuote = !!(quote.masterQuoteId || quote.isMaster);
-
   const sortedAndFilteredProducts = useMemo(() => {
     let sortableProducts = [...products];
 
@@ -177,12 +175,8 @@ export default function AdminPage() {
       });
     }
 
-    if (quote.isMaster) {
-      sortableProducts = sortableProducts.filter(p => p.isMasterProduct === true);
-    }
-
     return sortableProducts;
-  }, [products, searchTerm, sortConfig, quote.isMaster]);
+  }, [products, searchTerm, sortConfig]);
 
   const handleProductSelection = useCallback((productId: string) => {
       toggleProductSelection(productId);
@@ -202,6 +196,15 @@ export default function AdminPage() {
         setDeleteTarget(null);
     }
   }
+
+  const handleBulkDelete = async () => {
+    setIsBulkDeleting(true);
+    try {
+      await deleteProductsBulk(selectedProducts);
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
 
   const handleAddColumn = async () => {
     if (!newColumnName.trim()) return;
@@ -440,15 +443,6 @@ export default function AdminPage() {
     );
 };
 
-  const handleSaveActiveQuote = async () => {
-    setIsSaving(true);
-    try {
-        await saveQuoteToFirestore();
-    } finally {
-        setIsSaving(false);
-    }
-  };
-
   const visibleFilteredProductIds = useMemo(() => sortedAndFilteredProducts.map(p => p.productId), [sortedAndFilteredProducts]);
 
   const allVisibleSelected = useMemo(() => {
@@ -462,56 +456,45 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-8">
-      {quote.masterQuoteId && (
-        <Alert className="bg-primary/10 border-primary ring-1 ring-primary/20">
-          <Info className="h-4 w-4 text-primary" />
-          <AlertTitle className="font-bold text-primary">Building Vendor Child Quote</AlertTitle>
-          <AlertDescription className="flex justify-between items-center text-primary-foreground">
-            <span className="text-muted-foreground">Select multiple products below or set quantities. Click Save to link this quote to the Master.</span>
-            <div className="flex gap-2">
-                <Button variant="default" size="sm" onClick={handleSaveActiveQuote} disabled={isSaving || quote.items.length === 0} className="bg-green-600 hover:bg-green-700 text-white font-bold border-none">
-                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
-                    Save Quote ({quote.items.length})
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => clearQuote()} className="border-primary text-primary hover:bg-primary/20">
-                    <X className="h-4 w-4 mr-1" /> Cancel
-                </Button>
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {quote.isMaster && (
-        <Alert className="bg-blue-50 border-blue-200">
-          <Info className="h-4 w-4 text-blue-600" />
-          <AlertTitle className="font-bold text-blue-800">Building Master Quote</AlertTitle>
-          <AlertDescription className="text-blue-700">
-            Only <strong>Master Products</strong> are visible in the table below. Set quantities to add them to your baseline.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <Card className={cn(isBuildingQuote && "border-primary ring-1 ring-primary/20 shadow-md")}>
+      <Card>
         <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <CardTitle>Product Master (prd_master)</CardTitle>
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            {isBuildingQuote && (
-                <Button 
-                    size="sm" 
-                    onClick={handleSaveActiveQuote} 
-                    disabled={isSaving || quote.items.length === 0}
-                    className="bg-green-600 hover:bg-green-700 text-white font-bold"
-                >
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Save Quote ({quote.items.length})
-                </Button>
-            )}
             <Input
                 placeholder="Filter products..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full sm:w-auto md:w-48"
               />
+            
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button 
+                  size="sm" 
+                  variant="destructive" 
+                  disabled={selectedProducts.length === 0 || isBulkDeleting}
+                >
+                  {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                  Delete Selected ({selectedProducts.length})
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete the {selectedProducts.length} selected products. 
+                    This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90">
+                    Delete Products
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
             <Dialog open={isImportDialogOpen} onOpenChange={(isOpen) => { setImportDialogOpen(isOpen); if (!isOpen) resetImportState(); }}>
               <DialogTrigger asChild>
                 <Button size="sm" variant="outline">
@@ -552,7 +535,7 @@ export default function AdminPage() {
                             <SelectContent>
                               <SelectItem value="none">Ignore</SelectItem>
                               <DropdownMenuSeparator />
-                              {productKeys.filter(k => k !== 'quoteTotal' && k !== 'qtyForQuote').map(key => (
+                              {productKeys.map(key => (
                                 <SelectItem key={key} value={key}>{headerNames[key] || key}</SelectItem>
                               ))}
                             </SelectContent>
