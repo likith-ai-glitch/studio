@@ -4,16 +4,18 @@ import { useState, useMemo } from 'react';
 import { useProducts } from '@/context/product-context';
 import { ProductCard } from '@/components/product-card';
 import { Input } from '@/components/ui/input';
-import { Loader2, BookCopy } from 'lucide-react';
+import { Loader2, BookCopy, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Product } from '@/lib/types';
 import { PriceBookTable } from '@/components/price-book-table';
+import { cn } from '@/lib/utils';
 
 export default function Home() {
   const { products: allProducts, loading: productsLoading } = useProducts();
   const [searchTerm, setSearchTerm] = useState('');
+  const [view, setView] = useState<'products' | 'pricebook'>('products');
   
   const filteredProducts = useMemo(() => {
     return allProducts.filter((product) => {
@@ -27,13 +29,6 @@ export default function Home() {
     return allProducts.filter(p => p.status === 'Available').slice(0, 4);
   }, [allProducts]);
 
-  const scrollToPriceBook = () => {
-    const element = document.getElementById('price-book-section');
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
   return (
     <div className="flex flex-col gap-12">
       <section className="relative bg-card p-8 rounded-lg shadow-lg overflow-hidden flex items-center min-h-[400px]">
@@ -41,10 +36,21 @@ export default function Home() {
             <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary mb-4">Welcome to Shopstream</h1>
             <p className="text-lg md:text-xl text-muted-foreground mb-6">Your one-stop shop for everything you need. Discover high-quality products at unbeatable prices.</p>
             <div className="flex flex-wrap gap-4 justify-center md:justify-start">
-                <Button size="lg" asChild>
-                    <Link href="#all-products">Start Shopping</Link>
+                <Button 
+                  size="lg" 
+                  onClick={() => setView('products')}
+                  variant={view === 'products' ? 'default' : 'outline'}
+                  className={cn(view !== 'products' && "bg-background/50 backdrop-blur-sm")}
+                >
+                    <ShoppingBag className="mr-2 h-5 w-5" />
+                    Start Shopping
                 </Button>
-                <Button size="lg" variant="outline" onClick={scrollToPriceBook} className="bg-background/50 backdrop-blur-sm">
+                <Button 
+                  size="lg" 
+                  variant={view === 'pricebook' ? 'default' : 'outline'}
+                  onClick={() => setView('pricebook')}
+                  className={cn(view !== 'pricebook' && "bg-background/50 backdrop-blur-sm")}
+                >
                     <BookCopy className="mr-2 h-5 w-5" />
                     Price Book
                 </Button>
@@ -61,53 +67,57 @@ export default function Home() {
         </div>
       </section>
 
-      {featuredProducts.length > 0 && (
-        <section className="space-y-6">
-           <h2 className="text-3xl font-bold font-headline text-center">Featured Products</h2>
-           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-             {featuredProducts.map(p => <ProductCard key={p.productId} product={p as Product} />)}
-           </div>
-        </section>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pt-8" id="all-products">
-        <aside className="md:col-span-1 bg-card p-6 rounded-lg shadow-sm self-start sticky top-24">
-          <div className="space-y-6">
-            <h2 className="text-xl font-headline font-semibold">Filter All Products</h2>
-            <div>
-              <Input
-                placeholder="Search products..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full"
-              />
-            </div>
-          </div>
-        </aside>
-
-        <section className="md:col-span-3">
-          {productsLoading ? (
-             <div className="flex items-center justify-center h-96">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
-             </div>
-          ) : filteredProducts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProducts.map((product) => (
-                <ProductCard key={product.productId} product={product as Product} />
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-96 bg-card rounded-lg">
-              <p className="text-xl text-muted-foreground">No products found.</p>
-              <p className="text-sm text-muted-foreground">Try adjusting your filters.</p>
-            </div>
+      {view === 'products' ? (
+        <div className="space-y-12 animate-in fade-in duration-500">
+          {featuredProducts.length > 0 && (
+            <section className="space-y-6">
+               <h2 className="text-3xl font-bold font-headline text-center">Featured Products</h2>
+               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                 {featuredProducts.map(p => <ProductCard key={p.productId} product={p as Product} />)}
+               </div>
+            </section>
           )}
-        </section>
-      </div>
 
-      <div id="price-book-section" className="pt-12 border-t">
-        <PriceBookTable />
-      </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pt-8" id="all-products">
+            <aside className="md:col-span-1 bg-card p-6 rounded-lg shadow-sm self-start sticky top-24">
+              <div className="space-y-6">
+                <h2 className="text-xl font-headline font-semibold">Filter All Products</h2>
+                <div>
+                  <Input
+                    placeholder="Search products..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </aside>
+
+            <section className="md:col-span-3">
+              {productsLoading ? (
+                 <div className="flex items-center justify-center h-96">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                 </div>
+              ) : filteredProducts.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredProducts.map((product) => (
+                    <ProductCard key={product.productId} product={product as Product} />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-96 bg-card rounded-lg">
+                  <p className="text-xl text-muted-foreground">No products found.</p>
+                  <p className="text-sm text-muted-foreground">Try adjusting your filters.</p>
+                </div>
+              )}
+            </section>
+          </div>
+        </div>
+      ) : (
+        <div className="animate-in fade-in duration-500">
+          <PriceBookTable />
+        </div>
+      )}
     </div>
   );
 }
