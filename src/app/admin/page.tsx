@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal, PlusCircle, Package, ArrowUpDown, Loader2, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings, View, Copy, Upload, Download, X, Save } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, ArrowUpDown, Loader2, Trash2, Pencil, ArrowUp, ArrowDown, Columns, Settings, View, Copy, Upload, Download, X, Save } from 'lucide-react';
 import Link from 'next/link';
 import {
     DropdownMenu,
@@ -75,7 +75,7 @@ export default function AdminPage() {
     clearSelection,
     addProductsBulk,
   } = useProducts();
-  const { quote, clearQuote, saveQuoteToFirestore, syncItemToQuote } = useQuote();
+  const { quote, clearQuote, saveQuoteToFirestore } = useQuote();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Product | string | null; direction: 'ascending' | 'descending' }>({ key: 'name', direction: 'ascending' });
@@ -130,16 +130,17 @@ export default function AdminPage() {
   }, [clearSelection]);
 
   const deletableColumns = useMemo(() => {
-    return productKeys.filter(k => k !== 'productId' && k !== 'quoteTotal');
+    return productKeys.filter(k => k !== 'productId' && k !== 'quoteTotal' && k !== 'qtyForQuote');
   }, [productKeys]);
   
   const homePageConfigurableFields = useMemo(() => {
-    return productKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
+    return productKeys.filter(k => !['productId', 'quoteTotal', 'qtyForQuote'].includes(k));
   }, [productKeys]);
   
   const masterTableKeys = useMemo(() => {
     const priceListColumns = ['priceList1', 'priceList2', 'priceList3', 'priceList4', 'priceList5', 'activePriceList'];
-    return productKeys.filter(key => !priceListColumns.includes(key));
+    const quoteColumns = ['qtyForQuote', 'quoteTotal'];
+    return productKeys.filter(key => !priceListColumns.includes(key) && !quoteColumns.includes(key));
   }, [productKeys]);
 
   const visibleProductKeys = useMemo(() => {
@@ -163,18 +164,8 @@ export default function AdminPage() {
     if (sortConfig.key) {
       sortableProducts.sort((a, b) => {
         const key = sortConfig.key as string;
-
-        let aValue, bValue;
-
-        if (key === 'quoteTotal') {
-            const aQuoteItem = quote.items.find(i => i.productId === a.productId);
-            const bQuoteItem = quote.items.find(i => i.productId === b.productId);
-            aValue = (aQuoteItem?.quantity || 0) * (a.price || 0);
-            bValue = (bQuoteItem?.quantity || 0) * (b.price || 0);
-        } else {
-            aValue = a[key as keyof Product] ?? '';
-            bValue = b[key as keyof Product] ?? '';
-        }
+        const aValue = a[key as keyof Product] ?? '';
+        const bValue = b[key as keyof Product] ?? '';
 
         if (aValue < bValue) {
           return sortConfig.direction === 'ascending' ? -1 : 1;
@@ -191,37 +182,11 @@ export default function AdminPage() {
     }
 
     return sortableProducts;
-  }, [products, searchTerm, sortConfig, quote.isMaster, quote.items]);
-
-  const handleQtyChange = useCallback((productId: string, newQty: string) => {
-    const quantity = parseInt(newQty, 10);
-    if (!isNaN(quantity) && quantity >= 0) {
-        const product = products.find(p => p.productId === productId);
-        if (product && isBuildingQuote) {
-            syncItemToQuote({
-                id: product.productId,
-                productId: product.productId,
-                name: product.name,
-                price: Number(product.price) || 0,
-                quantity: quantity,
-                brand: product.brand,
-                category: product.category,
-                colour: product.colour,
-                partName: product.partName,
-                isMasterProduct: product.isMasterProduct,
-            });
-        }
-    }
-  }, [products, isBuildingQuote, syncItemToQuote]);
+  }, [products, searchTerm, sortConfig, quote.isMaster]);
 
   const handleProductSelection = useCallback((productId: string) => {
-      if (isBuildingQuote) {
-          const isInQuote = quote.items.some(i => i.productId === productId);
-          handleQtyChange(productId, isInQuote ? "0" : "1");
-      } else {
-          toggleProductSelection(productId);
-      }
-  }, [quote.items, isBuildingQuote, handleQtyChange, toggleProductSelection]);
+      toggleProductSelection(productId);
+  }, [toggleProductSelection]);
 
   const requestSort = (key: string) => {
     let direction: 'ascending' | 'descending' = 'ascending';
@@ -318,13 +283,7 @@ export default function AdminPage() {
       header.join(','),
       ...productsToExport.map(product => 
         fieldsToExport.map(field => {
-          let value;
-          if (field === 'quoteTotal') {
-            const qItem = quote.items.find(i => i.productId === product.productId);
-            value = (qItem?.quantity || 0) * (product.price || 0);
-          } else {
-            value = product[field as keyof Product] as any;
-          }
+          let value = product[field as keyof Product] as any;
           
           if (value === null || value === undefined) {
             value = '';
@@ -441,7 +400,6 @@ export default function AdminPage() {
 
   const renderHeader = (key: string) => {
     const headerText = headerNames[key] || (key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'));
-    const isCalculated = key === 'quoteTotal';
 
     return (
         <TableHead key={key}>
@@ -449,36 +407,34 @@ export default function AdminPage() {
                 <button className="flex items-center gap-1" onClick={() => requestSort(key)}>
                     {headerText} <ArrowUpDown className="inline-block h-4 w-4" />
                 </button>
-                {!isCalculated && (
-                  <Dialog open={columnToRename === key} onOpenChange={(isOpen) => !isOpen && setColumnToRename(null)}>
-                      <DialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
-                              setColumnToRename(key);
-                              setNewHeaderName(headerText);
-                          }}>
-                              <Pencil className="h-3 w-3" />
-                          </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                          <DialogHeader>
-                              <DialogTitle>Rename Column</DialogTitle>
-                          </DialogHeader>
-                          <div className="py-4">
-                              <Input
-                                  value={newHeaderName}
-                                  onChange={(e) => setNewHeaderName(e.target.value)}
-                                  placeholder="New column name"
-                              />
-                          </div>
-                          <DialogFooter>
-                              <DialogClose asChild>
-                                  <Button variant="outline">Cancel</Button>
-                              </DialogClose>
-                              <Button onClick={handleRenameColumn}>Save</Button>
-                          </DialogFooter>
-                      </DialogContent>
-                  </Dialog>
-                )}
+                <Dialog open={columnToRename === key} onOpenChange={(isOpen) => !isOpen && setColumnToRename(null)}>
+                    <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
+                            setColumnToRename(key);
+                            setNewHeaderName(headerText);
+                        }}>
+                            <Pencil className="h-3 w-3" />
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Rename Column</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <Input
+                                value={newHeaderName}
+                                onChange={(e) => setNewHeaderName(e.target.value)}
+                                placeholder="New column name"
+                            />
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild>
+                                <Button variant="outline">Cancel</Button>
+                            </DialogClose>
+                            <Button onClick={handleRenameColumn}>Save</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </TableHead>
     );
@@ -496,24 +452,12 @@ export default function AdminPage() {
   const visibleFilteredProductIds = useMemo(() => sortedAndFilteredProducts.map(p => p.productId), [sortedAndFilteredProducts]);
 
   const allVisibleSelected = useMemo(() => {
-    if (isBuildingQuote) {
-        if (visibleFilteredProductIds.length === 0) return false;
-        return visibleFilteredProductIds.every(id => quote.items.some(i => i.productId === id));
-    }
     if (selectedProducts.length === 0 || visibleFilteredProductIds.length === 0) return false;
     return visibleFilteredProductIds.every(id => selectedProducts.includes(id));
-  }, [selectedProducts, visibleFilteredProductIds, isBuildingQuote, quote.items]);
+  }, [selectedProducts, visibleFilteredProductIds]);
 
   const handleSelectAllToggle = () => {
-    const isSelectingAll = !allVisibleSelected;
-    
-    if (isBuildingQuote) {
-        visibleFilteredProductIds.forEach(id => {
-            handleQtyChange(id, isSelectingAll ? "1" : "0");
-        });
-    } else {
-        toggleSelectAllProducts(visibleFilteredProductIds);
-    }
+    toggleSelectAllProducts(visibleFilteredProductIds);
   };
 
   return (
@@ -608,7 +552,7 @@ export default function AdminPage() {
                             <SelectContent>
                               <SelectItem value="none">Ignore</SelectItem>
                               <DropdownMenuSeparator />
-                              {productKeys.filter(k => k !== 'quoteTotal').map(key => (
+                              {productKeys.filter(k => k !== 'quoteTotal' && k !== 'qtyForQuote').map(key => (
                                 <SelectItem key={key} value={key}>{headerNames[key] || key}</SelectItem>
                               ))}
                             </SelectContent>
@@ -897,9 +841,7 @@ export default function AdminPage() {
                   </TableHeader>
                   <TableBody>
                     {sortedAndFilteredProducts.map((product) => {
-                      const isSelected = isBuildingQuote 
-                        ? quote.items.some(i => i.productId === product.productId)
-                        : selectedProducts.includes(product.productId);
+                      const isSelected = selectedProducts.includes(product.productId);
 
                       return (
                         <TableRow 
@@ -914,29 +856,6 @@ export default function AdminPage() {
                               />
                           </TableCell>
                           {visibleProductKeys.map(key => {
-                            if (key === 'qtyForQuote') {
-                              const quoteItem = quote.items.find(i => i.productId === product.productId);
-                              return (
-                                <TableCell key={key}>
-                                  <Input 
-                                    type="number"
-                                    min="0"
-                                    value={quoteItem?.quantity || 0}
-                                    onChange={(e) => handleQtyChange(product.productId, e.target.value)}
-                                    className="w-20"
-                                  />
-                                </TableCell>
-                              );
-                            }
-                            if (key === 'quoteTotal') {
-                               const qItem = quote.items.find(i => i.productId === product.productId);
-                               const quoteTotal = (qItem?.quantity || 0) * (product.price || 0);
-                               return (
-                                 <TableCell key={key} className="text-right">
-                                    {quoteTotal > 0 ? `₹${quoteTotal.toFixed(2)}` : '-'}
-                                  </TableCell>
-                               )
-                            }
                             return (
                               <TableCell key={key} className={key === 'productId' ? 'font-mono text-xs' : ''}>
                                  {String(product[key as keyof Product] ?? '')}
