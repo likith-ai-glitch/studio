@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useProducts } from '@/context/product-context';
 import { ProductCard } from '@/components/product-card';
 import { Input } from '@/components/ui/input';
-import { Loader2 } from 'lucide-react';
+import { Loader2, BookCopy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -27,15 +27,28 @@ export default function Home() {
     return allProducts.filter(p => p.status === 'Available').slice(0, 4);
   }, [allProducts]);
 
+  const scrollToPriceBook = () => {
+    const element = document.getElementById('price-book-section');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="flex flex-col gap-12">
       <section className="relative bg-card p-8 rounded-lg shadow-lg overflow-hidden flex items-center min-h-[400px]">
         <div className="z-10 relative md:w-1/2 text-center md:text-left">
             <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary mb-4">Welcome to Shopstream</h1>
             <p className="text-lg md:text-xl text-muted-foreground mb-6">Your one-stop shop for everything you need. Discover high-quality products at unbeatable prices.</p>
-            <Button size="lg" asChild>
-                <Link href="#all-products">Start Shopping</Link>
-            </Button>
+            <div className="flex flex-wrap gap-4 justify-center md:justify-start">
+                <Button size="lg" asChild>
+                    <Link href="#all-products">Start Shopping</Link>
+                </Button>
+                <Button size="lg" variant="outline" onClick={scrollToPriceBook} className="bg-background/50 backdrop-blur-sm">
+                    <BookCopy className="mr-2 h-5 w-5" />
+                    Price Book
+                </Button>
+            </div>
         </div>
          <div className="absolute inset-0 z-0 opacity-20">
             <Image
@@ -92,7 +105,7 @@ export default function Home() {
         </section>
       </div>
 
-      <div className="pt-12 border-t">
+      <div id="price-book-section" className="pt-12 border-t">
         <PriceBookTable />
       </div>
     </div>
