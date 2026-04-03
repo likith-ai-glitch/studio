@@ -48,7 +48,6 @@ import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { PriceBookTable } from '@/components/price-book-table';
 
 export default function AdminPage() {
   const { 
@@ -890,8 +889,6 @@ export default function AdminPage() {
             )}
         </CardContent>
       </Card>
-      
-      <PriceBookTable />
     </div>
   );
 }
