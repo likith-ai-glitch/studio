@@ -1,4 +1,3 @@
-
 'use client';
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
@@ -27,7 +26,7 @@ interface ProductContextType {
   addProduct: (productData: ProductFormValues) => Promise<void>;
   addProductsBulk: (productData: Record<string, any>[]) => Promise<void>;
   updateProduct: (productData: ProductFormValues, originalProductId?: string) => Promise<void>;
-  updateProductField: (productId: string, field: string, value: any) => Promise<void>;
+  updateProductField: (productId: string, field: string | Record<string, any>, value?: any) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
   getProduct: (productId: string) => Promise<Product | undefined>;
   addColumn: (columnName: string) => Promise<void>;
@@ -335,19 +334,22 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const updateProductField = async (productId: string, field: string, value: any) => {
+  const updateProductField = async (productId: string, field: string | Record<string, any>, value?: any) => {
     const docRef = doc(db, 'products', productId);
     try {
-        await updateDoc(docRef, { [field]: value });
+        const updates = typeof field === 'string' ? { [field]: value } : field;
+        await updateDoc(docRef, updates);
+        
+        const fieldName = typeof field === 'string' ? field : 'multiple fields';
          toast({
             title: 'Product Updated',
-            description: `Successfully updated ${field}.`,
+            description: `Successfully updated ${fieldName}.`,
         });
     } catch (error) {
         console.error("Error updating product field: ", error);
         toast({
             title: 'Error',
-            description: `Failed to update ${field}.`,
+            description: `Failed to update product.`,
             variant: 'destructive',
         });
         throw error;

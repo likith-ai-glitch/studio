@@ -66,9 +66,13 @@ export function PriceBookTable() {
 
   const debouncedUpdate = useMemo(
     () =>
-      debounce(async (productId: string, field: string, value: number) => {
+      debounce(async (productId: string, field: string, value: number, activePriceList?: string) => {
         try {
-          await updateProductField(productId, field, value);
+          const updates: Record<string, any> = { [field]: value };
+          if (activePriceList === field) {
+            updates.price = value;
+          }
+          await updateProductField(productId, updates);
         } catch (error: any) {
           toast({
             title: 'Error updating price',
@@ -80,16 +84,16 @@ export function PriceBookTable() {
     [updateProductField, toast]
   );
 
-  const handlePriceChange = (productId: string, field: string, value: string) => {
+  const handlePriceChange = (productId: string, field: string, value: string, activePriceList: string) => {
     const price = parseFloat(value);
     if (!isNaN(price) && price >= 0) {
-      debouncedUpdate(productId, field, price);
+      debouncedUpdate(productId, field, price, activePriceList);
     } else if (value === '') {
-      debouncedUpdate(productId, field, 0);
+      debouncedUpdate(productId, field, 0, activePriceList);
     }
   };
   
-  const handlePercentageChange = (productId: string, field: string, percentageStr: string) => {
+  const handlePercentageChange = (productId: string, field: string, percentageStr: string, activePriceList: string) => {
     const percentage = parseFloat(percentageStr);
     const product = products.find(p => p.productId === productId);
     if (!product || isNaN(percentage)) return;
@@ -104,7 +108,7 @@ export function PriceBookTable() {
     
     const basePrice = product.priceList1 || 0;
     const newPrice = basePrice * (1 + percentage / 100);
-    debouncedUpdate(productId, field, parseFloat(newPrice.toFixed(2)));
+    debouncedUpdate(productId, field, parseFloat(newPrice.toFixed(2)), activePriceList);
   }
 
   const handleActivePriceChange = async (productId: string, activePriceList: string) => {
@@ -113,8 +117,10 @@ export function PriceBookTable() {
 
     const newPrice = product[activePriceList as keyof Product] as number || 0;
 
-    await updateProductField(productId, 'price', newPrice);
-    await updateProductField(productId, 'activePriceList', activePriceList);
+    await updateProductField(productId, {
+        price: newPrice,
+        activePriceList: activePriceList
+    });
   };
   
   const handleRenameColumn = () => {
@@ -211,7 +217,7 @@ export function PriceBookTable() {
                               <Input
                                 type="number"
                                 defaultValue={product.priceList1 || '0'}
-                                onChange={(e) => handlePriceChange(product.productId, 'priceList1', e.target.value)}
+                                onChange={(e) => handlePriceChange(product.productId, 'priceList1', e.target.value, product.activePriceList)}
                                 className="w-28 text-right"
                                 placeholder="0.00"
                                 min="0"
@@ -232,7 +238,7 @@ export function PriceBookTable() {
                                 <Input
                                   type="number"
                                   value={percentages[product.productId]?.[field as string] ?? '0'}
-                                  onChange={(e) => handlePercentageChange(product.productId, field as string, e.target.value)}
+                                  onChange={(e) => handlePercentageChange(product.productId, field as string, e.target.value, product.activePriceList)}
                                   className="w-full text-right pr-6"
                                   placeholder="0"
                                   step="0.1"
