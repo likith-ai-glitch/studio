@@ -166,7 +166,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             });
             setAdminTableVisibleFields(finalAdminVisibility);
 
-            const allConfigurableHomePageFields = finalKeys.filter(k => !['productId', 'quoteTotal', 'qtyForQuote'].includes(k));
+            const allConfigurableHomePageFields = finalKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
             const homeSavedOrder = safelyParseJSON(HOME_PAGE_FIELD_ORDER_STORAGE_KEY, allConfigurableHomePageFields);
             const validHomeSavedOrder = homeSavedOrder.filter((k: string) => allConfigurableHomePageFields.includes(k));
             const newHomeKeys = allConfigurableHomePageFields.filter(k => !validHomeSavedOrder.includes(k));
@@ -275,11 +275,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const newDocRef = doc(db, 'products', productId);
         const oldDocRef = doc(db, 'products', originalProductId);
 
-        const newDocSnap = await getDoc(newDocRef);
-        if (newDocSnap.exists()) {
-          throw new Error(`Product with new ID "${productId}" already exists.`);
-        }
-        
         const oldDataSnap = await getDoc(oldDocRef);
         const oldData = oldDataSnap.data() || {};
         
@@ -289,6 +284,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         if (restOfData.price !== undefined) {
             const activeList = combinedData.activePriceList || 'priceList1';
             combinedData[activeList] = Number(restOfData.price);
+        } else {
+            // Check if active list was updated specifically in form
+            const activeList = combinedData.activePriceList || 'priceList1';
+            if (restOfData[activeList] !== undefined) {
+                combinedData.price = Number(restOfData[activeList]);
+            }
         }
 
         const newProductData: Record<string, any> = {};
@@ -313,19 +314,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
        const docRef = doc(db, 'products', productId);
        const dataToUpdate: Record<string, any> = {};
 
-       // Sync Logic: If price is updated, update active price list
-       if (restOfData.price !== undefined) {
-           const product = products.find(p => p.productId === productId);
-           const activeList = product?.activePriceList || 'priceList1';
-           dataToUpdate[activeList] = Number(restOfData.price);
-       }
-
+       // 1. Process all inputs from the form first
        Object.keys(restOfData).forEach(key => {
             const value = (restOfData as any)[key];
             if (value instanceof Date) {
                 dataToUpdate[key] = Timestamp.fromDate(value);
             } else if (value === null || value === undefined || value === '') {
-                // Don't delete numeric fields if they are empty strings from the form
                 if (!['price', 'priceList1', 'priceList2', 'priceList3', 'priceList4', 'priceList5'].includes(key)) {
                     dataToUpdate[key] = deleteField();
                 }
@@ -333,6 +327,19 @@ export function ProductProvider({ children }: { children: ReactNode }) {
                 dataToUpdate[key] = value;
             }
         });
+
+       // 2. NOW apply synchronization logic so it isn't overwritten by stale form data
+       const product = products.find(p => p.productId === productId);
+       const activeList = product?.activePriceList || 'priceList1';
+
+       // If 'price' input was modified, update the active price list
+       if (restOfData.price !== undefined) {
+           dataToUpdate[activeList] = Number(restOfData.price);
+       } 
+       // ELSE if the active price list input was modified, update the main 'price'
+       else if (restOfData[activeList] !== undefined) {
+           dataToUpdate.price = Number(restOfData[activeList]);
+       }
 
        await setDoc(docRef, dataToUpdate, { merge: true });
     }
@@ -343,15 +350,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     try {
         const updates = typeof field === 'string' ? { [field]: value } : { ...field };
         
-        // Sync Logic: If we update a price list, and it's active, update 'price'
         const product = products.find(p => p.productId === productId);
         const activeList = product?.activePriceList || 'priceList1';
 
         if (updates.price !== undefined) {
-            // Updating main price -> update active list
             updates[activeList] = Number(updates.price);
         } else {
-            // Check if any list being updated is the active one
             Object.keys(updates).forEach(key => {
                 if (key === activeList) {
                     updates.price = Number(updates[key]);
