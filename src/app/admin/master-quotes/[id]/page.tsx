@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -186,11 +185,11 @@ export default function MasterQuoteDetailsPage() {
       <Card>
           <CardHeader>
               <CardTitle className="flex justify-between items-center text-lg">
-                  Vendor Comparisons ({childQuotes.length})
+                  Child Quotes ({childQuotes.length})
                   {!isLocked && (
                       <div className="flex gap-2">
                           <Button size="sm" variant="outline" onClick={handleGoToDocumentsForLinking}>
-                              <Link2 className="h-4 w-4" />
+                              <Link2 className="mr-2 h-4 w-4" />
                           </Button>
                           <Button size="sm" onClick={handleCreateNewChild}>
                               <Plus className="h-4 w-4" />
@@ -198,9 +197,6 @@ export default function MasterQuoteDetailsPage() {
                       </div>
                   )}
               </CardTitle>
-              <CardDescription>
-                  Manage vendor quotes attached to this Master baseline.
-              </CardDescription>
           </CardHeader>
           <CardContent className="px-2">
               <AlertDialog>
