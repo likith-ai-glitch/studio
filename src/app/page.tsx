@@ -43,7 +43,7 @@ export default function Home() {
                   className={cn(view !== 'products' && "bg-background/50 backdrop-blur-sm")}
                 >
                     <ShoppingBag className="mr-2 h-5 w-5" />
-                    Start Shopping
+                    Products
                 </Button>
                 <Button 
                   size="lg" 
