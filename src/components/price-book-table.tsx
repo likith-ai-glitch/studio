@@ -66,14 +66,11 @@ export function PriceBookTable() {
 
   const debouncedUpdate = useMemo(
     () =>
-      debounce(async (productId: string, field: string, value: number, activePriceList?: string) => {
+      debounce(async (productId: string, field: string, value: number) => {
         try {
-          const updates: Record<string, any> = { [field]: value };
-          // Sync with the main unit price if this is the active price list
-          if (activePriceList === field) {
-            updates.price = value;
-          }
-          await updateProductField(productId, updates);
+          // The updateProductField logic in context now handles syncing
+          // based on activePriceList automatically.
+          await updateProductField(productId, { [field]: value });
         } catch (error: any) {
           toast({
             title: 'Error updating price',
@@ -85,16 +82,16 @@ export function PriceBookTable() {
     [updateProductField, toast]
   );
 
-  const handlePriceChange = (productId: string, field: string, value: string, activePriceList: string) => {
+  const handlePriceChange = (productId: string, field: string, value: string) => {
     const price = parseFloat(value);
     if (!isNaN(price) && price >= 0) {
-      debouncedUpdate(productId, field, price, activePriceList);
+      debouncedUpdate(productId, field, price);
     } else if (value === '') {
-      debouncedUpdate(productId, field, 0, activePriceList);
+      debouncedUpdate(productId, field, 0);
     }
   };
   
-  const handlePercentageChange = (productId: string, field: string, percentageStr: string, activePriceList: string) => {
+  const handlePercentageChange = (productId: string, field: string, percentageStr: string) => {
     const percentage = parseFloat(percentageStr);
     const product = products.find(p => p.productId === productId);
     if (!product || isNaN(percentage)) return;
@@ -109,23 +106,17 @@ export function PriceBookTable() {
     
     const basePrice = product.priceList1 || 0;
     const newPrice = basePrice * (1 + percentage / 100);
-    debouncedUpdate(productId, field, parseFloat(newPrice.toFixed(2)), activePriceList);
+    debouncedUpdate(productId, field, parseFloat(newPrice.toFixed(2)));
   }
 
   const handleActivePriceChange = async (productId: string, activePriceList: string) => {
-    const product = products.find(p => p.productId === productId);
-    if (!product) return;
-
-    const newPrice = product[activePriceList as keyof Product] as number || 0;
-
-    // Batch update both active state and the main price field
+    // Simply updating the activePriceList field in DB triggers the sync logic in context
     await updateProductField(productId, {
-        price: newPrice,
         activePriceList: activePriceList
     });
   };
   
-  const handleRenameColumn = () => {
+  const handleRenameColumnRequest = () => {
     if (columnToRename && newHeaderName.trim()) {
       renameColumn(columnToRename, newHeaderName.trim());
       setColumnToRename(null);
@@ -196,8 +187,8 @@ export function PriceBookTable() {
                               <RadioGroupItem value="priceList1" id={`${product.productId}-pl1`} />
                               <Input
                                 type="number"
-                                defaultValue={product.priceList1 || '0'}
-                                onChange={(e) => handlePriceChange(product.productId, 'priceList1', e.target.value, product.activePriceList)}
+                                value={product.priceList1 ?? ''}
+                                onChange={(e) => handlePriceChange(product.productId, 'priceList1', e.target.value)}
                                 className="w-28 text-right"
                                 placeholder="0.00"
                                 min="0"
@@ -218,7 +209,7 @@ export function PriceBookTable() {
                                 <Input
                                   type="number"
                                   value={percentages[product.productId]?.[field as string] ?? '0'}
-                                  onChange={(e) => handlePercentageChange(product.productId, field as string, e.target.value, product.activePriceList)}
+                                  onChange={(e) => handlePercentageChange(product.productId, field as string, e.target.value)}
                                   className="w-full text-right pr-6"
                                   placeholder="0"
                                   step="0.1"
@@ -265,7 +256,7 @@ export function PriceBookTable() {
                 <DialogClose asChild>
                     <Button variant="outline">Cancel</Button>
                 </DialogClose>
-                <Button onClick={handleRenameColumn}>Save</Button>
+                <Button onClick={handleRenameColumnRequest}>Save</Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>

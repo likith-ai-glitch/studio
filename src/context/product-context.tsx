@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, setDoc, deleteDoc, getDoc, writeBatch, getDocs, deleteField, Timestamp, addDoc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, getDoc, writeBatch, getDocs, deleteField, Timestamp, updateDoc } from 'firebase/firestore';
 import { products as initialProducts } from '@/lib/products';
 import type { Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -86,9 +86,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     
     setHeaderNames(safelyParseJSON(HEADER_NAMES_STORAGE_KEY, {
         'price': 'Unit Price',
-        'qtyForQuote': 'Qty for Quote', 
-        'quoteTotal': 'Quote Total',
-        'priceList1': 'Price List 1',
+        'priceList1': 'Standard Price',
         'priceList2': 'Price List 2',
         'priceList3': 'Price List 3',
         'priceList4': 'Price List 4',
@@ -106,7 +104,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
                 const { ...productData} = product;
                 const productWithDates: Record<string, any> = { 
                   ...productData, 
-                  qtyForQuote: 0, 
                   price: product.price || 0,
                   activePriceList: 'priceList1',
                 };
@@ -202,7 +199,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const newProduct: Record<string, any> = {
       ...productData,
       status: productData.status || 'Available',
-      qtyForQuote: 0,
       price: productData.price || 0,
       activePriceList: 'priceList1',
     };
@@ -219,6 +215,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             newProduct[priceField] = newProduct.price || 0;
         }
     }
+    
+    // Sync priceList1 with price if it's the default active list
+    newProduct['priceList1'] = newProduct.price;
     
     await setDoc(docRef, newProduct);
   };
@@ -245,20 +244,19 @@ export function ProductProvider({ children }: { children: ReactNode }) {
           if (!isNaN(date.getTime())) {
             newProduct[key] = Timestamp.fromDate(date);
           } else {
-             delete newProduct[key]; // Don't import invalid dates
+             delete newProduct[key];
           }
         }
-        if (key === 'price' || key === 'qtyForQuote' || key.startsWith('priceList')){
+        if (key === 'price' || key.startsWith('priceList')){
             const num = parseFloat(value);
             newProduct[key] = isNaN(num) ? 0 : num;
         }
       });
       
       if (!newProduct.status) newProduct.status = 'Available';
-      if (newProduct.qtyForQuote === undefined) newProduct.qtyForQuote = 0;
       if (!newProduct.activePriceList) newProduct.activePriceList = 'priceList1';
-      if(newProduct.price === undefined) newProduct.price = newProduct.priceList1 || 0;
-
+      if (newProduct.price === undefined) newProduct.price = newProduct.priceList1 || 0;
+      if (newProduct.priceList1 === undefined) newProduct.priceList1 = newProduct.price || 0;
 
       batch.set(docRef, newProduct, { merge: true });
     }
@@ -287,13 +285,19 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         
         const combinedData = { ...oldData, ...restOfData };
         
+        // Sync Logic: If price is updated, update active price list
+        if (restOfData.price !== undefined) {
+            const activeList = combinedData.activePriceList || 'priceList1';
+            combinedData[activeList] = Number(restOfData.price);
+        }
+
         const newProductData: Record<string, any> = {};
         Object.entries(combinedData).forEach(([key, value]) => {
             if (value !== null && value !== undefined && value !== '') {
                  if (value instanceof Date) {
                     newProductData[key] = Timestamp.fromDate(value);
                 } else if (value.toDate && typeof value.toDate === 'function'){
-                    newProductData[key] = value; // It's already a Timestamp
+                    newProductData[key] = value;
                 } else {
                     newProductData[key] = value;
                 }
@@ -309,12 +313,22 @@ export function ProductProvider({ children }: { children: ReactNode }) {
        const docRef = doc(db, 'products', productId);
        const dataToUpdate: Record<string, any> = {};
 
+       // Sync Logic: If price is updated, update active price list
+       if (restOfData.price !== undefined) {
+           const product = products.find(p => p.productId === productId);
+           const activeList = product?.activePriceList || 'priceList1';
+           dataToUpdate[activeList] = Number(restOfData.price);
+       }
+
        Object.keys(restOfData).forEach(key => {
             const value = (restOfData as any)[key];
             if (value instanceof Date) {
                 dataToUpdate[key] = Timestamp.fromDate(value);
             } else if (value === null || value === undefined || value === '') {
-                dataToUpdate[key] = deleteField();
+                // Don't delete numeric fields if they are empty strings from the form
+                if (!['price', 'priceList1', 'priceList2', 'priceList3', 'priceList4', 'priceList5'].includes(key)) {
+                    dataToUpdate[key] = deleteField();
+                }
             } else {
                 dataToUpdate[key] = value;
             }
@@ -327,7 +341,24 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const updateProductField = async (productId: string, field: string | Record<string, any>, value?: any) => {
     const docRef = doc(db, 'products', productId);
     try {
-        const updates = typeof field === 'string' ? { [field]: value } : field;
+        const updates = typeof field === 'string' ? { [field]: value } : { ...field };
+        
+        // Sync Logic: If we update a price list, and it's active, update 'price'
+        const product = products.find(p => p.productId === productId);
+        const activeList = product?.activePriceList || 'priceList1';
+
+        if (updates.price !== undefined) {
+            // Updating main price -> update active list
+            updates[activeList] = Number(updates.price);
+        } else {
+            // Check if any list being updated is the active one
+            Object.keys(updates).forEach(key => {
+                if (key === activeList) {
+                    updates.price = Number(updates[key]);
+                }
+            });
+        }
+
         await updateDoc(docRef, updates);
         
         const fieldName = typeof field === 'string' ? field : 'multiple fields';
