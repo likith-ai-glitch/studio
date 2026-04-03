@@ -85,6 +85,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     };
     
     setHeaderNames(safelyParseJSON(HEADER_NAMES_STORAGE_KEY, {
+        'price': 'Unit Price',
         'qtyForQuote': 'Qty for Quote', 
         'quoteTotal': 'Quote Total',
         'priceList1': 'Price List 1',
@@ -147,25 +148,14 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             
             const allKeys = new Set<string>();
             productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
-            allKeys.add('quoteTotal');
             
             const priceFields = ['priceList1', 'priceList2', 'priceList3', 'priceList4', 'priceList5', 'activePriceList'];
             priceFields.forEach(field => allKeys.add(field));
 
-            if (!allKeys.has('qtyForQuote')) {
-                const batch = writeBatch(db);
-                snapshot.docs.forEach(document => {
-                  const docRef = document.ref;
-                  batch.update(docRef, { qtyForQuote: 0 });
-                });
-                await batch.commit();
-                allKeys.add('qtyForQuote');
-            }
-
-            const fixedOrder = ['productId', 'name', 'brand', 'category', 'status', 'price', 'qtyForQuote', 'quoteTotal', ...priceFields, 'startDate', 'lastUpdatedDate'];
+            const fixedOrder = ['productId', 'name', 'brand', 'category', 'status', 'price', ...priceFields, 'startDate', 'lastUpdatedDate'];
             
             const savedOrder = safelyParseJSON(COLUMN_ORDER_STORAGE_KEY, []);
-            const validSavedOrder = savedOrder.filter((k: string) => allKeys.has(k) || k === 'qtyForQuote' || k === 'quoteTotal');
+            const validSavedOrder = savedOrder.filter((k: string) => allKeys.has(k));
             const newKeys = Array.from(allKeys).filter(k => !validSavedOrder.includes(k) && !fixedOrder.includes(k));
             const combinedKeys = [...fixedOrder.filter(k => allKeys.has(k)), ...validSavedOrder.filter(k => !fixedOrder.includes(k)), ...newKeys];
             const finalKeys = [...new Set(combinedKeys)];
@@ -179,7 +169,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             });
             setAdminTableVisibleFields(finalAdminVisibility);
 
-            const allConfigurableHomePageFields = finalKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
+            const allConfigurableHomePageFields = finalKeys.filter(k => !['productId', 'quoteTotal', 'qtyForQuote'].includes(k));
             const homeSavedOrder = safelyParseJSON(HOME_PAGE_FIELD_ORDER_STORAGE_KEY, allConfigurableHomePageFields);
             const validHomeSavedOrder = homeSavedOrder.filter((k: string) => allConfigurableHomePageFields.includes(k));
             const newHomeKeys = allConfigurableHomePageFields.filter(k => !validHomeSavedOrder.includes(k));

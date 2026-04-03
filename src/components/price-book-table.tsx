@@ -69,6 +69,7 @@ export function PriceBookTable() {
       debounce(async (productId: string, field: string, value: number, activePriceList?: string) => {
         try {
           const updates: Record<string, any> = { [field]: value };
+          // Sync with the main unit price if this is the active price list
           if (activePriceList === field) {
             updates.price = value;
           }
@@ -117,6 +118,7 @@ export function PriceBookTable() {
 
     const newPrice = product[activePriceList as keyof Product] as number || 0;
 
+    // Batch update both active state and the main price field
     await updateProductField(productId, {
         price: newPrice,
         activePriceList: activePriceList
@@ -137,37 +139,15 @@ export function PriceBookTable() {
         <TableHead key={field} className="text-right min-w-[250px]">
             <div className="flex items-center justify-end gap-2">
                 <span>{headerText}</span>
-                <Dialog open={columnToRename === field} onOpenChange={(isOpen) => !isOpen && setColumnToRename(null)}>
-                    <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
-                            setColumnToRename(field);
-                            setNewHeaderName(headerText);
-                        }}>
-                            <Pencil className="h-3 w-3" />
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Rename Column</DialogTitle>
-                            <DialogDescription>
-                                Change the display name for the &quot;{field}&quot; column.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="py-4">
-                            <Input
-                                value={newHeaderName}
-                                onChange={(e) => setNewHeaderName(e.target.value)}
-                                placeholder="Enter new column name"
-                            />
-                        </div>
-                        <DialogFooter>
-                            <DialogClose asChild>
-                                <Button variant="outline">Cancel</Button>
-                            </DialogClose>
-                            <Button onClick={handleRenameColumn}>Save</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                <button 
+                    className="p-1 hover:bg-muted rounded-full text-muted-foreground transition-colors"
+                    onClick={() => {
+                        setColumnToRename(field);
+                        setNewHeaderName(headerText);
+                    }}
+                >
+                    <Pencil className="h-3 w-3" />
+                </button>
             </div>
         </TableHead>
     );
@@ -264,6 +244,31 @@ export function PriceBookTable() {
           </div>
         )}
       </CardContent>
+
+      {/* Rename Column Dialog */}
+      <Dialog open={!!columnToRename} onOpenChange={(isOpen) => !isOpen && setColumnToRename(null)}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Rename Column</DialogTitle>
+                <DialogDescription>
+                    Change the display name for this price list.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+                <Input
+                    value={newHeaderName}
+                    onChange={(e) => setNewHeaderName(e.target.value)}
+                    placeholder="Enter new column name"
+                />
+            </div>
+            <DialogFooter>
+                <DialogClose asChild>
+                    <Button variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button onClick={handleRenameColumn}>Save</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
