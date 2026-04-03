@@ -53,6 +53,8 @@ const HOME_PAGE_FIELD_ORDER_STORAGE_KEY = 'shopstream_homepage_field_order';
 const HOME_PAGE_VISIBLE_FIELDS_STORAGE_KEY = 'shopstream_homepage_visible_fields';
 const ADMIN_TABLE_VISIBLE_FIELDS_STORAGE_KEY = 'shopstream_admintable_visible_fields';
 
+// Internal/Legacy fields that should NEVER appear in UI column lists or exports
+const UNWANTED_FIELDS = ['activePriceList', 'qtyForQuote', 'quoteTotal', 'id'];
 
 export function ProductProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
@@ -144,15 +146,21 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             setProducts(productsData);
             
             const allKeys = new Set<string>();
-            productsData.forEach(p => Object.keys(p).forEach(k => allKeys.add(k)));
+            productsData.forEach(p => {
+                Object.keys(p).forEach(k => {
+                    if (!UNWANTED_FIELDS.includes(k)) {
+                        allKeys.add(k);
+                    }
+                });
+            });
             
-            const priceFields = ['priceList1', 'priceList2', 'priceList3', 'priceList4', 'priceList5', 'activePriceList'];
+            const priceFields = ['priceList1', 'priceList2', 'priceList3', 'priceList4', 'priceList5'];
             priceFields.forEach(field => allKeys.add(field));
 
             const fixedOrder = ['productId', 'name', 'brand', 'category', 'status', 'price', ...priceFields, 'startDate', 'lastUpdatedDate'];
             
             const savedOrder = safelyParseJSON(COLUMN_ORDER_STORAGE_KEY, []);
-            const validSavedOrder = savedOrder.filter((k: string) => allKeys.has(k));
+            const validSavedOrder = savedOrder.filter((k: string) => allKeys.has(k) && !UNWANTED_FIELDS.includes(k));
             const newKeys = Array.from(allKeys).filter(k => !validSavedOrder.includes(k) && !fixedOrder.includes(k));
             const combinedKeys = [...fixedOrder.filter(k => allKeys.has(k)), ...validSavedOrder.filter(k => !fixedOrder.includes(k)), ...newKeys];
             const finalKeys = [...new Set(combinedKeys)];
@@ -166,7 +174,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             });
             setAdminTableVisibleFields(finalAdminVisibility);
 
-            const allConfigurableHomePageFields = finalKeys.filter(k => !['productId', 'quoteTotal'].includes(k));
+            const allConfigurableHomePageFields = finalKeys.filter(k => !['productId', ...UNWANTED_FIELDS].includes(k));
             const homeSavedOrder = safelyParseJSON(HOME_PAGE_FIELD_ORDER_STORAGE_KEY, allConfigurableHomePageFields);
             const validHomeSavedOrder = homeSavedOrder.filter((k: string) => allConfigurableHomePageFields.includes(k));
             const newHomeKeys = allConfigurableHomePageFields.filter(k => !validHomeSavedOrder.includes(k));
@@ -280,16 +288,11 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         
         const combinedData = { ...oldData, ...restOfData };
         
-        // Sync Logic: If price is updated, update active price list
+        const activeList = combinedData.activePriceList || 'priceList1';
         if (restOfData.price !== undefined) {
-            const activeList = combinedData.activePriceList || 'priceList1';
             combinedData[activeList] = Number(restOfData.price);
-        } else {
-            // Check if active list was updated specifically in form
-            const activeList = combinedData.activePriceList || 'priceList1';
-            if (restOfData[activeList] !== undefined) {
-                combinedData.price = Number(restOfData[activeList]);
-            }
+        } else if (restOfData[activeList] !== undefined) {
+            combinedData.price = Number(restOfData[activeList]);
         }
 
         const newProductData: Record<string, any> = {};
@@ -314,7 +317,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
        const docRef = doc(db, 'products', productId);
        const dataToUpdate: Record<string, any> = {};
 
-       // 1. Process all inputs from the form first
        Object.keys(restOfData).forEach(key => {
             const value = (restOfData as any)[key];
             if (value instanceof Date) {
@@ -328,15 +330,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             }
         });
 
-       // 2. NOW apply synchronization logic so it isn't overwritten by stale form data
        const product = products.find(p => p.productId === productId);
        const activeList = product?.activePriceList || 'priceList1';
 
-       // If 'price' input was modified, update the active price list
        if (restOfData.price !== undefined) {
            dataToUpdate[activeList] = Number(restOfData.price);
        } 
-       // ELSE if the active price list input was modified, update the main 'price'
        else if (restOfData[activeList] !== undefined) {
            dataToUpdate.price = Number(restOfData[activeList]);
        }
@@ -436,6 +435,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
 
   const addColumn = async (columnName: string) => {
+    if (UNWANTED_FIELDS.includes(columnName)) return;
     const batch = writeBatch(db);
     const snapshot = await getDocs(productsCollectionRef);
     snapshot.forEach(doc => {
@@ -467,8 +467,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const setColumnOrder = (order: string[]) => {
     try {
       if (typeof window !== 'undefined') {
-        window.localStorage.setItem(COLUMN_ORDER_STORAGE_KEY, JSON.stringify(order));
-        setProductKeys(order);
+        const filteredOrder = order.filter(k => !UNWANTED_FIELDS.includes(k));
+        window.localStorage.setItem(COLUMN_ORDER_STORAGE_KEY, JSON.stringify(filteredOrder));
+        setProductKeys(filteredOrder);
       }
     } catch (error) {
       console.error('Failed to save column order to localStorage', error);
@@ -503,8 +504,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const setHomePageOrder = (order: string[]) => {
     try {
        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(HOME_PAGE_FIELD_ORDER_STORAGE_KEY, JSON.stringify(order));
-          setHomePageFieldOrder(order);
+          const filteredOrder = order.filter(k => !UNWANTED_FIELDS.includes(k));
+          window.localStorage.setItem(HOME_PAGE_FIELD_ORDER_STORAGE_KEY, JSON.stringify(filteredOrder));
+          setHomePageFieldOrder(filteredOrder);
        }
     } catch (error) {
       console.error('Failed to save home page field order to localStorage', error);
