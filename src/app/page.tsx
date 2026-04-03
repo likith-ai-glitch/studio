@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useProducts } from '@/context/product-context';
 import { ProductCard } from '@/components/product-card';
 import { Input } from '@/components/ui/input';
@@ -10,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Product } from '@/lib/types';
+import { PriceBookTable } from '@/components/price-book-table';
 
 export default function Home() {
   const { products: allProducts, loading: productsLoading } = useProducts();
@@ -90,6 +90,10 @@ export default function Home() {
             </div>
           )}
         </section>
+      </div>
+
+      <div className="pt-12 border-t">
+        <PriceBookTable />
       </div>
     </div>
   );
